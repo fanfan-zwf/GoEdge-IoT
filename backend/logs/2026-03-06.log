@@ -1,0 +1,83 @@
+2026/03/06 14:05:32.264249 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/06 14:05:32.264755 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/06 14:05:32.289394 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 14:05:32.291967 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 14:05:32.302993 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/06 14:05:32.303188 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/06 14:05:32.303384 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/06 14:05:37.119322 /home/ubuntu/桌面/IOT-db-server/backend/db/influxdb/influxdb.go:278: Post "http://192.168.220.40:8086/api/v2/write?bucket=my2&org=group&precision=ns": dial tcp 192.168.220.40:8086: connect: no route to host
+2026/03/06 14:13:04.897383 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/06 14:13:04.898114 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/06 14:13:04.907801 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 14:13:04.909927 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 14:13:04.913599 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/06 14:13:04.913671 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/06 14:13:04.913756 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/06 14:13:06.254655 /home/ubuntu/桌面/IOT-db-server/backend/db/mysql/user.go:70: sql: no rows in result set
+2026/03/06 14:13:53.918841 /home/ubuntu/桌面/IOT-db-server/backend/db/mysql/user.go:527: Error 1048 (23000): Column 'Terminal_Uuid' cannot be null
+2026/03/06 14:14:24.009623 /home/ubuntu/桌面/IOT-db-server/backend/db/mysql/user.go:527: Error 1048 (23000): Column 'Terminal_Uuid' cannot be null
+2026/03/06 14:40:57.631089 /home/ubuntu/桌面/IOT-db-server/backend/db/mysql/user.go:527: Error 1048 (23000): Column 'Terminal_Uuid' cannot be null
+2026/03/06 14:41:36.766666 /home/ubuntu/桌面/IOT-db-server/backend/db/mysql/user.go:875: Error 1146 (42S02): Table 'go-db-server.Set' doesn't exist
+2026/03/06 15:52:13.081518 /home/ubuntu/桌面/IOT-db-server/backend/db/redis/logic.go:64: ERROR redis: nil
+2026/03/06 15:55:12.836108 /home/ubuntu/桌面/IOT-db-server/backend/db/redis/logic.go:64: ERROR redis: nil
+2026/03/06 16:07:19.087002 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/06 16:07:19.087843 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/06 16:07:19.097105 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:07:19.100241 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:07:19.108291 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/06 16:07:19.108517 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/06 16:07:19.109102 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/06 16:09:45.104385 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/06 16:09:45.104937 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/06 16:09:45.109740 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:09:45.111334 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:09:45.115675 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/06 16:09:45.115812 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/06 16:09:45.115960 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/06 16:14:34.022962 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/06 16:14:34.023475 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/06 16:14:34.028662 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:14:34.030163 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:14:34.032238 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/06 16:14:34.032671 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/06 16:14:34.032842 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/06 16:20:20.254481 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/06 16:20:20.254991 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/06 16:20:20.259986 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:229: listen tcp 0.0.0.0:8090: bind: address already in use
+2026/03/06 16:20:28.431267 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/06 16:20:28.431758 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/06 16:20:28.436337 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:20:28.439952 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:20:28.445186 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/06 16:20:28.445331 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/06 16:20:28.445544 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/06 16:23:21.480229 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/06 16:23:21.480969 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/06 16:23:21.484773 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:23:21.487639 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:23:21.489783 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/06 16:23:21.490127 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/06 16:23:21.490360 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/06 16:23:59.048546 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/06 16:23:59.049088 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/06 16:23:59.055952 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:23:59.057984 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:23:59.063569 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/06 16:23:59.063696 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/06 16:23:59.063890 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/06 16:26:40.613958 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/06 16:26:40.614349 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/06 16:26:40.618389 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:26:40.619570 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:26:40.623045 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/06 16:26:40.623181 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/06 16:26:40.623295 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/06 16:27:40.799446 /home/ubuntu/桌面/IOT-db-server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/06 16:27:40.799951 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/06 16:27:40.804396 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:27:40.805781 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/06 16:27:40.809768 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/06 16:27:40.809901 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/06 16:27:40.810057 /home/ubuntu/桌面/IOT-db-server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/06 17:10:35.333638 /home/ubuntu/桌面/IOT-db-server/backend/db/redis/logic.go:64: ERROR redis: nil
+2026/03/06 17:12:40.569641 /home/ubuntu/桌面/IOT-db-server/backend/db/redis/logic.go:64: ERROR redis: nil
