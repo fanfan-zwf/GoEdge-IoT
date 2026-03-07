@@ -70,11 +70,6 @@ type Config_type struct {
 		Address string `yaml:"address"`
 	} `yaml:"RPC"` // RPC
 
-	SET struct {
-		User_Access_Token_Time uint `yaml:"User_Access_Token_Time"`
-		Api_Access_Token_Time  uint `yaml:"Api_Access_Token_Time"`
-	} `yaml:"SET"` // RPC
-
 }
 
 var Config Config_type
