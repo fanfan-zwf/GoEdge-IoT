@@ -6,7 +6,7 @@ import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import VueSetupExtend from 'vite-plugin-vue-setup-extend'
 import tailwindcss from '@tailwindcss/vite'
-
+ 
 
 
 import AutoImport from 'unplugin-auto-import/vite'
@@ -20,12 +20,7 @@ export default defineConfig({
   optimizeDeps: {
     include: ['amfe-flexible']
   },
-  plugins: [
-    require('postcss-pxtorem')({
-      rootValue: 37.5, // 设计稿 375px 基准
-      propList: ['*'], // 所有属性转 rem
-      selectorBlackList: [] // 无需忽略的选择器
-    }),
+  plugins: [ 
     vue(),
     vueJsx(),
     vueDevTools(),
