@@ -3,6 +3,7 @@ package web
 import (
 	"main/Init"
 	db_redis "main/db/redis"
+	"net/http"
 
 	"crypto/rand"
 	"fmt"
@@ -128,17 +129,18 @@ func token_use() gin.HandlerFunc {
 			// 3. 获取并验证token
 			accessToken := ctx.Request.Header.Get("F_Access_Token")
 			if accessToken == "" {
-				ctx.Set("Response", []any{401, "缺少访问令牌"})
+				ctx.Set("Response", []any{http.StatusUnauthorized, "缺少访问令牌"})
 				ctx.Abort()
 				return
 			}
 
 			Access_Token_redis, err := db_redis.Access_Token_Query(accessToken)
 			if err != nil {
+				log.Printf("读取redis中的F_Access_Token失败:%v F_Access_Token:%s", err, accessToken)
 				fmt.Print(err, "token无效\n")
 			}
 			if err == redis.Nil {
-				ctx.Set("Response", []any{401, "访问令牌过期或无效"})
+				ctx.Set("Response", []any{http.StatusUnauthorized, "访问令牌过期或无效"})
 				ctx.Abort()
 				return
 			} else if err != nil {
@@ -155,14 +157,14 @@ func token_use() gin.HandlerFunc {
 			// 3. 获取并验证token
 			accessToken := ctx.Request.Header.Get("F_Api_Access_Token")
 			if accessToken == "" {
-				ctx.Set("Response", []any{401, "缺少访问令牌"})
+				ctx.Set("Response", []any{http.StatusUnauthorized, "缺少访问令牌"})
 				ctx.Abort()
 				return
 			}
 
 			Access_Token_redis, err := db_redis.Api_Access_Token_Query(accessToken)
 			if err == redis.Nil {
-				ctx.Set("Response", []any{401, "访问令牌过期或无效"})
+				ctx.Set("Response", []any{http.StatusUnauthorized, "访问令牌过期或无效"})
 				ctx.Abort()
 				return
 			} else if err != nil {
@@ -173,7 +175,7 @@ func token_use() gin.HandlerFunc {
 
 			var ClientIP = ctx.ClientIP()
 			if Access_Token_redis.Allow_Ip != ClientIP && ClientIP != "" {
-				ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+				ctx.Set("Response", []any{http.StatusForbidden, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
 				return
 			}
 
@@ -181,7 +183,7 @@ func token_use() gin.HandlerFunc {
 			ctx.Set("Api_Access_Token_redis", Access_Token_redis)
 			ctx.Next()
 		} else {
-			ctx.Set("Response", []any{404, "未知类型"})
+			ctx.Set("Response", []any{http.StatusNotFound, "未知类型"})
 			ctx.Abort()
 		}
 	}

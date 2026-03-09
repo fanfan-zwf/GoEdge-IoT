@@ -1,0 +1,76 @@
+2026/03/09 13:42:11.093993 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/web.go:219: INFO api0.0.0.0:8090
+2026/03/09 13:42:11.098485 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/09 13:42:11.161513 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 13:42:11.163357 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 13:42:11.178679 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/09 13:42:11.180824 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/09 13:42:11.183597 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/09 13:42:16.300140 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/db/influxdb/influxdb.go:278: Post "http://192.168.220.40:8086/api/v2/write?bucket=my2&org=group&precision=ns": dial tcp 192.168.220.40:8086: connect: no route to host
+2026/03/09 13:42:24.040210 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/db/mysql/user.go:70: sql: no rows in result set
+2026/03/09 13:42:55.096419 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/db/influxdb/influxdb.go:278: Post "http://192.168.220.40:8086/api/v2/write?bucket=my2&org=group&precision=ns": context deadline exceeded
+2026/03/09 13:43:02.770086 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Rec_Yun_Cloud.go:125: INFO 驱动ID:1,驱动名称：asd 重新连接:pingresp not received, disconnecting
+2026/03/09 13:43:07.771711 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Rec_Yun_Cloud.go:145: INFO 驱动ID:1,驱动名称：asd 重新连接成功
+2026/03/09 14:40:30.735626 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/web.go:220: INFO api0.0.0.0:8090
+2026/03/09 14:40:30.737048 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/09 14:40:30.740655 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 14:40:30.742647 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 14:40:30.745280 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/09 14:40:30.745386 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/09 14:40:30.745636 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/09 14:47:14.923769 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/web.go:220: INFO api0.0.0.0:8090
+2026/03/09 14:47:14.924539 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/09 14:47:14.927048 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 14:47:14.929026 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 14:47:14.932707 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/09 14:47:14.932792 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/09 14:47:14.932883 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/09 14:48:18.145830 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/db/redis/logic.go:109: ERROR redis: nil
+2026/03/09 14:51:23.259684 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/web.go:220: INFO api0.0.0.0:8090
+2026/03/09 14:51:23.260462 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/09 14:51:23.263694 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 14:51:23.265667 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 14:51:23.269631 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/09 14:51:23.270101 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/09 14:51:23.270338 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/09 14:51:27.315095 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/db/redis/logic.go:109: ERROR redis: nil
+2026/03/09 14:55:45.272631 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/web.go:221: INFO api0.0.0.0:8090
+2026/03/09 14:55:45.273037 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/09 14:55:45.278831 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 14:55:45.281698 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 14:55:45.286211 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/09 14:55:45.286524 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/09 14:55:45.286797 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/09 14:55:50.551829 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/db/redis/logic.go:109: ERROR redis: nil
+2026/03/09 14:55:50.552124 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/web.go:139: 读取redis中的F_Access_Token失败:redis: nil F_Access_Token:1773034946918944171wzechDmPBUERbVrjnklZfqkVtsSbYoHrbidfqrBkUqQAmUKYNnhzWwXPqmjnfFjYhcFlgGjijZrLZjIqtOluybiWQfczgVbKjwxiYixCcvUSlZISqhNOcJGQWllYUBxkHPPtbMvMDEsSvZSFOWOPnqeqRLOBwcNOXfrqwLjGhYIjtVHuwKgrjArWPNIBNtdSpthaVcVn
+2026/03/09 14:56:54.010873 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/gui.go:685: 解析到客户端订阅标签: map[ads:true]
+2026/03/09 14:56:54.011362 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/gui.go:708: 客户端[0xc000054700]连接成功，订阅标签: map[ads:true]
+2026/03/09 14:57:01.820906 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/gui.go:725: 客户端[0xc000054700]断开连接: websocket: close 1005 (no status)
+2026/03/09 14:57:01.821141 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/gui.go:835: 客户端[0xc000054700]已清理
+2026/03/09 14:57:30.867276 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/gui.go:685: 解析到客户端订阅标签: map[hezi_1:true 测试modbus_tcp/点位11a:true]
+2026/03/09 14:57:30.867827 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/gui.go:708: 客户端[0xc0000557c0]连接成功，订阅标签: map[hezi_1:true 测试modbus_tcp/点位11a:true]
+2026/03/09 14:58:56.756384 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/web.go:221: INFO api0.0.0.0:8090
+2026/03/09 14:58:56.757154 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/09 14:58:56.761760 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 14:58:56.763768 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 14:58:56.766589 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/09 14:58:56.766712 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/09 14:58:56.766791 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/09 15:01:07.329608 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/web.go:221: INFO api0.0.0.0:8090
+2026/03/09 15:01:07.332763 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/09 15:01:07.335435 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 15:01:07.336928 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 15:01:07.338683 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/09 15:01:07.338893 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/09 15:01:07.339484 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/09 15:01:10.650502 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/gui.go:685: 解析到客户端订阅标签: map[hezi_1:true 测试modbus_tcp/点位11a:true]
+2026/03/09 15:01:10.651535 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/gui.go:708: 客户端[0xc0003c0720]连接成功，订阅标签: map[hezi_1:true 测试modbus_tcp/点位11a:true]
+2026/03/09 15:09:39.890602 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/web.go:221: INFO api0.0.0.0:8090
+2026/03/09 15:09:39.892791 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
+2026/03/09 15:09:39.896390 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 15:09:39.898730 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
+2026/03/09 15:09:39.901213 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
+2026/03/09 15:09:39.901460 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
+2026/03/09 15:09:39.901565 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
+2026/03/09 15:09:57.753986 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/gui.go:695: 解析到客户端订阅标签: [//hezi_1//测试modbus_tcp/点位11a]
+2026/03/09 15:09:57.754456 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/gui.go:723: 客户端[0xc000346560]连接成功，订阅标签: map[//hezi_1//测试modbus_tcp/点位11a:true]
+2026/03/09 15:09:57.829733 /home/ubuntu/桌面/Iot/Iot-Db-Server/backend/web/gui.go:817: 客户端[0xc000346560]推送成功: [{"Id":34,"Tag":"//hezi_1//测试modbus_tcp/点位11a","Msg":"ok","Type":"int","Value":155,"Time":"2026-03-09T15:09:57.832457765+08:00","Last_Value":154,"Last_Time":"2026-03-09T15:09:56.702088826+08:00"}]

@@ -6,9 +6,14 @@
 package web
 
 import (
+	"encoding/json"
+	"log"
 	"main/Init"
+	"main/db/db_point"
 	db_mysql "main/db/mysql"
 	db_redis "main/db/redis"
+	"net/http"
+	"sync"
 
 	"database/sql"
 	"fmt"
@@ -18,6 +23,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"github.com/gorilla/websocket"
 )
 
 /*
@@ -588,7 +594,270 @@ func User_Set_Discontinued(ctx *gin.Context) {
 	ctx.Set("Response", []any{200, "ok"})
 }
 
+/*
+***************前端web socket实时推送***************
+ */
+// -------------------------- 1. 核心结构体（和你的业务对齐） --------------------------
+// Update_Value_type 点位更新数据结构
+type Update_Value_type struct {
+	Tag   string  `json:"tag"`   // 点位标签（和客户端订阅的Tag完全匹配）
+	Value float64 `json:"value"` // 点位值
+	Time  string  `json:"time"`  // 更新时间
+}
+
+// WSClient WebSocket客户端结构体
+type WSClient struct {
+	conn    *websocket.Conn
+	Points  map[string]bool // 订阅的Tag集合
+	closeCh chan struct{}   // 关闭信号
+	writeMu sync.Mutex      // 单个客户端写锁
+}
+
+// -------------------------- 2. 全局配置 & 变量 --------------------------
+var (
+	// 修复WebSocket升级器（解决521错误核心）
+	upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			// 生产环境建议限定具体域名，示例：return r.Header.Get("Origin") == "http://你的前端域名"
+			return true // 允许所有跨域，解决前端跨域导致的升级失败
+		},
+		ReadBufferSize:  4096, // 增大缓冲区，适配中文Tag
+		WriteBufferSize: 4096,
+		Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {
+			// 自定义WebSocket升级错误，避免返回521
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte(reason.Error()))
+		},
+	}
+
+	// 客户端管理
+	web_socket_clients = make(map[*WSClient]struct{})
+	wsRWMu             sync.RWMutex // 读写锁
+
+	// 推送配置
+	writeTimeout = 5 * time.Second // 增大超时，适配网络波动
+	maxGoroutine = 100
+	pushChan     = make(chan pushTask, 2000) // 增大队列，适配高频推送
+)
+
+type pushTask struct {
+	client     *WSClient
+	updateList []db_point.Update_Value_type
+}
+
+// -------------------------- 3. 核心：适配你的路由的WebSocket处理函数 --------------------------
+// api_app_monitor_ws 对应你的实际路由 /Gui/v1.0/Monitor/ws
+func api_app_monitor_ws(ctx *gin.Context) {
+	// 1. 鉴权（替换为你的真实验证逻辑，示例保留token验证）
+
+	// 测试阶段可先注释鉴权，排查连接问题：
+	// if token != "valid-token-123456" {
+	// 	ctx.JSON(http.StatusUnauthorized, gin.H{"error": "token无效"})
+	// 	return
+	// }
+
+	// 2. 解析Tags参数（关键：处理中文、//分隔、URL编码）
+	tagsStr := ctx.Query("tags")
+	if tagsStr == "" {
+		ctx.Set("Response", []any{417, "请求无数据"})
+		return
+	}
+	// 解码URL编码的Tag（比如%E6%B5%8B%E8%AF%95 → 测试）
+	// decodedTags, err := url.QueryUnescape(tagsStr)
+	// if err != nil {
+	// 	log.Printf("Tags解码失败: %v", err)
+	// 	ctx.JSON(http.StatusBadRequest, gin.H{"error": "tags参数格式错误"})
+	// 	return
+	// }
+
+	// 解析//分隔的Tag（你的Tag格式：//hezi_1//测试modbus_tcp/点位11）
+	// 先去掉开头的//，再按//分割
+	// tagParts := strings.Split(strings.TrimPrefix(decodedTags, "//"), "//")
+	// tags := make(map[string]bool)
+	// for _, tag := range tagParts {
+	// 	tag = strings.TrimSpace(tag)
+	// 	if tag != "" {
+	// 		tags[tag] = true // 最终订阅的Tag：hezi_1、测试modbus_tcp/点位11
+	// 	}
+	// }
+
+	var tags_list []string
+
+	err := json.Unmarshal([]byte(tagsStr), &tags_list)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+	if len(tagsStr) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "未订阅任何有效标签"})
+		return
+	}
+	log.Printf("ERROR 解析到客户端订阅标签: %v", tags_list)
+
+	tags := make(map[string]bool)
+	for _, tag := range tags_list {
+		tags[tag] = true
+	}
+
+	// 3. 升级HTTP连接为WebSocket（解决521错误的核心步骤）
+	// 强制设置响应头，避免升级失败
+	ctx.Header("Upgrade", "websocket")
+	ctx.Header("Connection", "upgrade")
+	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, ctx.Writer.Header())
+	if err != nil {
+		log.Printf("ERROR WebSocket升级失败: %v", err)
+		// 返回明确的500错误，而非521
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "连接升级失败"})
+		return
+	}
+
+	// 4. 注册客户端
+	client := &WSClient{
+		conn:    conn,
+		Points:  tags,
+		closeCh: make(chan struct{}),
+	}
+	wsRWMu.Lock()
+	web_socket_clients[client] = struct{}{}
+	wsRWMu.Unlock()
+	log.Printf("ERROR 客户端[%p]连接成功，订阅标签: %v", client, tags)
+
+	// 5. 监听客户端断开（必须读取消息，否则连接会被立即断开）
+	go func() {
+		defer CloseWSClient(client)
+		// 设置读超时，避免阻塞
+		conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+		conn.SetPongHandler(func(string) error {
+			// 心跳响应：重置读超时
+			conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+			return nil
+		})
+
+		// 循环读取客户端消息（即使不处理，也要读）
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				log.Printf("ERROR 客户端[%p]断开连接: %v", client, err)
+				break
+			}
+		}
+	}()
+
+	// 6. 主动发送心跳（避免连接被网关/浏览器断开）
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				client.writeMu.Lock()
+				// 发送ping心跳
+				err := conn.WriteMessage(websocket.PingMessage, nil)
+				client.writeMu.Unlock()
+				if err != nil {
+					return
+				}
+			case <-client.closeCh:
+				return
+			}
+		}
+	}()
+}
+
+// -------------------------- 4. 推送逻辑（适配你的Tag格式） --------------------------
+func InitWSPushPool() {
+	for i := 0; i < maxGoroutine; i++ {
+		go func() {
+			for task := range pushChan {
+				processPushTask(task)
+			}
+		}()
+	}
+}
+
+func processPushTask(task pushTask) {
+	client := task.client
+	updateList := task.updateList
+
+	// 过滤客户端订阅的Tag（完全匹配）
+	var pushList []db_point.Update_Value_type
+	for _, update := range updateList {
+		if exist, ok := client.Points[update.Tag]; ok && exist {
+			pushList = append(pushList, update)
+		}
+	}
+	if len(pushList) == 0 {
+		return
+	}
+
+	// 序列化消息
+	msg, err := json.Marshal(pushList)
+	if err != nil {
+		log.Printf("ERROR 客户端[%p]JSON编码失败: %v", client, err)
+		return
+	}
+
+	// 安全写入连接
+	client.writeMu.Lock()
+	defer client.writeMu.Unlock()
+
+	select {
+	case <-client.closeCh:
+		return
+	default:
+	}
+
+	client.conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+	err = client.conn.WriteMessage(websocket.TextMessage, msg)
+	if err != nil {
+		log.Printf("ERROR 客户端[%p]推送失败: %v", client, err)
+		CloseWSClient(client)
+	}
+}
+
+func api_app_monitor_ws_Push(update_list []db_point.Update_Value_type) error {
+	wsRWMu.RLock()
+
+	clients := make([]*WSClient, 0, len(web_socket_clients))
+	for client := range web_socket_clients {
+		clients = append(clients, client)
+	}
+	wsRWMu.RUnlock()
+
+	for _, client := range clients {
+		select {
+		case pushChan <- pushTask{client: client, updateList: update_list}:
+		default:
+			log.Printf("ERROR 推送队列满，客户端[%p]任务丢弃", client)
+		}
+	}
+	return nil
+}
+
+// -------------------------- 5. 客户端管理 --------------------------
+func CloseWSClient(client *WSClient) {
+	select {
+	case <-client.closeCh:
+		return
+	default:
+		close(client.closeCh)
+		_ = client.conn.Close()
+		wsRWMu.Lock()
+		delete(web_socket_clients, client)
+		wsRWMu.Unlock()
+		log.Printf("ERROR 客户端[%p]已清理", client)
+	}
+}
+
+func init() {
+	db_point.Update_Subscriber(api_app_monitor_ws_Push)
+}
+
 func gui_api(r *gin.Engine) {
+
+	InitWSPushPool()
+
 	r.POST("/Gui/v1.0/Login/Name", User_Login_Name)                 // 用户名登陆
 	r.POST("/Gui/v1.0/Login/Access_Token", User_Access_Token_query) // 获取访问令牌
 
@@ -597,5 +866,7 @@ func gui_api(r *gin.Engine) {
 	r.POST("/Gui/v1.0/User/Get/Info", User_Get_Info)             // 获取用户信息
 	r.POST("/Gui/v1.0/User/Get/Info_Array", User_Get_Info_Array) // 查询多个用户信息
 	r.POST("/Gui/v1.0/User/Get/Search", User_get_Info_Search)    // 搜索用户信息
+
+	r.GET("/Gui/v1.0/Monitor/ws", api_app_monitor_ws) // 推送更新值
 
 }
