@@ -332,26 +332,17 @@ export async function User__All_Query(Page: number, Page_Size: number): Promise<
 
 
 
-// 获取点位数量 传递驱动id，0代表全部
-export async function Points_length(id: number): Promise<number> {
-    try {
-        // 修改
-        const response = axios.post(http_Front_url + '/api/v1.0/IO/points/length', {
-            Id: id
-        })
+/**
+*******************用户*******************
+*/
 
-        const status = (await response).status
-        if (status == 200) {
-            const a: number = (await response).data.Data
-            return a
-        }
-        return 0
-    } catch (error: unknown) {
-        const axiosError = error as { response?: { data?: { Msg?: string } } }
-        ElMessage({
-            message: axiosError.response?.data?.Msg || '请求失败',
-            type: 'error',
-        })
-        return 0
-    }
+interface monitor_info_interface {
+    Id: number,   // 点位id
+    Drive_Id: number,  // 驱动id唯一标识符
+    Tag: number, // 点位标识
+    Drive_Type: number, // 驱动类型
+    Description: number, // 点位描述
+    RW_Cancel: number, // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
+    Value_Type: number, // 输出类型
+    Config: number,
 }

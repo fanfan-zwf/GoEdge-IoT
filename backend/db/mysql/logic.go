@@ -27,7 +27,7 @@ type Drive_Config_type struct {
 }
 
 // 点位-》查询配置
-// 传递: driveid 设备id, page 页码, pageSize 每页数量
+// 传递: drive_type 设备类型
 // 返回: configs 配置, err 错误
 func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_type, err error) {
 

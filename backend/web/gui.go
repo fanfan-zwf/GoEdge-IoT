@@ -595,8 +595,200 @@ func User_Set_Discontinued(ctx *gin.Context) {
 }
 
 /*
+***************获取点位***************
+ */
+
+// 驱动-》查询数量
+func Drive_Config__Count(ctx *gin.Context) {
+	var jsondata struct {
+		Drive_Type string
+		Page       uint
+		Page_Size  uint
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	// 读取当前请求用户id
+	Token_User_Id, err := Token_User_Id(ctx)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+	permissions, err := db_mysql.User__Permissions_Query(Token_User_Id)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	if permissions >= 100 {
+		ctx.Set("Response", []any{403, "无权限"})
+		return
+	}
+
+	var count uint
+	count, err = db_mysql.Drive_Config__Count(jsondata.Drive_Type, jsondata.Page, jsondata.Page_Size)
+	if err != nil {
+		ctx.Set("Response", []any{520, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok", count})
+}
+
+// 驱动-》查询配置
+func Drive_Config__Query(ctx *gin.Context) {
+	var jsondata struct {
+		Drive_Type string
+		Page       uint
+		Page_Size  uint
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	// 读取当前请求用户id
+	Token_User_Id, err := Token_User_Id(ctx)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+	permissions, err := db_mysql.User__Permissions_Query(Token_User_Id)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	if permissions >= 100 {
+		ctx.Set("Response", []any{403, "无权限"})
+		return
+	}
+
+	var configs []db_mysql.Drive_Config_type
+	configs, err = db_mysql.Drive_Config__Query(jsondata.Drive_Type, jsondata.Page, jsondata.Page_Size)
+	if err != nil {
+		ctx.Set("Response", []any{520, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok", configs})
+}
+
+// 驱动-》增加
+func Drive_Config__Add(ctx *gin.Context) {
+	var jsondata db_mysql.Drive_Config_type
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	// 读取当前请求用户id
+	Token_User_Id, err := Token_User_Id(ctx)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+	permissions, err := db_mysql.User__Permissions_Query(Token_User_Id)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	if permissions >= 100 {
+		ctx.Set("Response", []any{403, "无权限"})
+		return
+	}
+
+	err = db_mysql.Drive_Config__Add(jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{520, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
+
+// 驱动-》更新
+func Drive_Config__Update(ctx *gin.Context) {
+	var jsondata db_mysql.Drive_Config_type
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	// 读取当前请求用户id
+	Token_User_Id, err := Token_User_Id(ctx)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+	permissions, err := db_mysql.User__Permissions_Query(Token_User_Id)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	if permissions >= 100 {
+		ctx.Set("Response", []any{403, "无权限"})
+		return
+	}
+
+	err = db_mysql.Drive_Config__Update(jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{520, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
+
+// 驱动-》删除
+func Drive_Config__Del(ctx *gin.Context) {
+	var jsondata struct {
+		Id uint
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	// 读取当前请求用户id
+	Token_User_Id, err := Token_User_Id(ctx)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+	permissions, err := db_mysql.User__Permissions_Query(Token_User_Id)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	if permissions >= 100 {
+		ctx.Set("Response", []any{403, "无权限"})
+		return
+	}
+
+	err = db_mysql.Drive_Config__Del(jsondata.Id)
+	if err != nil {
+		ctx.Set("Response", []any{520, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
+
+/*
 ***************前端web socket实时推送***************
  */
+
 // -------------------------- 1. 核心结构体（和你的业务对齐） --------------------------
 // Update_Value_type 点位更新数据结构
 type Update_Value_type struct {
@@ -856,8 +1048,6 @@ func init() {
 
 func gui_api(r *gin.Engine) {
 
-	InitWSPushPool()
-
 	r.POST("/Gui/v1.0/Login/Name", User_Login_Name)                 // 用户名登陆
 	r.POST("/Gui/v1.0/Login/Access_Token", User_Access_Token_query) // 获取访问令牌
 
@@ -867,6 +1057,12 @@ func gui_api(r *gin.Engine) {
 	r.POST("/Gui/v1.0/User/Get/Info_Array", User_Get_Info_Array) // 查询多个用户信息
 	r.POST("/Gui/v1.0/User/Get/Search", User_get_Info_Search)    // 搜索用户信息
 
+	InitWSPushPool()
 	r.GET("/Gui/v1.0/Monitor/ws", api_app_monitor_ws) // 推送更新值
 
+	r.GET("/Gui/v1.0/Config/Drive/Count", Drive_Config__Count)   // 驱动-》查询数量
+	r.GET("/Gui/v1.0/Config/Drive/Query", Drive_Config__Query)   // 驱动-》查询配置
+	r.GET("/Gui/v1.0/Config/Drive/Add", Drive_Config__Add)       // 驱动-》增加
+	r.GET("/Gui/v1.0/Config/Drive/Update", Drive_Config__Update) // 驱动-》更新
+	r.GET("/Gui/v1.0/Config/Drive/Del", Drive_Config__Del)       // 驱动-》删除
 }
