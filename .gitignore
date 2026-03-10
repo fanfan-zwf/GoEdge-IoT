@@ -1,0 +1,20 @@
+# 1. 忽略所有 .log 后缀的文件（最通用）
+*.log
+
+# 2. 忽略特定名称的日志文件（比如 app.log、error.log）
+app.log
+error.log
+debug.log
+
+# 3. 忽略整个 logs/ 目录（如果日志都放在这个文件夹里）
+logs/
+logs/*
+
+# 4. 忽略临时日志、带日期的日志（通配符匹配）
+# 比如 ignore 2024-03-10.log、app-2024.log 这类
+*/*.log
+app-*.log
+*.log.*
+
+# 注意：如果想保留某个特定 log 文件（例外规则），加 ! 前缀
+!important.log  # 除了 important.log，其他 .log 都忽略

@@ -1,9 +1,0 @@
-2026/03/10 15:14:25.263605 /home/ubuntu/桌面/Iot-Db-Server/backend/web/web.go:221: INFO api0.0.0.0:8090
-2026/03/10 15:14:25.268263 /home/ubuntu/桌面/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:221: INFO 开始运行mqtt服务
-2026/03/10 15:14:25.339503 /home/ubuntu/桌面/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:229: INFO drive_ids{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
-2026/03/10 15:14:25.347594 /home/ubuntu/桌面/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:105: INFO{1 Rec_Yun_Cloud asd 0 {"URI": ["mqtt://emqx.zwf.fan:1883"], "User": "o7aKZOj53p2PkkFJzKzM", "Passwd": "lpj4VZ4ZYFg5GmINhRat", "ClientID": "db_123456789", "AES_Passwd": "lpj4VZ4ZYFg5GmINhRat", "ConnectRetry": true, "AutoReconnect": true, "ConnectTimeout": 3000, "ConnectRetryInterval": 3000}}
-2026/03/10 15:14:25.356372 /home/ubuntu/桌面/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:150: INFO MQTTCommand_Publish_Init
-2026/03/10 15:14:25.356518 /home/ubuntu/桌面/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:157: INFO Packet
-2026/03/10 15:14:25.359379 /home/ubuntu/桌面/Iot-Db-Server/backend/IO/Rec_Yun_Cloud/Multiple.go:164: INFO Connect
-2026/03/10 15:15:25.276706 /home/ubuntu/桌面/Iot-Db-Server/backend/db/redis/logic.go:64: ERROR redis: nil
-2026/03/10 15:19:27.724511 /home/ubuntu/桌面/Iot-Db-Server/backend/db/mysql/user.go:70: sql: no rows in result set

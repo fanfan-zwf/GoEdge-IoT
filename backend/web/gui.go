@@ -251,9 +251,9 @@ func User_Get_Info(ctx *gin.Context) {
 }
 
 // 获取多个用户信息
-func User_Get_Info_Array(ctx *gin.Context) {
+func User_Get_Info_list(ctx *gin.Context) {
 	var jsondata struct {
-		User_Id_Array []uint
+		User_Id_list []uint
 	}
 	err := ctx.BindJSON(&jsondata)
 	if err != nil {
@@ -280,7 +280,7 @@ func User_Get_Info_Array(ctx *gin.Context) {
 	}
 
 	var User []db_mysql.User__table_type
-	User, err = db_mysql.User__Info_Array_Query(jsondata.User_Id_Array)
+	User, err = db_mysql.User__Info_list_Query(jsondata.User_Id_list)
 	if err != nil {
 		ctx.Set("Response", []any{520, err.Error()})
 		return
@@ -1048,21 +1048,21 @@ func init() {
 
 func gui_api(r *gin.Engine) {
 
-	r.POST("/Gui/v1.0/Login/Name", User_Login_Name)                 // 用户名登陆
-	r.POST("/Gui/v1.0/Login/Access_Token", User_Access_Token_query) // 获取访问令牌
+	r.POST("/gui/v1.0/login/name", User_Login_Name)                 // 用户名登陆
+	r.POST("/gui/v1.0/login/access_token", User_Access_Token_query) // 获取访问令牌
 
-	r.POST("/Gui/v1.0/User/Get/Count", User_All_Count)           // 获取条数
-	r.POST("/Gui/v1.0/User/Get/Query", User_All_Query)           // 分页查询
-	r.POST("/Gui/v1.0/User/Get/Info", User_Get_Info)             // 获取用户信息
-	r.POST("/Gui/v1.0/User/Get/Info_Array", User_Get_Info_Array) // 查询多个用户信息
-	r.POST("/Gui/v1.0/User/Get/Search", User_get_Info_Search)    // 搜索用户信息
+	r.POST("/gui/v1.0/user/get/count", User_All_Count)         // 获取条数
+	r.POST("/gui/v1.0/user/get/query", User_All_Query)         // 分页查询
+	r.POST("/gui/v1.0/user/get/info", User_Get_Info)           // 获取用户信息
+	r.POST("/gui/v1.0/user/get/info_list", User_Get_Info_list) // 查询多个用户信息
+	r.POST("/gui/v1.0/user/get/search", User_get_Info_Search)  // 搜索用户信息
 
 	InitWSPushPool()
-	r.GET("/Gui/v1.0/Monitor/ws", api_app_monitor_ws) // 推送更新值
+	r.GET("/gui/v1.0/monitor/ws", api_app_monitor_ws) // 推送更新值
 
-	r.GET("/Gui/v1.0/Config/Drive/Count", Drive_Config__Count)   // 驱动-》查询数量
-	r.GET("/Gui/v1.0/Config/Drive/Query", Drive_Config__Query)   // 驱动-》查询配置
-	r.GET("/Gui/v1.0/Config/Drive/Add", Drive_Config__Add)       // 驱动-》增加
-	r.GET("/Gui/v1.0/Config/Drive/Update", Drive_Config__Update) // 驱动-》更新
-	r.GET("/Gui/v1.0/Config/Drive/Del", Drive_Config__Del)       // 驱动-》删除
+	r.GET("/gui/v1.0/config/drive/count", Drive_Config__Count)   // 驱动-》查询数量
+	r.GET("/gui/v1.0/config/drive/query", Drive_Config__Query)   // 驱动-》查询配置
+	r.GET("/gui/v1.0/config/drive/add", Drive_Config__Add)       // 驱动-》增加
+	r.GET("/gui/v1.0/config/drive/update", Drive_Config__Update) // 驱动-》更新
+	r.GET("/gui/v1.0/config/drive/del", Drive_Config__Del)       // 驱动-》删除
 }

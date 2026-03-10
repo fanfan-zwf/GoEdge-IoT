@@ -6,7 +6,6 @@ import { sha3_256_sync } from '@/utils/function'
 
 const mutex = new DualMutex();
 // const router = useRouter()
-const MAX_ACCESS_ATTEMPTS = 2;
 const QUEUE_TIMEOUT = 30000; // 队列请求超时时间 30秒
 
 // 存储状态  

@@ -106,7 +106,7 @@ func User__Info_Query(User_Id uint) (User User__table_type, err error) {
 }
 
 // 查询多个用户信息
-func User__Info_Array_Query(User_Id_array []uint) (User_array []User__table_type, err error) {
+func User__Info_list_Query(User_Id_array []uint) (User_array []User__table_type, err error) {
 	User_Id_array_len := len(User_Id_array)
 	if User_Id_array_len == 0 {
 		err = fmt.Errorf("User_Id_array为空")
