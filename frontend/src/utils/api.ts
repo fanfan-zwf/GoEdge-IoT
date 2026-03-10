@@ -1,7 +1,7 @@
 import { http_Front_url } from '@/typer/index'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { sha3_256_sync } from '@/typer/function'
+import { sha3_256_sync } from '@/utils/function'
 
 
 /**

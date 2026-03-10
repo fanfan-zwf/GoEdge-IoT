@@ -75,7 +75,7 @@
 import { reactive, onMounted, watch, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Message, OfficeBuilding, Phone } from '@element-plus/icons-vue'
-import { User__Get_Info, User__Set_Phone, User__Set_Email, User__Set_Passwd, User__Set_Name, type User__table_interface } from '@/typer/api'
+import { User__Get_Info, User__Set_Phone, User__Set_Email, User__Set_Passwd, User__Set_Name, type User__table_interface } from '@/utils/api'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()

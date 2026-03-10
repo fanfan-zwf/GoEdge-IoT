@@ -22,8 +22,8 @@ import axios from "axios";
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { http_Front_url, ws_Front_url } from '@/typer/index'
-import { Points_length } from '@/typer/api'
-import { } from '@/typer/api'
+// import { Points_length } from '@/utils/api'
+import { } from '@/utils/api'
 
 interface monitor_value_interface {
     Id: number,   // 点位id

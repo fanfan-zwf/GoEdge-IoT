@@ -83,7 +83,7 @@ import { User, Lock, Key, Phone, Message } from '@element-plus/icons-vue'
 import { reactive, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User__All_Count, User__All_Query, User__Set_Del, type User__all_table_type, type User__table_interface } from '@/typer/api'
+import { User__All_Count, User__All_Query, User__Set_Del, type User__all_table_type, type User__table_interface } from '@/utils/api'
 
 const router = useRouter()
 
