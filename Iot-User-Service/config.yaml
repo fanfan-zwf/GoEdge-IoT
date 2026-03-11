@@ -1,0 +1,39 @@
+APP:
+  version: v1.0
+  sn: "0"
+  historical_storage_time: 10
+  uuid: 6599c8f9-95f2-4f8e-8095-32b887f9b7e5
+
+API:
+  ip: 0.0.0.0
+  post: 8101
+  header:
+    - key: Access-Control-Allow-Origin
+      value: "*"
+    - key: Access-Control-Allow-Methods
+      value: POST, GET
+    - key: Access-Control-Allow-Headers
+      value: Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, F_Access_Token, F_Refresh_Token, F_Terminal_Uuid
+
+MYSQL:
+  dsn: "root:123456@tcp(192.168.220.20:3306)/go-user-server?charset=utf8mb4&parseTime=True&loc=Local"
+  
+REDIS:
+  ip: 127.0.0.1
+  post: 6379
+  passwd: ""
+  database: 1
+
+LOG:
+  enable: true
+  path: ./logs
+  cacheTTL: 30
+  flags: Ldate Lmicroseconds Llongfile
+
+SET:
+  User_Access_Token_Time: 3600
+  Api_Access_Token_Time: 86400
+
+
+
+ 

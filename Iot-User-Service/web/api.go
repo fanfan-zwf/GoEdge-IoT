@@ -1,0 +1,207 @@
+/*
+* 日期: 2026.02.15 	PM11:06
+* 作者: 范范zwf
+* 作用: 外部api
+ */
+package web
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"main/Init"
+	db_mysql "main/db/mysql"
+	db_redis "main/db/redis"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
+)
+
+// 获取刷新令牌
+func Api__Login_Refresh_Token(ctx *gin.Context) {
+	var jsondata struct {
+		ApiKey string
+		Secret string
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	// 判断用户名密码是否正确
+	db_api, err := db_mysql.Api__Query_ApiKey(jsondata.ApiKey)
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{403, "不存在"})
+		return
+	} else if err != nil {
+		ctx.Set("Response", []any{520, err.Error()})
+		return
+	}
+	if db_api.Secret != jsondata.Secret {
+		ctx.Set("Response", []any{403, "Secret错误"})
+		return
+	}
+
+	var ClientIP = ctx.ClientIP()
+	if db_api.Allow_Ip != ClientIP && ClientIP != "" {
+		ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+		return
+	}
+
+	if db_api.Discontinued {
+		ctx.Set("Response", []any{403, "此key已禁用"})
+		return
+	}
+
+	// 生成随即刷新令牌
+	Refresh_Token, err := create_token(User_Refresh_Token_Length)
+	if err != nil {
+		ctx.Set("Response", []any{541, err.Error()})
+		return
+	}
+
+	now := time.Now()
+	Expiration := time.Duration(db_api.Refresh_Token_Time) * time.Second
+	Expires_in := now.Add(Expiration).Format(time.RFC3339Nano)
+
+	db_mysql.Log__Add2(
+		0,
+		"api_login",
+		fmt.Sprintf("ApiKey:%s,IP:%s", jsondata.ApiKey, ClientIP),
+	)
+
+	err = db_redis.Api_Refresh_Token_Add(Refresh_Token, db_redis.Api_Refresh_Token_redis_type{
+		Api_Id:     db_api.Id,  // 接口id
+		Expires_in: Expires_in, // 访问令牌过期时间
+		Allow_Ip:   db_api.Allow_Ip,
+	}, Expiration)
+
+	if err != nil {
+		ctx.Set("Response", []any{StatusRedis, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok", gin.H{
+		"Api_Id":              db_api.Id,
+		"F_Api_Refresh_Token": Refresh_Token,
+		"F_Api_Expires_in":    Expires_in,
+	}})
+}
+
+// 获取访问令牌
+func Api__Access_Token_Query(ctx *gin.Context) {
+	var jsondata struct {
+		Api_Id              uint
+		F_Api_Refresh_Token string
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	// 判断刷新令牌是否过期
+	Refresh_Token_redis, err := db_redis.Api_Refresh_Token_Query(jsondata.Api_Id, jsondata.F_Api_Refresh_Token)
+	if err == redis.Nil {
+		ctx.Set("Response", []any{401, "刷新令牌过期"})
+		return
+	} else if err != nil {
+		ctx.Set("Response", []any{StatusRedis, err.Error()})
+		return
+	}
+
+	if Refresh_Token_redis.Api_Id != jsondata.Api_Id {
+		ctx.Set("Response", []any{500, "请求API ID和缓存ID不一致"})
+		return
+	}
+
+	var ClientIP = ctx.ClientIP()
+	if Refresh_Token_redis.Allow_Ip != ClientIP && ClientIP != "" {
+		ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+		return
+	}
+
+	// 生成随即刷新令牌
+	Access_Token, err := create_token(User_Access_Token_Length)
+	if err != nil {
+		ctx.Set("Response", []any{541, err.Error()})
+		return
+	}
+
+	// 把刷新令牌写入对应用户的表里
+	now := time.Now()
+	api_Access_Token_Time_Second := time.Duration(Init.Config.SET.Api_Access_Token_Time) * time.Second
+	Expires_in := now.Add(api_Access_Token_Time_Second).Format(time.DateTime)
+	err = db_redis.Api_Access_Token_Add(
+		Access_Token,
+		db_redis.Api_Access_Token_redis_type{
+			Api_Id:        jsondata.Api_Id,
+			Expires_in:    Expires_in,
+			Refresh_Token: jsondata.F_Api_Refresh_Token,
+			Allow_Ip:      Refresh_Token_redis.Allow_Ip,
+		},
+		api_Access_Token_Time_Second,
+	)
+	if err != nil {
+		ctx.Set("Response", []any{520, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok", gin.H{
+		"F_Api_Access_Token": Access_Token,
+		"F_Api_Expires_in":   Expires_in,
+	}})
+}
+
+// 获取访问令牌
+func Api__User_Authority_Exist(ctx *gin.Context) {
+
+	var jsondata struct {
+		User__Access_Token string // 用户刷新令牌
+		Authority_Theme    string // 权限主题
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	defer func(err error) {
+		if err != nil {
+			log.Panicf("ERROR %s", err)
+		}
+	}(err)
+
+	var Access_Token_redis db_redis.Access_Token_redis_type
+	Access_Token_redis, err = db_redis.Access_Token_Query(jsondata.User__Access_Token)
+	if err == redis.Nil {
+		ctx.Set("Response", []any{200, "当前用户没有访问令牌"})
+		return
+	} else if err != nil {
+		ctx.Set("Response", []any{StatusRedis, err.Error()})
+		return
+	}
+
+	var Exist bool
+	Exist, err = db_mysql.Authority_User__Query_AuthorityTheme_Exist(Access_Token_redis.User_Id, jsondata.Authority_Theme)
+	if err != nil && err != sql.ErrNoRows {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok", gin.H{
+		"Authority_Exist":    Exist,
+		"User__Access_Token": jsondata.User__Access_Token,
+		"Authority_Theme":    jsondata.Authority_Theme,
+	}})
+
+}
+
+func sdk_api(r *gin.Engine) {
+	r.POST("/api/v1.0/login/refresh_token", Api__Login_Refresh_Token) // 获取刷新令牌
+	r.POST("/api/v1.0/login/access_token", Api__Access_Token_Query)   // 获取访问令牌
+
+	r.POST("/api/v1.0/user/authority", Api__User_Authority_Exist) // 查询当前用户是否有这个权限
+}
