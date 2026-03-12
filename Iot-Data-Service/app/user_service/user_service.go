@@ -9,6 +9,7 @@ package userservice
 import (
 	"main/Init"
 	r "main/db/redis"
+	"sync"
 
 	"encoding/json"
 	"fmt"
@@ -20,6 +21,20 @@ import (
 
 	"github.com/redis/go-redis/v9"
 )
+
+// Go 1.21+ 推荐方案：用 sync.Mutex.TryLock + 循环重试（更优雅）
+func TryLockWithTimeout(mu *sync.Mutex, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	// 循环尝试加锁，直到超时
+	for time.Now().Before(deadline) {
+		if mu.TryLock() { // TryLock 非阻塞，成功返回 true，失败返回 false
+			return true
+		}
+		// 短暂休眠，避免CPU空转
+		time.Sleep(10 * time.Millisecond)
+	}
+	return false
+}
 
 type User_Body_Standard struct {
 	Code      int
@@ -275,8 +290,17 @@ func Get_Access_Token(reqData Access_Token_Get_type) (access Access_Token_type, 
 	return
 }
 
+var Access_Token_Info_Mu sync.Mutex
+
 // 获取访问令牌信息
 func Access_Token_Info() (access Access_Token_type, err error) {
+
+	if !TryLockWithTimeout(&Access_Token_Info_Mu, 10*time.Second) {
+		err = fmt.Errorf("ERROR 尝试 10 秒超时获取锁")
+		return
+	} else {
+		defer Access_Token_Info_Mu.Unlock()
+	}
 
 	Info, err := r.Read_Key("user_service_access_token")
 
@@ -329,24 +353,24 @@ func Access_Token_Value() (access_token string, err error) {
  */
 
 // 用户服务接口鉴权
-type User_Authority__Get_type struct {
+type User_Authority_Exist__Get_type struct {
 	User__Access_Token string // 用户刷新令牌
 	Authority_Theme    string // 权限主题
 }
 
-type User_Authority__type struct {
+type User_Authority_Exist__type struct {
 	Authority_Exist    bool
 	User__Access_Token string
 	Authority_Theme    string
 }
 
-type User_Authority__Byte_type struct {
+type User_Authority_Exist__Byte_type struct {
 	User_Body_Standard
-	Data User_Authority__type
+	Data User_Authority_Exist__type
 }
 
 // 用户权限查询
-func User_Authority__Exist(reqData User_Authority__Get_type) (exist bool, err error) {
+func User_Authority_Exist(reqData User_Authority_Exist__Get_type) (exist bool, err error) {
 
 	// 2. 将结构体序列化为JSON字节数组（核心步骤）
 	jsonBytes, err := json.Marshal(reqData)
@@ -363,7 +387,7 @@ func User_Authority__Exist(reqData User_Authority__Get_type) (exist bool, err er
 	}
 
 	// 3. 解析响应数据
-	var response User_Authority__Byte_type
+	var response User_Authority_Exist__Byte_type
 	err = json.Unmarshal([]byte(body), &response)
 	if err != nil {
 		log.Println("ERROR JSON解析失败：", err)
@@ -385,17 +409,45 @@ func User_Authority__Exist(reqData User_Authority__Get_type) (exist bool, err er
 	return
 }
 
-// 用户登录查询
-func User_Login__Exist(reqData User_Authority__Get_type) (exist bool, err error) {
+/*
+******************查询当前用户登陆状态******************
+ */
 
+type User_status__Get_type struct {
+	User__Access_Token string // 用户刷新令牌
+}
+
+type User_status__type struct {
+	Code int    // 执行码
+	Msg  string // 执行说明
+
+	User_Id       uint      // 用户id
+	Expires_in    time.Time // 访问令牌过期时间
+	Refresh_Token string    // 本访问令牌的刷新令牌
+}
+
+type User_status__Byte_type struct {
+	User_Body_Standard
+	Data User_status__type
+}
+
+// 用户权限查询
+//
+//	输入：User__Access_Token用户刷新令牌
+func User_status(User__Access_Token string) (exist bool, err error) {
+	reqData := User_status__Get_type{
+		User__Access_Token: User__Access_Token,
+	}
+
+	var jsonBytes []byte
 	// 2. 将结构体序列化为JSON字节数组（核心步骤）
-	jsonBytes, err := json.Marshal(reqData)
+	jsonBytes, err = json.Marshal(reqData)
 	if err != nil {
 		log.Println("ERROR JSON序列化失败：", err)
 		return
 	}
 
-	url := fmt.Sprintf("%s/api/v1.0/user/authority", Init.Config.User_Service.Url)
+	url := fmt.Sprintf("%s/api/v1.0/user/login/status", Init.Config.User_Service.Url)
 	code, body, err := api_post(url, string(jsonBytes))
 	if err != nil {
 		log.Println("ERROR API请求失败：", err)
@@ -403,7 +455,7 @@ func User_Login__Exist(reqData User_Authority__Get_type) (exist bool, err error)
 	}
 
 	// 3. 解析响应数据
-	var response User_Authority__Byte_type
+	var response User_status__Byte_type
 	err = json.Unmarshal([]byte(body), &response)
 	if err != nil {
 		log.Println("ERROR JSON解析失败：", err)

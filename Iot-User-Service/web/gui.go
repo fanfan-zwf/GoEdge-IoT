@@ -106,9 +106,9 @@ func User_Login_Name(ctx *gin.Context) {
 	}
 
 	err = db_redis.Refresh_Token_Add(User.Id, Refresh_Token, db_redis.Refresh_Token_redis_type{
-		User_Id:       User.Id,                          // 用户id
-		Terminal_Uuid: Terminal_Uuid,                    // 用户终端Id
-		Expires_in:    Expires_in.Format(time.DateTime), // 访问令牌过期时间
+		User_Id:       User.Id,       // 用户id
+		Terminal_Uuid: Terminal_Uuid, // 用户终端Id
+		Expires_in:    Expires_in,    // 访问令牌过期时间
 	}, Expiration)
 
 	if err != nil {
@@ -126,7 +126,7 @@ func User_Login_Name(ctx *gin.Context) {
 	ctx.Set("Response", []any{200, "ok", gin.H{
 		"User_Id":         User.Id,
 		"F_Refresh_Token": Refresh_Token,
-		"F_Expires_in":    Expires_in.Format(time.DateTime),
+		"F_Expires_in":    Expires_in.Format(time.RFC3339Nano),
 	}})
 }
 
@@ -177,9 +177,9 @@ func User_Access_Token_query(ctx *gin.Context) {
 	err = db_redis.Access_Token_Add(
 		Access_Token,
 		db_redis.Access_Token_redis_type{
-			User_Id:       Access_Token_redis.User_Id,       // 用户id
-			Expires_in:    Expires_in.Format(time.DateTime), // 访问令牌过期时间
-			Refresh_Token: jsondata.F_Refresh_Token,         // 本访问令牌的刷新令牌
+			User_Id:       Access_Token_redis.User_Id, // 用户id
+			Expires_in:    Expires_in,                 // 访问令牌过期时间
+			Refresh_Token: jsondata.F_Refresh_Token,   // 本访问令牌的刷新令牌
 		},
 		User_Access_Token_Time_Second,
 	)
@@ -190,7 +190,7 @@ func User_Access_Token_query(ctx *gin.Context) {
 
 	ctx.Set("Response", []any{200, "ok", gin.H{
 		"F_Access_Token": Access_Token,
-		"F_Expires_in":   Expires_in.Format(time.DateTime),
+		"F_Expires_in":   Expires_in.Format(time.RFC3339Nano),
 	}})
 }
 

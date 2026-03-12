@@ -23,9 +23,9 @@ var (
  */
 // 访问令牌结构体
 type Refresh_Token_redis_type struct {
-	User_Id       uint   // 用户id
-	Terminal_Uuid string // 用户终端Id
-	Expires_in    string // 访问令牌过期时间
+	User_Id       uint      // 用户id
+	Terminal_Uuid string    // 用户终端Id
+	Expires_in    time.Time // 访问令牌过期时间
 }
 
 // 创建访问令牌
@@ -77,9 +77,9 @@ func Refresh_Token_Query(User_Id uint, Refresh_Token string) (Access_Token_redis
  */
 // 访问令牌结构体
 type Access_Token_redis_type struct {
-	User_Id       uint   // 用户id
-	Expires_in    string // 访问令牌过期时间
-	Refresh_Token string // 本访问令牌的刷新令牌
+	User_Id       uint      // 用户id
+	Expires_in    time.Time // 访问令牌过期时间
+	Refresh_Token string    // 本访问令牌的刷新令牌
 }
 
 // 创建访问令牌
