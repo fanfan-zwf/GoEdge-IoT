@@ -26,6 +26,11 @@ type Refresh_Token_redis_type struct {
 	User_Id       uint      // 用户id
 	Terminal_Uuid string    // 用户终端Id
 	Expires_in    time.Time // 访问令牌过期时间
+	Login_Ip      string    // 登录ip
+
+	Salt               string // 随机盐
+	RSA_PrivateKeyPath string // RSA私钥路径
+	RSA_PublicKeyPath  string // RSA公钥路径
 }
 
 // 创建访问令牌
@@ -80,10 +85,15 @@ type Access_Token_redis_type struct {
 	User_Id       uint      // 用户id
 	Expires_in    time.Time // 访问令牌过期时间
 	Refresh_Token string    // 本访问令牌的刷新令牌
+	Login_Ip      string    // 登录ip
+
+	Salt               string // 随机盐
+	RSA_PrivateKeyPath string // RSA私钥路径
+	RSA_PublicKeyPath  string // RSA公钥路径
 }
 
 // 创建访问令牌
-func Access_Token_Add(Access_Token string, Value Access_Token_redis_type, Expiration time.Duration) (err error) {
+func Access_Token_Add(Access_Token string, Value Access_Token_redis_type) (err error) {
 	// 结构体转换json
 	jsonByte, err := json.Marshal(Value)
 	if err != nil {
@@ -92,7 +102,7 @@ func Access_Token_Add(Access_Token string, Value Access_Token_redis_type, Expira
 	}
 
 	key := fmt.Sprintf("Access_Token:%s", Access_Token)
-	err = Rdb.Set(ctx, key, string(jsonByte), Expiration).Err()
+	err = Rdb.Set(ctx, key, string(jsonByte), time.Until(Value.Expires_in)).Err()
 	if err != nil {
 		log.Printf("ERROR %v", err)
 	}
@@ -225,13 +235,18 @@ func User_Passwd_Input_Error_Record_Del(User_Id uint) (err error) {
  */
 // 访问令牌结构体
 type Api_Refresh_Token_redis_type struct {
-	Api_Id     uint   // 用户id
-	Expires_in string // 访问令牌过期时间
-	Allow_Ip   string // 也许的ip
+	Api_Id     uint      // 用户id
+	Expires_in time.Time // 访问令牌过期时间
+	Allow_Ip   string    // 允许ip
+	Login_Ip   string    // 登录ip
+
+	Salt               string // 随机盐
+	RSA_PrivateKeyPath string // RSA私钥路径
+	RSA_PublicKeyPath  string // RSA公钥路径
 }
 
 // 创建访问令牌
-func Api_Refresh_Token_Add(Refresh_Token string, Value Api_Refresh_Token_redis_type, Expiration time.Duration) (err error) {
+func Api_Refresh_Token_Add(Refresh_Token string, Value Api_Refresh_Token_redis_type) (err error) {
 	if Value.Api_Id == 0 || Refresh_Token == "" {
 		err = fmt.Errorf("参数错误")
 		return
@@ -245,7 +260,7 @@ func Api_Refresh_Token_Add(Refresh_Token string, Value Api_Refresh_Token_redis_t
 	}
 
 	key := fmt.Sprintf("Api_Refresh_Token:%d:%s", Value.Api_Id, Refresh_Token)
-	err = Rdb.Set(ctx, key, string(jsonByte), Expiration).Err()
+	err = Rdb.Set(ctx, key, string(jsonByte), time.Until(Value.Expires_in)).Err()
 	if err != nil {
 		log.Printf("ERROR %v", err)
 	}
@@ -279,14 +294,19 @@ func Api_Refresh_Token_Query(Api_Id uint, Refresh_Token string) (Refresh_Token_r
  */
 // 访问令牌结构体
 type Api_Access_Token_redis_type struct {
-	Api_Id        uint   // 用户id
-	Expires_in    string // 访问令牌过期时间
-	Refresh_Token string // 本访问令牌的刷新令牌
-	Allow_Ip      string // 允许ip
+	Api_Id        uint      // 用户id
+	Expires_in    time.Time // 访问令牌过期时间
+	Refresh_Token string    // 本访问令牌的刷新令牌
+	Allow_Ip      string    // 允许ip
+	Login_Ip      string    // 登录ip
+
+	Salt               string // 随机盐
+	RSA_PrivateKeyPath string // RSA私钥路径
+	RSA_PublicKeyPath  string // RSA公钥路径
 }
 
 // 创建访问令牌
-func Api_Access_Token_Add(Access_Token string, Value Api_Access_Token_redis_type, Expiration time.Duration) (err error) {
+func Api_Access_Token_Add(Access_Token string, Value Api_Access_Token_redis_type) (err error) {
 	// 结构体转换json
 	jsonByte, err := json.Marshal(Value)
 	if err != nil {
@@ -295,7 +315,7 @@ func Api_Access_Token_Add(Access_Token string, Value Api_Access_Token_redis_type
 	}
 
 	key := fmt.Sprintf("Api_Access_Token:%s", Access_Token)
-	err = Rdb.Set(ctx, key, string(jsonByte), Expiration).Err()
+	err = Rdb.Set(ctx, key, string(jsonByte), time.Until(Value.Expires_in)).Err()
 	if err != nil {
 		log.Printf("ERROR %v", err)
 	}

@@ -24,8 +24,8 @@ import (
 ***************登陆***************
  */
 var (
-	User_Refresh_Token_Length uint = 200 // 刷新令牌长度
-	User_Access_Token_Length  uint = 120 // 访问令牌长度
+	Refresh_Token_Salt_Length int = 200 // 刷新盐长度
+	Access_Token_Salt_Length  int = 120 // 访问盐长度
 )
 
 // 用户名登陆
@@ -76,7 +76,7 @@ func User_Login_Name(ctx *gin.Context) {
 	}
 
 	// 生成随即刷新令牌
-	Refresh_Token, err := create_token(User_Refresh_Token_Length)
+	Refresh_Token, err := GenerateSecureRandomString(Refresh_Token_Salt_Length)
 	if err != nil {
 		ctx.Set("Response", []any{541, err.Error()})
 		return
@@ -153,7 +153,7 @@ func User_Access_Token_query(ctx *gin.Context) {
 	}
 
 	// 生成随即刷新令牌
-	Access_Token, err := create_token(User_Access_Token_Length)
+	Access_Token, err := GenerateSecureRandomString(Access_Token_Salt_Length)
 	if err != nil {
 		ctx.Set("Response", []any{541, err.Error()})
 		return
@@ -181,7 +181,6 @@ func User_Access_Token_query(ctx *gin.Context) {
 			Expires_in:    Expires_in,                 // 访问令牌过期时间
 			Refresh_Token: jsondata.F_Refresh_Token,   // 本访问令牌的刷新令牌
 		},
-		User_Access_Token_Time_Second,
 	)
 	if err != nil {
 		ctx.Set("Response", []any{520, err.Error()})

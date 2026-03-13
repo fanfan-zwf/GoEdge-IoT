@@ -2158,6 +2158,8 @@ type Api__table_type struct {
 	Refresh_Token_Time uint   // 过期时间设定（s）
 	Allow_Ip           string // ip
 	Discontinued       bool   // 是否禁用
+	RSA_PrivateKeyPath string // RSA私钥
+	RSA_PublicKeyPath  string // RSA公钥
 }
 
 // 查询接口信息
@@ -2170,7 +2172,9 @@ func Api__Query_ApiKey(ApiKey string) (Api Api__table_type, err error) {
 		Secret,
 		Refresh_Token_Time,
 		Allow_Ip,
-		Discontinued
+		Discontinued,
+		RSA_PrivateKeyPath,
+		RSA_PublicKeyPath
 	FROM
 		Api
 	WHERE
@@ -2184,6 +2188,8 @@ func Api__Query_ApiKey(ApiKey string) (Api Api__table_type, err error) {
 		&Api.Refresh_Token_Time,
 		&Api.Allow_Ip,
 		&Api.Discontinued,
+		&Api.RSA_PrivateKeyPath,
+		&Api.RSA_PublicKeyPath,
 	)
 	if err != nil {
 		log.Print(err.Error())
@@ -2203,9 +2209,11 @@ func Api__Query() (Api Api__table_type, err error) {
 		User_Id,
 		ApiKey,
 		Secret,
-		Access_Token_Time,
-		Access_Token,
-		Access_Token_Expires_in
+		Refresh_Token_Time,
+		Allow_Ip,
+		Discontinued,
+		RSA_PrivateKeyPath,
+		RSA_PublicKeyPath
 	FROM
 		Api
 	`
@@ -2215,6 +2223,10 @@ func Api__Query() (Api Api__table_type, err error) {
 		&Api.ApiKey,
 		&Api.Secret,
 		&Api.Refresh_Token_Time,
+		&Api.Allow_Ip,
+		&Api.Discontinued,
+		&Api.RSA_PrivateKeyPath,
+		&Api.RSA_PublicKeyPath,
 	)
 	if err != nil {
 		log.Print(err.Error())
@@ -2232,12 +2244,20 @@ func Api__Add(Value Api__table_type) (Id uint, err error) {
 	query := `
 	INSERT
 		INTO
-		User(User_Id, ApiKey, Secret, Access_Token_Time)
-	VALUES(?,?,?,?)
+		Api(User_Id, ApiKey, Secret, Refresh_Token_Time, Allow_Ip, Discontinued, RSA_PrivateKeyPath, RSA_PublicKeyPath)
+	VALUES(?,?,?,?,?,?,?,?)
 	`
 	// 修改数据库
 	var result sql.Result
-	result, err = DB.Exec(query, Value.User_Id, Value.ApiKey, Value.Secret, Value.Refresh_Token_Time)
+	result, err = DB.Exec(query,
+		Value.User_Id,
+		Value.ApiKey,
+		Value.Secret,
+		Value.Refresh_Token_Time,
+		Value.Allow_Ip,
+		Value.Discontinued,
+		Value.RSA_PrivateKeyPath,
+		Value.RSA_PublicKeyPath)
 	if err != nil {
 		log.Print(err.Error())
 		return
@@ -2250,6 +2270,25 @@ func Api__Add(Value Api__table_type) (Id uint, err error) {
 		log.Print(err.Error())
 	}
 	Id = uint(LastInsertId)
+
+	return
+}
+
+// 禁用api_id
+func Api__Discontinued(Api_Id uint, Discontinued bool) (err error) {
+	query := `
+	UPDATE
+		Api
+	SET
+		Discontinued = ?
+	WHERE
+		Id = ?
+	`
+	// 修改数据库
+	_, err = DB.Exec(query, Discontinued, Api_Id)
+	if err != nil {
+		log.Print(err.Error())
+	}
 
 	return
 }

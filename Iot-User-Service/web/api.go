@@ -45,8 +45,8 @@ func Api__Login_Refresh_Token(ctx *gin.Context) {
 	}
 
 	var ClientIP = ctx.ClientIP()
-	if db_api.Allow_Ip != ClientIP && ClientIP != "" {
-		ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+	if db_api.Allow_Ip != ClientIP && db_api.Allow_Ip != "" {
+		ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", db_api.Allow_Ip)})
 		return
 	}
 
@@ -55,16 +55,40 @@ func Api__Login_Refresh_Token(ctx *gin.Context) {
 		return
 	}
 
-	// 生成随即刷新令牌
-	Refresh_Token, err := create_token(User_Refresh_Token_Length)
+	PrivateKey, err := getRSAPrivateKey(db_api.RSA_PrivateKeyPath)
 	if err != nil {
-		ctx.Set("Response", []any{541, err.Error()})
+		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
 
-	now := time.Now()
-	Expiration := time.Duration(db_api.Refresh_Token_Time) * time.Second
-	Expires_in := now.Add(Expiration).Format(time.RFC3339Nano)
+	Aes_Key, err := GenerateSecureRandomString(Refresh_Token_Salt_Length) // 生成AES加密随机盐
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	encrypted, err := token_Info__Json_AES_Encrypt(Aes_Key, Token_Api_Info{
+		api_id: db_api.Id,
+	})
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	timeNow := time.Now()
+	Refresh_Token_Time := timeNow.Add(time.Duration(db_api.Refresh_Token_Time) * time.Second)
+	// 生成随即刷新令牌
+	Refresh_Token, err := CreateShortToken(
+		Refresh_Token_Salt_Length,
+		PrivateKey,
+		encrypted,
+		timeNow,
+		Refresh_Token_Time,
+	)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
 
 	db_mysql.Log__Add2(
 		0,
@@ -73,10 +97,14 @@ func Api__Login_Refresh_Token(ctx *gin.Context) {
 	)
 
 	err = db_redis.Api_Refresh_Token_Add(Refresh_Token, db_redis.Api_Refresh_Token_redis_type{
-		Api_Id:     db_api.Id,  // 接口id
-		Expires_in: Expires_in, // 访问令牌过期时间
-		Allow_Ip:   db_api.Allow_Ip,
-	}, Expiration)
+		Api_Id:             db_api.Id,                 // 接口id
+		Expires_in:         Refresh_Token_Time,        // 访问令牌过期时间
+		Allow_Ip:           db_api.Allow_Ip,           // 允许ip
+		Login_Ip:           ClientIP,                  // 登录ip
+		Salt:               Aes_Key,                   // 随机盐
+		RSA_PrivateKeyPath: db_api.RSA_PrivateKeyPath, // RSA私钥路径
+		RSA_PublicKeyPath:  db_api.RSA_PublicKeyPath,  // RSA公钥路径
+	})
 
 	if err != nil {
 		ctx.Set("Response", []any{StatusRedis, err.Error()})
@@ -86,7 +114,7 @@ func Api__Login_Refresh_Token(ctx *gin.Context) {
 	ctx.Set("Response", []any{200, "ok", gin.H{
 		"Api_Id":              db_api.Id,
 		"F_Api_Refresh_Token": Refresh_Token,
-		"F_Api_Expires_in":    Expires_in,
+		"F_Api_Expires_in":    Refresh_Token_Time.Format(time.RFC3339Nano),
 	}})
 }
 
@@ -118,31 +146,56 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 	}
 
 	var ClientIP = ctx.ClientIP()
-	if Refresh_Token_redis.Allow_Ip != ClientIP && ClientIP != "" {
+	if Refresh_Token_redis.Login_Ip != ClientIP && Refresh_Token_redis.Login_Ip != "" {
 		ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
 		return
 	}
 
-	// 生成随即刷新令牌
-	Access_Token, err := create_token(User_Access_Token_Length)
+	PrivateKey, err := getRSAPrivateKey(Refresh_Token_redis.RSA_PrivateKeyPath)
 	if err != nil {
-		ctx.Set("Response", []any{541, err.Error()})
+		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
 
-	// 把刷新令牌写入对应用户的表里
-	now := time.Now()
-	api_Access_Token_Time_Second := time.Duration(Init.Config.SET.Api_Access_Token_Time) * time.Second
-	Expires_in := now.Add(api_Access_Token_Time_Second).Format(time.DateTime)
+	Aes_Key, err := GenerateSecureRandomString(Refresh_Token_Salt_Length) // 生成AES加密随机盐
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	encrypted, err := token_Info__Json_AES_Encrypt(Aes_Key, Token_Api_Info{
+		api_id: Refresh_Token_redis.Api_Id,
+	})
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	timeNow := time.Now()
+	Access_Token_Time := timeNow.Add(time.Duration(Init.Config.SET.Api_Access_Token_Time) * time.Second) // 访问令牌过期时间
+
+	// 生成随即刷新令牌
+	Access_Token, err := CreateShortToken(
+		Refresh_Token_Salt_Length,
+		PrivateKey,
+		encrypted,
+		timeNow,
+		Access_Token_Time,
+	)
+
 	err = db_redis.Api_Access_Token_Add(
 		Access_Token,
 		db_redis.Api_Access_Token_redis_type{
 			Api_Id:        jsondata.Api_Id,
-			Expires_in:    Expires_in,
+			Expires_in:    Access_Token_Time, // 访问令牌过期时间
 			Refresh_Token: jsondata.F_Api_Refresh_Token,
-			Allow_Ip:      Refresh_Token_redis.Allow_Ip,
+			Allow_Ip:      Refresh_Token_redis.Allow_Ip, // 允许的ip --- IGNORE ---
+			Login_Ip:      ClientIP,                     // 登录ip --- IGNORE ---
+
+			Salt:               Aes_Key,                                // 随机盐
+			RSA_PrivateKeyPath: Refresh_Token_redis.RSA_PrivateKeyPath, // RSA私钥路径
+			RSA_PublicKeyPath:  Refresh_Token_redis.RSA_PublicKeyPath,  // RSA公钥路径
 		},
-		api_Access_Token_Time_Second,
 	)
 	if err != nil {
 		ctx.Set("Response", []any{520, err.Error()})
@@ -151,7 +204,7 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 
 	ctx.Set("Response", []any{200, "ok", gin.H{
 		"F_Api_Access_Token": Access_Token,
-		"F_Api_Expires_in":   Expires_in,
+		"F_Api_Expires_in":   Access_Token_Time.Format(time.RFC3339Nano),
 	}})
 }
 

@@ -1,13 +1,13 @@
 package web
 
 import (
+	"encoding/base64"
 	"main/Init"
 	db_redis "main/db/redis"
 
 	"crypto/rand"
 	"fmt"
 	"log"
-	"math/big"
 	"strings"
 	"time"
 
@@ -83,29 +83,35 @@ func allowAllCors() gin.HandlerFunc {
 	}
 }
 
-// 生成token
+// 生成随即盐
 // 传参 长度 uint
 // 返回 token string
-func create_token(Token_length uint) (string, error) {
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-	b := make([]byte, Token_length)
-	for i := range b {
-		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
-		if err != nil {
-			return "", err
-		}
-		b[i] = letters[num.Int64()]
+func GenerateSecureRandomString(length int) (string, error) {
+	// base64编码后，每4个字符对应3个原始字节，所以先计算需要的原始字节数
+	byteLength := (length * 3) / 4
+	if (length*3)%4 != 0 {
+		byteLength += 1 // 向上取整，保证长度足够
 	}
 
-	return fmt.Sprintf("%d%s", time.Now().UnixNano(), string(b)), nil
+	// 生成加密安全的随机字节
+	randomBytes := make([]byte, byteLength)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return "", fmt.Errorf("生成随机字节失败: %v", err)
+	}
+
+	// 转base64（URL安全编码，避免+、/等特殊字符）
+	randomStr := base64.URLEncoding.EncodeToString(randomBytes)
+
+	// 截取到指定长度（避免base64补位的=符号）
+	return randomStr[:length], nil
 }
 
 // 全局启用token
 // 这里需要注意以下，还需要改正优化
 func token_use() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-
+		var ClientIP = ctx.ClientIP()
 		// 1. 先获取路径
 		FullPath := ctx.FullPath()
 		// 如果 FullPath 为空，可能是路由未匹配，尝试获取请求路径
@@ -145,6 +151,11 @@ func token_use() gin.HandlerFunc {
 				return
 			}
 
+			if Access_Token_redis.Login_Ip != ClientIP && Access_Token_redis.Login_Ip != "" {
+				ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+				return
+			}
+
 			ctx.Set("User_Id", Access_Token_redis.User_Id)
 			ctx.Set("Access_Token_redis", Access_Token_redis)
 			ctx.Next()
@@ -168,8 +179,7 @@ func token_use() gin.HandlerFunc {
 				return
 			}
 
-			var ClientIP = ctx.ClientIP()
-			if Access_Token_redis.Allow_Ip != ClientIP && ClientIP != "" {
+			if Access_Token_redis.Login_Ip != ClientIP && Access_Token_redis.Login_Ip != "" {
 				ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
 				return
 			}
