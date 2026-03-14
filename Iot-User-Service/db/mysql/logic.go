@@ -2158,8 +2158,8 @@ type Api__table_type struct {
 	Refresh_Token_Time uint   // 过期时间设定（s）
 	Allow_Ip           string // ip
 	Discontinued       bool   // 是否禁用
-	RSA_PrivateKeyPath string // RSA私钥
-	RSA_PublicKeyPath  string // RSA公钥
+	Refresh_Token_bits int    // 刷新令牌RSA私钥长度
+	Access_Token_bits  int    // 访问令牌RSA公钥长度
 }
 
 // 查询接口信息
@@ -2173,8 +2173,8 @@ func Api__Query_ApiKey(ApiKey string) (Api Api__table_type, err error) {
 		Refresh_Token_Time,
 		Allow_Ip,
 		Discontinued,
-		RSA_PrivateKeyPath,
-		RSA_PublicKeyPath
+		Refresh_Token_bits,
+		Access_Token_bits
 	FROM
 		Api
 	WHERE
@@ -2188,8 +2188,8 @@ func Api__Query_ApiKey(ApiKey string) (Api Api__table_type, err error) {
 		&Api.Refresh_Token_Time,
 		&Api.Allow_Ip,
 		&Api.Discontinued,
-		&Api.RSA_PrivateKeyPath,
-		&Api.RSA_PublicKeyPath,
+		&Api.Refresh_Token_bits,
+		&Api.Access_Token_bits,
 	)
 	if err != nil {
 		log.Print(err.Error())
@@ -2212,8 +2212,8 @@ func Api__Query() (Api Api__table_type, err error) {
 		Refresh_Token_Time,
 		Allow_Ip,
 		Discontinued,
-		RSA_PrivateKeyPath,
-		RSA_PublicKeyPath
+		Refresh_Token_bits,
+		Access_Token_bits
 	FROM
 		Api
 	`
@@ -2225,9 +2225,27 @@ func Api__Query() (Api Api__table_type, err error) {
 		&Api.Refresh_Token_Time,
 		&Api.Allow_Ip,
 		&Api.Discontinued,
-		&Api.RSA_PrivateKeyPath,
-		&Api.RSA_PublicKeyPath,
+		&Api.Refresh_Token_bits,
+		&Api.Access_Token_bits,
 	)
+	if err != nil {
+		log.Print(err.Error())
+	}
+
+	return
+}
+
+// 查询接口信息
+func Api__Query_Id__AccessTokenbits(Id uint) (Access_Token_bits int, err error) {
+	query := `
+	SELECT
+		Access_Token_bits
+	FROM
+		Api
+	WHERE
+		Id = ?
+	`
+	err = DB.QueryRow(query, Id).Scan(&Access_Token_bits)
 	if err != nil {
 		log.Print(err.Error())
 	}
@@ -2244,7 +2262,7 @@ func Api__Add(Value Api__table_type) (Id uint, err error) {
 	query := `
 	INSERT
 		INTO
-		Api(User_Id, ApiKey, Secret, Refresh_Token_Time, Allow_Ip, Discontinued, RSA_PrivateKeyPath, RSA_PublicKeyPath)
+		Api(User_Id, ApiKey, Secret, Refresh_Token_Time, Allow_Ip, Discontinued, Refresh_Token_bits, Access_Token_bits)
 	VALUES(?,?,?,?,?,?,?,?)
 	`
 	// 修改数据库
@@ -2256,8 +2274,9 @@ func Api__Add(Value Api__table_type) (Id uint, err error) {
 		Value.Refresh_Token_Time,
 		Value.Allow_Ip,
 		Value.Discontinued,
-		Value.RSA_PrivateKeyPath,
-		Value.RSA_PublicKeyPath)
+		Value.Refresh_Token_bits,
+		Value.Access_Token_bits,
+	)
 	if err != nil {
 		log.Print(err.Error())
 		return

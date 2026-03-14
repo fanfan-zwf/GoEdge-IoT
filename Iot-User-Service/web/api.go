@@ -44,7 +44,7 @@ func Api__Login_Refresh_Token(ctx *gin.Context) {
 		return
 	}
 
-	var ClientIP = ctx.ClientIP()
+	var ClientIP = ctx.ClientIP() // 获取客户端ip
 	if db_api.Allow_Ip != ClientIP && db_api.Allow_Ip != "" {
 		ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", db_api.Allow_Ip)})
 		return
@@ -55,18 +55,35 @@ func Api__Login_Refresh_Token(ctx *gin.Context) {
 		return
 	}
 
-	PrivateKey, err := getRSAPrivateKey(db_api.RSA_PrivateKeyPath)
+	// 生成RSA密钥对
+	PrivateKey, PublicKey, err := GenerateRSAKeyPair(db_api.Refresh_Token_bits)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
 
+	// 将RSA密钥对转换为PEM格式字符串
+	PrivateKey_str, err := PrivateKeyToPEM(PrivateKey)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	// 将RSA密钥对转换为PEM格式字符串
+	PublicKey_str, err := PublicKeyToPEM(PublicKey)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	// 生成随即刷新令牌
 	Aes_Key, err := GenerateSecureRandomString(Refresh_Token_Salt_Length) // 生成AES加密随机盐
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
 
+	// 将接口信息结构体转json并AES加密
 	encrypted, err := token_Info__Json_AES_Encrypt(Aes_Key, Token_Api_Info{
 		api_id: db_api.Id,
 	})
@@ -90,22 +107,23 @@ func Api__Login_Refresh_Token(ctx *gin.Context) {
 		return
 	}
 
+	// 记录日志
 	db_mysql.Log__Add2(
 		0,
 		"api_login",
 		fmt.Sprintf("ApiKey:%s,IP:%s", jsondata.ApiKey, ClientIP),
 	)
 
+	// 将刷新令牌存入redis
 	err = db_redis.Api_Refresh_Token_Add(Refresh_Token, db_redis.Api_Refresh_Token_redis_type{
-		Api_Id:             db_api.Id,                 // 接口id
-		Expires_in:         Refresh_Token_Time,        // 访问令牌过期时间
-		Allow_Ip:           db_api.Allow_Ip,           // 允许ip
-		Login_Ip:           ClientIP,                  // 登录ip
-		Salt:               Aes_Key,                   // 随机盐
-		RSA_PrivateKeyPath: db_api.RSA_PrivateKeyPath, // RSA私钥路径
-		RSA_PublicKeyPath:  db_api.RSA_PublicKeyPath,  // RSA公钥路径
+		Api_Id:          db_api.Id,          // 接口id
+		Expires_in:      Refresh_Token_Time, // 访问令牌过期时间
+		Allow_Ip:        db_api.Allow_Ip,    // 允许ip
+		Login_Ip:        ClientIP,           // 登录ip
+		Salt:            Aes_Key,            // 随机盐
+		RSA_Private_Key: PrivateKey_str,     // RSA私钥
+		RSA_Public_Key:  PublicKey_str,      // RSA公钥
 	})
-
 	if err != nil {
 		ctx.Set("Response", []any{StatusRedis, err.Error()})
 		return
@@ -145,24 +163,48 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 		return
 	}
 
-	var ClientIP = ctx.ClientIP()
+	var ClientIP = ctx.ClientIP() // 获取客户端ip
 	if Refresh_Token_redis.Login_Ip != ClientIP && Refresh_Token_redis.Login_Ip != "" {
 		ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
 		return
 	}
 
-	PrivateKey, err := getRSAPrivateKey(Refresh_Token_redis.RSA_PrivateKeyPath)
+	// 查询访问令牌的RSA密钥长度
+	Access_Token_bits, err := db_mysql.Api__Query_Id__AccessTokenbits(Refresh_Token_redis.Api_Id)
+	if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	// 生成RSA密钥对
+	PrivateKey, PublicKey, err := GenerateRSAKeyPair(Access_Token_bits)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
 
+	// 将RSA密钥对转换为PEM格式字符串
+	PrivateKey_str, err := PrivateKeyToPEM(PrivateKey)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	// 将RSA密钥对转换为PEM格式字符串
+	PublicKey_str, err := PublicKeyToPEM(PublicKey)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	// 生成随即访问令牌
 	Aes_Key, err := GenerateSecureRandomString(Refresh_Token_Salt_Length) // 生成AES加密随机盐
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
 
+	// 将接口信息结构体转json并AES加密
 	encrypted, err := token_Info__Json_AES_Encrypt(Aes_Key, Token_Api_Info{
 		api_id: Refresh_Token_redis.Api_Id,
 	})
@@ -171,7 +213,7 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 		return
 	}
 
-	timeNow := time.Now()
+	timeNow := time.Now()                                                                                // 当前时间
 	Access_Token_Time := timeNow.Add(time.Duration(Init.Config.SET.Api_Access_Token_Time) * time.Second) // 访问令牌过期时间
 
 	// 生成随即刷新令牌
@@ -183,6 +225,7 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 		Access_Token_Time,
 	)
 
+	// 将访问令牌存入redis
 	err = db_redis.Api_Access_Token_Add(
 		Access_Token,
 		db_redis.Api_Access_Token_redis_type{
@@ -192,9 +235,9 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 			Allow_Ip:      Refresh_Token_redis.Allow_Ip, // 允许的ip --- IGNORE ---
 			Login_Ip:      ClientIP,                     // 登录ip --- IGNORE ---
 
-			Salt:               Aes_Key,                                // 随机盐
-			RSA_PrivateKeyPath: Refresh_Token_redis.RSA_PrivateKeyPath, // RSA私钥路径
-			RSA_PublicKeyPath:  Refresh_Token_redis.RSA_PublicKeyPath,  // RSA公钥路径
+			Salt:            Aes_Key,        // 随机盐
+			RSA_Private_Key: PrivateKey_str, // RSA私钥
+			RSA_Public_Key:  PublicKey_str,  // RSA公钥
 		},
 	)
 	if err != nil {
@@ -302,6 +345,7 @@ func Api__User_Authority_Exist(ctx *gin.Context) {
 
 }
 
+// sdk_api 注册外部api路由
 func sdk_api(r *gin.Engine) {
 	r.POST("/api/v1.0/login/refresh_token", Api__Login_Refresh_Token) // 获取刷新令牌
 	r.POST("/api/v1.0/login/access_token", Api__Access_Token_Query)   // 获取访问令牌

@@ -240,9 +240,9 @@ type Api_Refresh_Token_redis_type struct {
 	Allow_Ip   string    // 允许ip
 	Login_Ip   string    // 登录ip
 
-	Salt               string // 随机盐
-	RSA_PrivateKeyPath string // RSA私钥路径
-	RSA_PublicKeyPath  string // RSA公钥路径
+	Salt            string // 随机盐
+	RSA_Private_Key string // RSA私钥
+	RSA_Public_Key  string // RSA公钥
 }
 
 // 创建访问令牌
@@ -300,9 +300,9 @@ type Api_Access_Token_redis_type struct {
 	Allow_Ip      string    // 允许ip
 	Login_Ip      string    // 登录ip
 
-	Salt               string // 随机盐
-	RSA_PrivateKeyPath string // RSA私钥路径
-	RSA_PublicKeyPath  string // RSA公钥路径
+	Salt            string // 随机盐
+	RSA_Private_Key string // RSA私钥
+	RSA_Public_Key  string // RSA公钥
 }
 
 // 创建访问令牌

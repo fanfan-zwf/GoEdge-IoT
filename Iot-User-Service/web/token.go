@@ -19,74 +19,89 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"main/cloud"
-	"os"
 	"strings"
 	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
-// 配置结构体（移除固定盐配置）
-type Config struct {
-	RSA struct {
-		PrivateKeyPath string `yaml:"private_key_path"`
-		PublicKeyPath  string `yaml:"public_key_path"`
-	} `yaml:"rsa"`
+// ====================== 生成RSA密钥 ======================
+// 参数：bits（密钥长度，推荐2048或以上）
+// 返回：生成的RSA私钥和公钥
+func GenerateRSAKeyPair(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	// 生成私钥
+	privateKey, err := rsa.GenerateKey(rand.Reader, bits)
+	if err != nil {
+		return nil, nil, fmt.Errorf("生成私钥失败: %v", err)
+	}
+	// 从私钥中提取公钥
+	publicKey := &privateKey.PublicKey
+	return privateKey, publicKey, nil
 }
 
-// 全局配置
-var globalConfig Config
-
-// 初始化配置
-func initConfig() error {
-	file, err := os.Open("config.yaml")
-	if err != nil {
-		return fmt.Errorf("ERROR 打开配置文件失败: %v", err)
+// 将rsa.PrivateKey序列化为PEM格式字符串（方便存储）
+func PrivateKeyToPEM(privateKey *rsa.PrivateKey) (string, error) {
+	// 把私钥转为ASN.1 DER编码
+	derBytes := x509.MarshalPKCS1PrivateKey(privateKey)
+	if derBytes == nil {
+		return "", errors.New("私钥DER编码失败")
 	}
-	defer file.Close()
-
-	decoder := yaml.NewDecoder(file)
-	if err := decoder.Decode(&globalConfig); err != nil {
-		return fmt.Errorf("ERROR 解析配置文件失败: %v", err)
+	// 封装为PEM格式
+	pemBlock := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: derBytes,
 	}
-	return nil
+	// 转为字符串
+	return string(pem.EncodeToMemory(pemBlock)), nil
 }
 
-// ====================== RSA 工具函数 ======================
-func getRSAPrivateKey(PrivateKeyPath string) (*rsa.PrivateKey, error) {
-	keyBytes, err := ioutil.ReadFile(PrivateKeyPath)
+// 将rsa.PublicKey序列化为PEM格式字符串（方便存储）
+func PublicKeyToPEM(publicKey *rsa.PublicKey) (string, error) {
+	// 把公钥转为ASN.1 DER编码
+	derBytes, err := x509.MarshalPKIXPublicKey(publicKey)
 	if err != nil {
-		return nil, fmt.Errorf("ERROR 读取私钥失败: %v", err)
+		return "", fmt.Errorf("公钥DER编码失败: %v", err)
 	}
+	// 封装为PEM格式
+	pemBlock := &pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: derBytes,
+	}
+	// 转为字符串
+	return string(pem.EncodeToMemory(pemBlock)), nil
+}
 
-	block, _ := pem.Decode(keyBytes)
+// ========== PEM字符串转回密钥结构体 ==========
+// PEM字符串转rsa.PrivateKey
+func PEMToPrivateKey(pemStr string) (*rsa.PrivateKey, error) {
+	// 1. 解析PEM块
+	block, _ := pem.Decode([]byte(pemStr))
 	if block == nil || block.Type != "RSA PRIVATE KEY" {
-		return nil, errors.New("ERROR 无效的RSA私钥")
+		return nil, errors.New("解析PEM私钥失败")
 	}
-
+	// 2. DER编码转rsa.PrivateKey
 	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("ERROR 解析私钥失败: %v", err)
+		return nil, fmt.Errorf("私钥解析失败: %v", err)
 	}
 	return privateKey, nil
 }
 
-func getRSAPublicKey(PublicKeyPath string) (*rsa.PublicKey, error) {
-	keyBytes, err := ioutil.ReadFile(PublicKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("ERROR 读取公钥失败: %v", err)
-	}
-
-	block, _ := pem.Decode(keyBytes)
+// PEM字符串转rsa.PublicKey
+func PEMToPublicKey(pemStr string) (*rsa.PublicKey, error) {
+	// 1. 解析PEM块
+	block, _ := pem.Decode([]byte(pemStr))
 	if block == nil || block.Type != "RSA PUBLIC KEY" {
-		return nil, errors.New("ERROR 无效的RSA公钥")
+		return nil, errors.New("解析PEM公钥失败")
 	}
-
-	publicKey, err := x509.ParsePKCS1PublicKey(block.Bytes)
+	// 2. DER编码转rsa.PublicKey
+	pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("ERROR 解析公钥失败: %v", err)
+		return nil, fmt.Errorf("公钥解析失败: %v", err)
+	}
+	// 3. 类型断言转为rsa.PublicKey
+	publicKey, ok := pubInterface.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("公钥类型不是RSA")
 	}
 	return publicKey, nil
 }
