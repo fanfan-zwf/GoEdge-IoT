@@ -27,7 +27,7 @@ import (
 // ====================== 生成RSA密钥 ======================
 // 参数：bits（密钥长度，推荐2048或以上）
 // 返回：生成的RSA私钥和公钥
-func GenerateRSAKeyPair(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+func Generate_RSA_Key_Pair(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	// 生成私钥
 	privateKey, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
@@ -39,7 +39,7 @@ func GenerateRSAKeyPair(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
 }
 
 // 将rsa.PrivateKey序列化为PEM格式字符串（方便存储）
-func PrivateKeyToPEM(privateKey *rsa.PrivateKey) (string, error) {
+func Private_Key_ToPEM(privateKey *rsa.PrivateKey) (string, error) {
 	// 把私钥转为ASN.1 DER编码
 	derBytes := x509.MarshalPKCS1PrivateKey(privateKey)
 	if derBytes == nil {
@@ -55,7 +55,7 @@ func PrivateKeyToPEM(privateKey *rsa.PrivateKey) (string, error) {
 }
 
 // 将rsa.PublicKey序列化为PEM格式字符串（方便存储）
-func PublicKeyToPEM(publicKey *rsa.PublicKey) (string, error) {
+func Public_Key_ToPEM(publicKey *rsa.PublicKey) (string, error) {
 	// 把公钥转为ASN.1 DER编码
 	derBytes, err := x509.MarshalPKIXPublicKey(publicKey)
 	if err != nil {
@@ -72,7 +72,7 @@ func PublicKeyToPEM(publicKey *rsa.PublicKey) (string, error) {
 
 // ========== PEM字符串转回密钥结构体 ==========
 // PEM字符串转rsa.PrivateKey
-func PEMToPrivateKey(pemStr string) (*rsa.PrivateKey, error) {
+func PEMTo_Private_Key(pemStr string) (*rsa.PrivateKey, error) {
 	// 1. 解析PEM块
 	block, _ := pem.Decode([]byte(pemStr))
 	if block == nil || block.Type != "RSA PRIVATE KEY" {
@@ -87,7 +87,7 @@ func PEMToPrivateKey(pemStr string) (*rsa.PrivateKey, error) {
 }
 
 // PEM字符串转rsa.PublicKey
-func PEMToPublicKey(pemStr string) (*rsa.PublicKey, error) {
+func PEMTo_Public_Key(pemStr string) (*rsa.PublicKey, error) {
 	// 1. 解析PEM块
 	block, _ := pem.Decode([]byte(pemStr))
 	if block == nil || block.Type != "RSA PUBLIC KEY" {
@@ -108,7 +108,7 @@ func PEMToPublicKey(pemStr string) (*rsa.PublicKey, error) {
 
 // ====================== 随机盐生成工具 ======================
 // generateRandomSalt 生成指定长度的随机盐（默认16字节）
-func generateRandomSalt(length int) ([]byte, error) {
+func generate_Random_Salt(length int) ([]byte, error) {
 	if length <= 0 {
 		length = 16 // 默认16字节随机盐
 	}
@@ -130,9 +130,9 @@ func generateRandomSalt(length int) ([]byte, error) {
 // 	expire_time: 过期时间
 
 // 返回：Token字符串 | 错误
-func CreateShortToken(salt_length int, private_key *rsa.PrivateKey, encrypted_user_info []byte, issue_time time.Time, expire_time time.Time) (string, error) {
+func Create_Short_Token(salt_length int, private_key *rsa.PrivateKey, encrypted_user_info []byte, issue_time time.Time, expire_time time.Time) (string, error) {
 	// 1. 生成16字节随机盐
-	salt, err := generateRandomSalt(salt_length)
+	salt, err := generate_Random_Salt(salt_length)
 	if err != nil {
 		return "", err
 	}
@@ -165,35 +165,6 @@ func CreateShortToken(salt_length int, private_key *rsa.PrivateKey, encrypted_us
 	return token, nil
 }
 
-// api中的token中的api信息结构体
-type Token_Api_Info struct {
-	api_id uint
-}
-
-// 信息结构体转json并AES加密
-func token_Info__Json_AES_Encrypt(Aes string, info Token_Api_Info) ([]byte, error) {
-	jsonByte, err := json.Marshal(info)
-	if err != nil {
-		return nil, fmt.Errorf("ERROR Token_Api_Info结构体转json失败: %v", err)
-	}
-	return cloud.AesEncryptGCM(jsonByte, Aes) // AES加密（GCM模式 - 推荐）
-}
-
-// 信息数据AES解密并转结构体
-func token_Info__Json_AES_Decrypt(Aes string, d []byte) ([]byte, error) {
-	cloud_Aes_Decrypt, err := cloud.AesDecryptGCM(d, Aes) // AES解密（GCM模式 - 推荐）
-	if err != nil {
-		return nil, fmt.Errorf("ERROR AES解密失败: %v", err)
-	}
-
-	var info Token_Api_Info
-	err = json.Unmarshal(cloud_Aes_Decrypt, &info)
-	if err != nil {
-		return nil, fmt.Errorf("ERROR JSON解析失败: %v", err)
-	}
-	return cloud_Aes_Decrypt, nil
-}
-
 // VerifyShortToken 验证带随机盐的Token
 // 参数：
 //
@@ -201,7 +172,7 @@ func token_Info__Json_AES_Decrypt(Aes string, d []byte) ([]byte, error) {
 //	token: 待验证的Token字符串
 //
 // 返回：AES加密后的用户信息 | 错误
-func VerifyShortToken(public_key *rsa.PublicKey, token string) ([]byte, error) {
+func Verify_Short_Token(public_key *rsa.PublicKey, token string) ([]byte, error) {
 	// 1. 拆分Token（按.分隔，需拆分为5部分）
 	parts := strings.Split(token, ".")
 	if len(parts) != 5 {
@@ -259,7 +230,7 @@ func VerifyShortToken(public_key *rsa.PublicKey, token string) ([]byte, error) {
 }
 
 // ====================== AES 辅助函数（无修改） ======================
-func AesEncrypt(plainText []byte, key []byte) ([]byte, error) {
+func Aes_Encrypt(plainText []byte, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -275,7 +246,7 @@ func AesEncrypt(plainText []byte, key []byte) ([]byte, error) {
 	return append(iv, cipherText...), nil
 }
 
-func AesDecrypt(cipherText []byte, key []byte) ([]byte, error) {
+func Aes_Decrypt(cipherText []byte, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -301,63 +272,36 @@ func pkcs7Unpadding(data []byte) []byte {
 	return data[:length-padding]
 }
 
-// ====================== 测试示例 ======================
-// func main() {
-// 	// 1. 初始化配置
-// 	if err := initConfig(); err != nil {
-// 		fmt.Printf("配置初始化失败: %v\n", err)
-// 		return
-// 	}
+// api中的token中的api信息结构体
+type Token_Api_Info struct {
+	Api_Id   uint   // 接口Id
+	Login_Ip string // 登录ip
 
-// 	// 2. 读取RSA密钥
-// 	privateKey, err := getRSAPrivateKey()
-// 	if err != nil {
-// 		fmt.Printf("获取私钥失败: %v\n", err)
-// 		return
-// 	}
-// 	publicKey, err := getRSAPublicKey()
-// 	if err != nil {
-// 		fmt.Printf("获取公钥失败: %v\n", err)
-// 		return
-// 	}
+}
 
-// 	// 3. 模拟AES加密用户信息
-// 	originalUserInfo := []byte(`{"user_id":123,"username":"test"}`)
-// 	aesKey := []byte("1234567890123456") // AES-128密钥（16字节）
-// 	encryptedUserInfo, err := AesEncrypt(originalUserInfo, aesKey)
-// 	if err != nil {
-// 		fmt.Printf("AES加密失败: %v\n", err)
-// 		return
-// 	}
+// 信息结构体转json并AES加密
+func Token_Api_Info__Json_AES_Encrypt(Aes string, info Token_Api_Info) (aes_data []byte, err error) {
+	jsonByte, err := json.Marshal(info)
+	if err != nil {
+		err = fmt.Errorf("ERROR Token_Api_Info结构体转json失败: %v", err)
+		return
+	}
 
-// 	// 4. 生成Token（两次生成的Token会因随机盐不同而不同）
-// 	issueTime := time.Now()
-// 	expireTime := time.Now().Add(1 * time.Hour)
-// 	token1, err := CreateShortToken(0, privateKey, encryptedUserInfo, issueTime, expireTime)
-// 	if err != nil {
-// 		fmt.Printf("创建Token1失败: %v\n", err)
-// 		return
-// 	}
-// 	token2, err := CreateShortToken(0, privateKey, encryptedUserInfo, issueTime, expireTime)
-// 	if err != nil {
-// 		fmt.Printf("创建Token2失败: %v\n", err)
-// 		return
-// 	}
-// 	fmt.Printf("Token1（带随机盐）: %s\n", token1)
-// 	fmt.Printf("Token2（带随机盐）: %s\n", token2)
-// 	fmt.Printf("两次Token是否不同: %t\n\n", token1 != token2)
+	aes_data, err = cloud.AesEncryptGCM(jsonByte, Aes) // AES加密（GCM模式 - 推荐）
+	return
+}
 
-// 	// 5. 验证Token1
-// 	decryptedUserInfo, err := VerifyShortToken(publicKey, token1)
-// 	if err != nil {
-// 		fmt.Printf("验证Token1失败: %v\n", err)
-// 		return
-// 	}
-// 	// 解密用户信息
-// 	originalInfo, err := AesDecrypt(decryptedUserInfo, aesKey)
-// 	if err != nil {
-// 		fmt.Printf("AES解密失败: %v\n", err)
-// 		return
-// 	}
-// 	fmt.Printf("Token1验证通过，原始用户信息: %s\n", originalInfo)
-// }
+// 信息数据AES解密并转结构体
+func Token_Api__Info__Json_AES_Decrypt(Aes string, d []byte) (info Token_Api_Info, err error) {
+	cloud_Aes_Decrypt, err := cloud.AesDecryptGCM(d, Aes) // AES解密（GCM模式 - 推荐）
+	if err != nil {
+		err = fmt.Errorf("ERROR AES解密失败: %v", err)
+		return
+	}
+
+	err = json.Unmarshal(cloud_Aes_Decrypt, &info)
+	if err != nil {
+		err = fmt.Errorf("ERROR JSON解析失败: %v", err)
+	}
+	return
+}

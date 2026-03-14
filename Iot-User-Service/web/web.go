@@ -159,7 +159,7 @@ func token_use() gin.HandlerFunc {
 			ctx.Set("User_Id", Access_Token_redis.User_Id)
 			ctx.Set("Access_Token_redis", Access_Token_redis)
 			ctx.Next()
-		} else if strings.HasPrefix(FullPath, "/Api/v1.0") {
+		} else if strings.HasPrefix(FullPath, "/Api/v1.0") { // 接口验证逻辑
 			// 3. 获取并验证token
 			accessToken := ctx.Request.Header.Get("F_Api_Access_Token")
 			if accessToken == "" {
@@ -179,35 +179,57 @@ func token_use() gin.HandlerFunc {
 				return
 			}
 
+			// 判断登陆ip与请求ip是否一致
 			if Access_Token_redis.Login_Ip != ClientIP && Access_Token_redis.Login_Ip != "" {
 				ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
 				return
 			}
 
-			ctx.Set("Api_Id", Access_Token_redis.Api_Id)
-			ctx.Set("Api_Access_Token_redis", Access_Token_redis)
+			// 解析公钥rsa.PublicKey
+			Public_Key, err := PEMTo_Public_Key(Access_Token_redis.RSA_Public_Key)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 验证公钥
+			info_res, err := Verify_Short_Token(Public_Key, accessToken)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 获取token中的用户信息
+			token_info, err := Token_Api__Info__Json_AES_Decrypt(Access_Token_redis.Salt, info_res)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 判断登陆ip与请求ip是否一致
+			if token_info.Login_Ip != ClientIP && token_info.Login_Ip != "" {
+				ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+				return
+			}
+
+			// 判断id
+			if token_info.Api_Id != Access_Token_redis.Api_Id {
+				ctx.Set("Response", []any{500, "api_id与缓存id不一致"})
+				ctx.Abort()
+				return
+			}
+
+			ctx.Set("Api_Access_Token_Redis", Access_Token_redis)
+			ctx.Set("Api_Access_Token__Token_Info", token_info)
 			ctx.Next()
 		} else {
 			ctx.Set("Response", []any{404, "未知类型"})
 			ctx.Abort()
 		}
 	}
-}
-
-func Token_User_Id(ctx *gin.Context) (User_Id uint, err error) {
-	// 用户id不存在，赋值登陆的用户id
-	value, exists := ctx.Get("User_Id")
-	if !exists {
-		err = fmt.Errorf("User_Id 不存在")
-		return
-	}
-
-	var ok bool
-	User_Id, ok = value.(uint)
-	if !ok {
-		err = fmt.Errorf("User_Id 未知类型")
-	}
-	return
 }
 
 func Web() {
@@ -232,4 +254,54 @@ func Web() {
 
 	r.Run(bind)
 
+}
+
+func Token_User_Id(ctx *gin.Context) (User_Id uint, err error) {
+	// 用户id不存在，赋值登陆的用户id
+	value, exists := ctx.Get("User_Id")
+	if !exists {
+		err = fmt.Errorf("User_Id 不存在")
+		return
+	}
+
+	var ok bool
+	User_Id, ok = value.(uint)
+	if !ok {
+		err = fmt.Errorf("User_Id 未知类型")
+	}
+	return
+}
+
+// ====================== 接口相关方法 ======================
+
+func Custom_Key__Access_Token_Redis(ctx *gin.Context) (Access_Token_redis db_redis.Api_Access_Token_redis_type, err error) {
+	// 用户id不存在，赋值登陆的用户id
+	value, exists := ctx.Get("Api_Access_Token_Redis")
+	if !exists {
+		err = fmt.Errorf("Api_Access_Token_Redis 不存在")
+		return
+	}
+
+	var ok bool
+	Access_Token_redis, ok = value.(db_redis.Api_Access_Token_redis_type)
+	if !ok {
+		err = fmt.Errorf("db_redis.Api_Access_Token_redis_type 未知类型")
+	}
+	return
+}
+
+func Custom_Key__Access_Token__Token_Info(ctx *gin.Context) (token_info Token_Api_Info, err error) {
+	// 用户id不存在，赋值登陆的用户id
+	value, exists := ctx.Get("Api_Access_Token__Token_Info")
+	if !exists {
+		err = fmt.Errorf("Api_Access_Token__Token_Info 不存在")
+		return
+	}
+
+	var ok bool
+	token_info, ok = value.(Token_Api_Info)
+	if !ok {
+		err = fmt.Errorf("token_info 未知类型")
+	}
+	return
 }

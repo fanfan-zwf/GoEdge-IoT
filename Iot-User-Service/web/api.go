@@ -56,21 +56,21 @@ func Api__Login_Refresh_Token(ctx *gin.Context) {
 	}
 
 	// 生成RSA密钥对
-	PrivateKey, PublicKey, err := GenerateRSAKeyPair(db_api.Refresh_Token_bits)
+	PrivateKey, PublicKey, err := Generate_RSA_Key_Pair(db_api.Refresh_Token_bits)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
 
 	// 将RSA密钥对转换为PEM格式字符串
-	PrivateKey_str, err := PrivateKeyToPEM(PrivateKey)
+	PrivateKey_str, err := Private_Key_ToPEM(PrivateKey)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
 
 	// 将RSA密钥对转换为PEM格式字符串
-	PublicKey_str, err := PublicKeyToPEM(PublicKey)
+	PublicKey_str, err := Public_Key_ToPEM(PublicKey)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
@@ -84,8 +84,9 @@ func Api__Login_Refresh_Token(ctx *gin.Context) {
 	}
 
 	// 将接口信息结构体转json并AES加密
-	encrypted, err := token_Info__Json_AES_Encrypt(Aes_Key, Token_Api_Info{
-		api_id: db_api.Id,
+	encrypted, err := Token_Api_Info__Json_AES_Encrypt(Aes_Key, Token_Api_Info{
+		Api_Id:   db_api.Id,
+		Login_Ip: ClientIP,
 	})
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
@@ -95,7 +96,7 @@ func Api__Login_Refresh_Token(ctx *gin.Context) {
 	timeNow := time.Now()
 	Refresh_Token_Time := timeNow.Add(time.Duration(db_api.Refresh_Token_Time) * time.Second)
 	// 生成随即刷新令牌
-	Refresh_Token, err := CreateShortToken(
+	Refresh_Token, err := Create_Short_Token(
 		Refresh_Token_Salt_Length,
 		PrivateKey,
 		encrypted,
@@ -170,28 +171,28 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 	}
 
 	// 查询访问令牌的RSA密钥长度
-	Access_Token_bits, err := db_mysql.Api__Query_Id__AccessTokenbits(Refresh_Token_redis.Api_Id)
+	Access_Token_bits, err := db_mysql.Api__Query_Id__AccessTokenBits(Refresh_Token_redis.Api_Id)
 	if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
 	}
 
 	// 生成RSA密钥对
-	PrivateKey, PublicKey, err := GenerateRSAKeyPair(Access_Token_bits)
+	PrivateKey, PublicKey, err := Generate_RSA_Key_Pair(Access_Token_bits)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
 
 	// 将RSA密钥对转换为PEM格式字符串
-	PrivateKey_str, err := PrivateKeyToPEM(PrivateKey)
+	PrivateKey_str, err := Private_Key_ToPEM(PrivateKey)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
 
 	// 将RSA密钥对转换为PEM格式字符串
-	PublicKey_str, err := PublicKeyToPEM(PublicKey)
+	PublicKey_str, err := Public_Key_ToPEM(PublicKey)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
@@ -205,8 +206,9 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 	}
 
 	// 将接口信息结构体转json并AES加密
-	encrypted, err := token_Info__Json_AES_Encrypt(Aes_Key, Token_Api_Info{
-		api_id: Refresh_Token_redis.Api_Id,
+	encrypted, err := Token_Api_Info__Json_AES_Encrypt(Aes_Key, Token_Api_Info{
+		Api_Id:   Refresh_Token_redis.Api_Id,   // 接口id
+		Login_Ip: Refresh_Token_redis.Login_Ip, // 登陆ip
 	})
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
@@ -217,7 +219,7 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 	Access_Token_Time := timeNow.Add(time.Duration(Init.Config.SET.Api_Access_Token_Time) * time.Second) // 访问令牌过期时间
 
 	// 生成随即刷新令牌
-	Access_Token, err := CreateShortToken(
+	Access_Token, err := Create_Short_Token(
 		Refresh_Token_Salt_Length,
 		PrivateKey,
 		encrypted,

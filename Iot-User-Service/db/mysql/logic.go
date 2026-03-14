@@ -2236,7 +2236,7 @@ func Api__Query() (Api Api__table_type, err error) {
 }
 
 // 查询接口信息
-func Api__Query_Id__AccessTokenbits(Id uint) (Access_Token_bits int, err error) {
+func Api__Query_Id__AccessTokenBits(Id uint) (Access_Token_bits int, err error) {
 	query := `
 	SELECT
 		Access_Token_bits
