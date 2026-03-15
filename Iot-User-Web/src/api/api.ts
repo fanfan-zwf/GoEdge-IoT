@@ -1,4 +1,4 @@
-import { http_Front_url } from '@/typer/index'
+import { http_Front_url } from '@/api/index'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import { sha3_256_sync } from '@/typer/function'
@@ -42,7 +42,7 @@ export async function User__Get_Info(User_Id: number = 0, Again: boolean = false
 
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/User/Get/Info', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/get/info', {
             User_Id: User_Id
         })
 
@@ -81,7 +81,7 @@ export async function User__Get_Info_Array(User_Id_Array: number[]): Promise<Use
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/User/Get/Info_Array', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/get/info_array', {
             User_Id_Array: User_Id_Array
         })
 
@@ -123,7 +123,7 @@ export async function User__Get_Info_Search(Search: string, Type: string, Number
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/User/Get/Search', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/get/search', {
             Search: Search,
             Type: Type,
             Number: Number
@@ -159,7 +159,7 @@ export async function User_Set_Add(value: User__all_table_type): Promise<void> {
     value.Passwd = sha3_256_sync(0, value.Passwd)
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/User/Set/Add', value)
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/set/add', value)
         const status = (await response).status
         if (status == 200) {
             ElMessage({
@@ -187,7 +187,7 @@ export async function User_Set_Add(value: User__all_table_type): Promise<void> {
  */
 export async function User__Set_Name(Name: string, User_Id: number = 0): Promise<void> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/User/Set/Name', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/set/name', {
             User_Id: User_Id,
             Name: Name
         })
@@ -218,7 +218,7 @@ export async function User__Set_Name(Name: string, User_Id: number = 0): Promise
  */
 export async function User__Set_Passwd(Passwd: string, User_Id: number = 0): Promise<void> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/User/Set/Passwd', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/set/passwd', {
             User_Id: User_Id,
             Passwd: sha3_256_sync(0, Passwd)
         })
@@ -248,7 +248,7 @@ export async function User__Set_Passwd(Passwd: string, User_Id: number = 0): Pro
  */
 export async function User__Set_Phone(Phone: string, User_Id: number = 0): Promise<void> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/User/Set/Phone', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/set/phone', {
             User_Id: User_Id,
             Phone: Phone
         })
@@ -278,7 +278,7 @@ export async function User__Set_Phone(Phone: string, User_Id: number = 0): Promi
  */
 export async function User__Set_Email(Email: string, User_Id: number = 0): Promise<void> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/User/Set/Email', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/set/email', {
             User_Id: User_Id,
             Email: Email
         })
@@ -311,7 +311,7 @@ export async function User__Set_Del(User_Id: number): Promise<void> {
         throw 'User_Id不能是0'
     }
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/User/Set/Del', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/set/del', {
             User_Id: User_Id
         })
         const status = (await response).status
@@ -340,7 +340,7 @@ export async function User__Set_Del(User_Id: number): Promise<void> {
  */
 export async function User__All_Count(): Promise<number> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/User/Get/Count')
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/get/count')
 
         const status = (await response).status
         if (status == 200) {
@@ -367,7 +367,7 @@ export async function User__All_Count(): Promise<number> {
  */
 export async function User__All_Query(Page: number, Page_Size: number): Promise<User__table_interface> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/User/Get/Query', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/get/query', {
             Page: Page,
             Page_Size: Page_Size,
         })
@@ -411,7 +411,7 @@ export interface Authority__table_interface {
  */
 export async function Authority__Count(): Promise<number> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority/Count')
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority/count')
 
         const status = (await response).status
         if (status == 200) {
@@ -438,7 +438,7 @@ export async function Authority__Count(): Promise<number> {
  */
 export async function Authority__Query(Page: number, Page_Size: number): Promise<Authority__table_interface> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority/Query', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority/query', {
             Page: Page,
             Page_Size: Page_Size,
         })
@@ -468,7 +468,7 @@ export async function Authority__Query(Page: number, Page_Size: number): Promise
  */
 export async function Authority__Id_Array(Authority_Id: number[]): Promise<Authority__table_interface[]> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority/Id', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority/id', {
             Authority_Id: Authority_Id
         })
 
@@ -513,7 +513,7 @@ export async function Authority__Search(Search: string, Type: string, Number: nu
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority/Search', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority/search', {
             Search: Search,
             Type: Type,
             Number: Number
@@ -546,7 +546,7 @@ export async function Authority__Add(Authority: Authority__table_interface): Pro
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority/Add', Authority)
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority/add', Authority)
 
         const status = (await response).status
         if (status == 200) {
@@ -580,7 +580,7 @@ export async function Authority__Update(Authority: Authority__table_interface): 
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority/Update', Authority)
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority/update', Authority)
 
         const status = (await response).status
         if (status == 200) {
@@ -614,7 +614,7 @@ export async function Authority__Del(Authority_Id: number): Promise<void> {
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority/Del', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority/del', {
             Authority_Id: Authority_Id
         })
 
@@ -658,7 +658,7 @@ export interface Authority_User__table_interface {
  */
 export async function Authority_User__All_Count(User_Id: number = 0): Promise<number> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority_User/Count', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority_user/count', {
             User_Id: User_Id,
         })
 
@@ -687,7 +687,7 @@ export async function Authority_User__All_Count(User_Id: number = 0): Promise<nu
  */
 export async function Authority_User__All_Query(Page: number, Page_Size: number, User_Id: number = 0): Promise<Authority_User__table_interface[]> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority_User/Query', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority_user/query', {
             User_Id: User_Id,
             Page: Page,
             Page_Size: Page_Size,
@@ -722,7 +722,7 @@ export async function Authority_User__Enable(User_Id: number, Enable: boolean): 
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority_User/Enable', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority_user/enable', {
             User_Id: User_Id,
             Enable: Enable,
         })
@@ -759,7 +759,7 @@ export async function Authority_User__Add(Authority_User: Authority_User__table_
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority_User/Add', Authority_User)
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority_user/add', Authority_User)
 
         const status = (await response).status
         if (status == 200) {
@@ -793,7 +793,7 @@ export async function Authority_User__Del(Authority_User__Id: number): Promise<v
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Authority_User/Del', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/authority_user/del', {
             Id: Authority_User__Id
         })
 
@@ -839,7 +839,7 @@ export interface Group__table_interface {
  */
 export async function Group__Count(): Promise<number> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Group/Count')
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/group/count')
 
         const status = (await response).status
         if (status == 200) {
@@ -866,7 +866,7 @@ export async function Group__Count(): Promise<number> {
  */
 export async function Group__Query(Page: number, Page_Size: number): Promise<Group__table_interface> {
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Group/Query', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/group/query', {
             Page: Page,
             Page_Size: Page_Size,
         })
@@ -900,7 +900,7 @@ export async function Group__Add(Group: Group__table_interface): Promise<void> {
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Group/Add', Group)
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/group/add', Group)
 
         const status = (await response).status
         if (status == 200) {
@@ -934,7 +934,7 @@ export async function Group__Update(Group: Group__table_interface): Promise<void
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Group/Update', Group)
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/group/update', Group)
 
         const status = (await response).status
         if (status == 200) {
@@ -968,7 +968,7 @@ export async function Group__Del(Group__Id: number): Promise<void> {
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Group/Del', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/group/del', {
             Group_Id: Group__Id
         })
 
@@ -1018,7 +1018,7 @@ export async function Group_User__Count(Group_User_Id: number): Promise<number> 
         throw 'Group_User_Id不应该等于0'
     }
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Group_User/Count', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/group_user/count', {
             Group_User_Id: Group_User_Id
         })
 
@@ -1050,7 +1050,7 @@ export async function Group_User__Query(Group_User_Id: number, Page: number, Pag
         throw 'Group_User_Id不应该是0'
     }
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Group_User/Query', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/group_user/query', {
             Group_User_Id: Group_User_Id,
             Page: Page,
             Page_Size: Page_Size,
@@ -1085,7 +1085,7 @@ export async function Group_User__Administrator(Group_User__Id: number, Administ
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Group_User/Administrator',
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/group_user/administrator',
             {
                 Group_User__Id: Group_User__Id,
                 Administrator: Administrator
@@ -1124,7 +1124,7 @@ export async function Group_User__Add(Group_User: Group_User__table_interface): 
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Group_User/Add', Group_User)
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/group_user/add', Group_User)
 
         const status = (await response).status
         if (status == 200) {
@@ -1158,7 +1158,7 @@ export async function Group_User__Del(Group_User__Id: number): Promise<void> {
     }
 
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Group_User/Del', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/group_user/del', {
             Group_Id: Group_User__Id
         })
 

@@ -124,8 +124,8 @@
 import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
 import { RouterView } from 'vue-router'
 import { Menu, Fold, Expand, Key } from '@element-plus/icons-vue'
-import { User__Get_Info } from '@/typer/api'
-import type { User__table_interface } from '@/typer/api'
+import { User__Get_Info } from '@/api/api'
+import type { User__table_interface } from '@/api/api'
 
 const User_info: User__table_interface = reactive({
     Id: 0, // 用户ID

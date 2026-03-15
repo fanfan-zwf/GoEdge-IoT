@@ -121,14 +121,14 @@ func token_use() gin.HandlerFunc {
 		}
 
 		// 2. 检查是否是免token的路径
-		if strings.HasPrefix(FullPath, "/Gui/v1.0/Login") ||
-			strings.HasPrefix(FullPath, "/Api/v1.0/Login") {
+		if strings.HasPrefix(FullPath, "/api/gui/v1.0/login") ||
+			strings.HasPrefix(FullPath, "/api/v1.0/login") {
 			fmt.Printf("路径 %s 无需token授权\n", FullPath)
 			ctx.Next()
 			return
 		}
 
-		if strings.HasPrefix(FullPath, "/Gui/v1.0") {
+		if strings.HasPrefix(FullPath, "/api/gui/v1.0") {
 			// 3. 获取并验证token
 			accessToken := ctx.Request.Header.Get("F_Access_Token")
 			if accessToken == "" {
@@ -159,7 +159,7 @@ func token_use() gin.HandlerFunc {
 			ctx.Set("User_Id", Access_Token_redis.User_Id)
 			ctx.Set("Access_Token_redis", Access_Token_redis)
 			ctx.Next()
-		} else if strings.HasPrefix(FullPath, "/Api/v1.0") { // 接口验证逻辑
+		} else if strings.HasPrefix(FullPath, "/api/v1.0") { // 接口验证逻辑
 			// 3. 获取并验证token
 			accessToken := ctx.Request.Header.Get("F_Api_Access_Token")
 			if accessToken == "" {

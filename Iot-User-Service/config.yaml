@@ -16,7 +16,7 @@ API:
       value: Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, F_Access_Token, F_Refresh_Token, F_Terminal_Uuid
 
 MYSQL:
-  dsn: "root:123456@tcp(192.168.220.20:3306)/go-user-server?charset=utf8mb4&parseTime=True&loc=Local"
+  dsn: "root:123456@tcp(192.168.31.36:3306)/iot-user-service?charset=utf8mb4&parseTime=True&loc=Local"
   
 REDIS:
   ip: 127.0.0.1

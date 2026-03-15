@@ -1,4 +1,4 @@
-import { http_Front_url } from '@/typer/index'
+import { http_Front_url } from '@/api/index'
 import axios from 'axios'
 import router from '@/router/index'
 import { DualMutex } from '@/typer/function'
@@ -81,7 +81,7 @@ axios.interceptors.response.use(
     async function (error) {
         const originalRequest = error.config;
         // 排除登录接口 
-        if (originalRequest?.url?.includes('/app/v1.0/Login') || error.status != 401) {
+        if (originalRequest?.url?.includes('/api/gui/v1.0/login') || error.status != 401) {
             console.log('排除登录接口', originalRequest?.url);
             return Promise.reject(error);
         }
@@ -202,9 +202,13 @@ export interface localStorage_Refresh_Token_interface {
 export async function Api_Name_login_Refresh_Token_update(Name: string, Passwd: string): Promise<localStorage_Refresh_Token_interface> {
     try {
         // 修改
-        const response = axios.post(http_Front_url + '/app/v1.0/Login/Name', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/login/name', {
             Name: Name,
             Passwd: sha3_256_sync(0, Passwd)
+        }, {
+            headers: {
+                'F_Terminal_Uuid': F_Terminal_Uuid()
+            }
         })
 
         const status = (await response).status
@@ -257,7 +261,7 @@ export async function Api_Access_Token_update(): Promise<localStorage_Access_Tok
         throw 'Refresh_Token获取失败'
     }
     try {
-        const response = axios.post(http_Front_url + '/app/v1.0/Login/Access_Token', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/login/access_token', {
             User_Id: Refresh_Token_value?.User_Id,
             F_Refresh_Token: Refresh_Token_value?.F_Refresh_Token
         })
@@ -303,4 +307,61 @@ export async function Access_Token_Query(): Promise<localStorage_Access_Token_in
         return token
     }
 
+}
+
+/**
+ * 获取终端唯一标识 UUID（持久化存储，同一设备始终返回相同值）
+ * 功能整合：生成+验证+存储 全部在一个函数内完成
+ * @returns {string} 符合 RFC4122 标准的 UUID
+ */
+export function F_Terminal_Uuid(): string {
+  // 1. 定义常量（函数内局部常量）
+  const STORAGE_KEY = 'F_Terminal_Uuid';
+  let terminalUuid = '';
+
+  try {
+    // 2. 尝试读取本地存储的 UUID
+    const storedUuid = localStorage.getItem(STORAGE_KEY);
+    
+    // 3. 验证本地 UUID 格式是否合法（RFC4122 v4 标准）
+    const isValidUuid = (uuid: string): boolean => {
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid);
+    };
+
+    // 4. 如果本地有合法 UUID，直接使用
+    if (storedUuid && isValidUuid(storedUuid)) {
+      terminalUuid = storedUuid;
+    } else {
+      // 5. 生成新 UUID（优先原生 API，兼容旧浏览器）
+      const generateUuid = (): string => {
+        // 现代浏览器原生 API
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+          return crypto.randomUUID();
+        }
+        // 旧浏览器兼容方案
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          const v = c === 'x' ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+      };
+
+      // 6. 生成新 UUID 并存储
+      terminalUuid = generateUuid();
+      localStorage.setItem(STORAGE_KEY, terminalUuid);
+    }
+  } catch (e) {
+    // 7. 异常处理（localStorage 不可用/其他错误）
+    console.warn('终端UUID生成/存储失败，使用临时UUID:', e);
+    // 生成临时 UUID（不存储，仅本次会话有效）
+    terminalUuid = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          const v = c === 'x' ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+  }
+
+  return terminalUuid;
 }

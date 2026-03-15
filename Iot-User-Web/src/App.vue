@@ -6,7 +6,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Access_Token_Query } from "@/typer/token"
+import { Access_Token_Query } from "@/api/token"
 import { ElMessage } from 'element-plus'
 
 import demo from "@/views/layout/body.vue"

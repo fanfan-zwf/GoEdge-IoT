@@ -1,4 +1,10 @@
 import { http_Front_url } from '@/typer/index'
+
+declare module 'axios' {
+    const axios: any;
+    export default axios;
+}
+
 import axios from 'axios'
 import router from '@/router/index'
 import { DualMutex } from '@/utils/function'

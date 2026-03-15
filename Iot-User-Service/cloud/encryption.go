@@ -60,6 +60,8 @@ func Gzip_decompress(compressed []byte, maxSize int64) ([]byte, error) {
 
 // AES加密（GCM模式 - 推荐）
 func AesEncryptGCM(plainText []byte, key string) ([]byte, error) {
+	// 使用SHA-256哈希生成固定长度的密钥
+	// AES-256需要32字节的密钥，SHA-256输出正好是32字节
 	hash_key := sha256.Sum256([]byte(key))
 
 	block, err := aes.NewCipher(hash_key[:])
@@ -82,6 +84,8 @@ func AesEncryptGCM(plainText []byte, key string) ([]byte, error) {
 
 // AES解密（GCM模式）
 func AesDecryptGCM(cipherText []byte, key string) ([]byte, error) {
+	// 使用SHA-256哈希生成固定长度的密钥
+	// AES-256需要32字节的密钥，SHA-256输出正好是32字节
 	hash_key := sha256.Sum256([]byte(key))
 
 	block, err := aes.NewCipher(hash_key[:])

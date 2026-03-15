@@ -64,7 +64,7 @@ import {
     User__Get_Info_Array,
     type Group_User__table_interface,
     type User__table_interface,
-} from '@/typer/api'
+} from '@/api/api'
 import user_search from '@/views/user/user_search.vue'
 
 

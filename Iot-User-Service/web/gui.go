@@ -164,7 +164,7 @@ func User_Access_Token_query(ctx *gin.Context) {
 		ctx.Set("Response", []any{520, err.Error()})
 		return
 	}
-	User_Access_Token_Time, err := strconv.ParseUint(value, 10, 64)
+	User_Access_Token_Time, err := strconv.Atoi(value)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
@@ -2051,52 +2051,52 @@ func Log__All_Query(ctx *gin.Context) {
 }
 
 func gui_api(r *gin.Engine) {
-	r.POST("/Gui/v1.0/Login/Name", User_Login_Name)                 // 用户名登陆
-	r.POST("/Gui/v1.0/Login/Access_Token", User_Access_Token_query) // 获取访问令牌
+	r.POST("/api/gui/v1.0/login/name", User_Login_Name)                 // 用户名登陆
+	r.POST("/api/gui/v1.0/login/access_token", User_Access_Token_query) // 获取访问令牌
 
-	r.POST("/Gui/v1.0/User/Get/Count", User_All_Count)           // 获取条数
-	r.POST("/Gui/v1.0/User/Get/Query", User_All_Query)           // 分页查询
-	r.POST("/Gui/v1.0/User/Get/Info", User_Get_Info)             // 获取用户信息
-	r.POST("/Gui/v1.0/User/Get/Info_Array", User_Get_Info_Array) // 查询多个用户信息
-	r.POST("/Gui/v1.0/User/Get/Search", User_get_Info_Search)    // 搜索用户信息
+	r.POST("/api/gui/v1.0/user/get/count", User_All_Count)           // 获取条数
+	r.POST("/api/gui/v1.0/user/get/query", User_All_Query)           // 分页查询
+	r.POST("/api/gui/v1.0/user/get/info", User_Get_Info)             // 获取用户信息
+	r.POST("/api/gui/v1.0/user/get/info_array", User_Get_Info_Array) // 查询多个用户信息
+	r.POST("/api/gui/v1.0/user/get/search", User_get_Info_Search)    // 搜索用户信息
 
-	r.POST("/Gui/v1.0/User/Set/Add", User_Set_Add)                   // 增加用户
-	r.POST("/Gui/v1.0/User/Set/Name", User_Set_Name)                 // 设置用户名
-	r.POST("/Gui/v1.0/User/Set/Passwd", User_Set_Passwd)             // 设置密码
-	r.POST("/Gui/v1.0/User/Set/Phone", User_Set_Phone)               // 设置电话
-	r.POST("/Gui/v1.0/User/Set/Email", User_Set_Email)               // 设置邮箱
-	r.POST("/Gui/v1.0/User/Set/Del", User_Set_Del)                   // 删除用户
-	r.POST("/Gui/v1.0/User/Set/Discontinued", User_Set_Discontinued) // 设置停用
-	r.POST("/Gui/v1.0/User/Set/Avatar", User_Set_Avatar)             // 头像url地址
+	r.POST("/api/gui/v1.0/user/set/add", User_Set_Add)                   // 增加用户
+	r.POST("/api/gui/v1.0/user/set/name", User_Set_Name)                 // 设置用户名
+	r.POST("/api/gui/v1.0/user/set/passwd", User_Set_Passwd)             // 设置密码
+	r.POST("/api/gui/v1.0/user/set/phone", User_Set_Phone)               // 设置电话
+	r.POST("/api/gui/v1.0/user/set/email", User_Set_Email)               // 设置邮箱
+	r.POST("/api/gui/v1.0/user/set/del", User_Set_Del)                   // 删除用户
+	r.POST("/api/gui/v1.0/user/set/discontinued", User_Set_Discontinued) // 设置停用
+	r.POST("/api/gui/v1.0/user/set/avatar", User_Set_Avatar)             // 头像url地址
 
-	r.POST("/Gui/v1.0/Authority/Count", Authority__All_Count)   // 获取权限条数
-	r.POST("/Gui/v1.0/Authority/Query", Authority__All_Query)   // 分页查询权限
-	r.POST("/Gui/v1.0/Authority/Id", Authority__Id_Array_Query) // 查询指定权限Id
-	r.POST("/Gui/v1.0/Authority/Search", Authority__Search)     // 搜索权限
-	r.POST("/Gui/v1.0/Authority/Add", Authority__Add)           // 增加权限
-	r.POST("/Gui/v1.0/Authority/Update", Authority__Update)     // 修改权限
-	r.POST("/Gui/v1.0/Authority/Del", Authority__Del)           // 删除权限
+	r.POST("/api/gui/v1.0/authority/count", Authority__All_Count)   // 获取权限条数
+	r.POST("/api/gui/v1.0/authority/query", Authority__All_Query)   // 分页查询权限
+	r.POST("/api/gui/v1.0/authority/id", Authority__Id_Array_Query) // 查询指定权限Id
+	r.POST("/api/gui/v1.0/authority/search", Authority__Search)     // 搜索权限
+	r.POST("/api/gui/v1.0/authority/add", Authority__Add)           // 增加权限
+	r.POST("/api/gui/v1.0/authority/update", Authority__Update)     // 修改权限
+	r.POST("/api/gui/v1.0/authority/del", Authority__Del)           // 删除权限
 
-	r.POST("/Gui/v1.0/Authority_User/Count", Authority_User__All_Count) // 分页查询全部用户权限条数
-	r.POST("/Gui/v1.0/Authority_User/Query", Authority_User__All_Query) // 分页查询全部用户权限 Page页码(0代表全部) Page_Size每页条数
-	r.POST("/Gui/v1.0/Authority_User/Enable", Authority_User__Enable)   // 权限使能设定
-	r.POST("/Gui/v1.0/Authority_User/Add", Authority_User__Add)         // 权限增加
-	r.POST("/Gui/v1.0/Authority_User/Del", Authority_User__Del)         // 权限删除
+	r.POST("/api/gui/v1.0/authority_user/count", Authority_User__All_Count) // 分页查询全部用户权限条数
+	r.POST("/api/gui/v1.0/authority_user/query", Authority_User__All_Query) // 分页查询全部用户权限 Page页码(0代表全部) Page_Size每页条数
+	r.POST("/api/gui/v1.0/authority_user/enable", Authority_User__Enable)   // 权限使能设定
+	r.POST("/api/gui/v1.0/authority_user/add", Authority_User__Add)         // 权限增加
+	r.POST("/api/gui/v1.0/authority_user/del", Authority_User__Del)         // 权限删除
 
-	r.POST("/Gui/v1.0/Group/Count", Group__All_Count) // 获取权限条数
-	r.POST("/Gui/v1.0/Group/Query", Group__All_Query) // 分页查询权限
-	r.POST("/Gui/v1.0/Group/Add", Group__Add)         // 增加权限
-	r.POST("/Gui/v1.0/Group/Update", Group__Update)   // 修改权限
-	r.POST("/Gui/v1.0/Group/Del", Group__Del)         // 删除权限
+	r.POST("/api/gui/v1.0/group/count", Group__All_Count) // 获取权限条数
+	r.POST("/api/gui/v1.0/group/query", Group__All_Query) // 分页查询权限
+	r.POST("/api/gui/v1.0/group/add", Group__Add)         // 增加权限
+	r.POST("/api/gui/v1.0/group/update", Group__Update)   // 修改权限
+	r.POST("/api/gui/v1.0/group/del", Group__Del)         // 删除权限
 
-	r.POST("/Gui/v1.0/Group_User/Count", Group_User__Group_Count)           // 查询指定组的用户条数
-	r.POST("/Gui/v1.0/Group_User/Query", Group_User__Group_Query)           // 分页查询指定组的用户 Page页码(0代表全部) Page_Size每页条数
-	r.POST("/Gui/v1.0/Group_User/Administrator", Group_User__Administrator) // 组管理员设定
-	r.POST("/Gui/v1.0/Group_User/Add", Group_User__Add)                     // 用户分组增加
-	r.POST("/Gui/v1.0/Group_User/Del", Group_User__Del)
+	r.POST("/api/gui/v1.0/group_user/count", Group_User__Group_Count)           // 查询指定组的用户条数
+	r.POST("/api/gui/v1.0/group_user/query", Group_User__Group_Query)           // 分页查询指定组的用户 Page页码(0代表全部) Page_Size每页条数
+	r.POST("/api/gui/v1.0/group_user/administrator", Group_User__Administrator) // 组管理员设定
+	r.POST("/api/gui/v1.0/group_user/add", Group_User__Add)                     // 用户分组增加
+	r.POST("/api/gui/v1.0/group_user/del", Group_User__Del)
 
-	r.POST("/Gui/v1.0/Log/User/Count", Log__User_Count) // 查询指定用户日志数量
-	r.POST("/Gui/v1.0/Log/User/Query", Log__User_Query) // 分页查询指定用户日志
-	r.POST("/Gui/v1.0/Log/All/Count", Log__All_Count)   // 查询全部日志数量
-	r.POST("/Gui/v1.0/Log/All/Query", Log__All_Query)   // 分页全部用户日志
+	r.POST("/api/gui/v1.0/log/User/Count", Log__User_Count) // 查询指定用户日志数量
+	r.POST("/api/gui/v1.0/log/User/Query", Log__User_Query) // 分页查询指定用户日志
+	r.POST("/api/gui/v1.0/log/All/Count", Log__All_Count)   // 查询全部日志数量
+	r.POST("/api/gui/v1.0/log/All/Query", Log__All_Query)   // 分页全部用户日志
 }

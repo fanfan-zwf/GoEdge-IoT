@@ -71,7 +71,7 @@
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Authority__Count, Authority__Query, Authority__Add, Authority__Update, Authority__Del, type Authority__table_interface } from '@/typer/api'
+import { Authority__Count, Authority__Query, Authority__Add, Authority__Update, Authority__Del, type Authority__table_interface } from '@/api/api'
 
 
 const authority_data: Authority__table_interface[] = reactive([])

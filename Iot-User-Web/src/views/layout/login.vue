@@ -72,8 +72,8 @@ import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { User, Lock, Key } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { Api_Name_login_Refresh_Token_update, Api_Access_Token_update } from '@/typer/token'
-import { User__Get_Info } from '@/typer/api'
+import { Api_Name_login_Refresh_Token_update, Api_Access_Token_update } from '@/api/token'
+import { User__Get_Info } from '@/api/api'
 
 
 const router = useRouter()
