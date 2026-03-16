@@ -1,12 +1,10 @@
 # 1. 忽略所有 .log 后缀的文件（最通用）
 *.log
-*.md
 
 # 2. 忽略特定名称的日志文件（比如 app.log、error.log）
 app.log
 error.log
 debug.log
-LICENSE
 
 # 3. 忽略整个 logs/ 目录（如果日志都放在这个文件夹里）
 logs/
