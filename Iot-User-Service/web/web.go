@@ -138,9 +138,6 @@ func token_use() gin.HandlerFunc {
 			}
 
 			Access_Token_redis, err := db_redis.Access_Token_Query(accessToken)
-			if err != nil {
-				fmt.Print(err, "token无效\n")
-			}
 			if err == redis.Nil {
 				ctx.Set("Response", []any{401, "访问令牌过期或无效"})
 				ctx.Abort()
@@ -151,13 +148,54 @@ func token_use() gin.HandlerFunc {
 				return
 			}
 
+			// 判断登陆ip与请求ip是否一致
 			if Access_Token_redis.Login_Ip != ClientIP && Access_Token_redis.Login_Ip != "" {
+				ctx.Set("Response", []any{401, "ip变化请重新登陆"})
+				ctx.Abort()
+				return
+			}
+
+			// 解析公钥rsa.PublicKey
+			Public_Key, err := PEMTo_Public_Key(Access_Token_redis.RSA_Public_Key)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 验证公钥
+			info_res, err := Verify_Short_Token(Public_Key, accessToken)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 获取token中的用户信息
+			token_info, err := Token_User_Info__Json_AES_Decrypt(Access_Token_redis.Salt, info_res)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 判断登陆ip与请求ip是否一致
+			if token_info.Login_Ip != ClientIP && token_info.Login_Ip != "" {
 				ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+				ctx.Abort()
+				return
+			}
+
+			// 判断id
+			if token_info.User_Id != Access_Token_redis.User_Id {
+				ctx.Set("Response", []any{500, "user_id与缓存id不一致"})
+				ctx.Abort()
 				return
 			}
 
 			ctx.Set("User_Id", Access_Token_redis.User_Id)
-			ctx.Set("Access_Token_redis", Access_Token_redis)
+			ctx.Set("Access_Token_Redis", Access_Token_redis)
+			ctx.Set("Access_Token__Token_Info", token_info)
 			ctx.Next()
 		} else if strings.HasPrefix(FullPath, "/api/v1.0") { // 接口验证逻辑
 			// 3. 获取并验证token
@@ -181,7 +219,8 @@ func token_use() gin.HandlerFunc {
 
 			// 判断登陆ip与请求ip是否一致
 			if Access_Token_redis.Login_Ip != ClientIP && Access_Token_redis.Login_Ip != "" {
-				ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+				ctx.Set("Response", []any{401, "ip变化请重新登陆"})
+				ctx.Abort()
 				return
 			}
 
@@ -212,6 +251,7 @@ func token_use() gin.HandlerFunc {
 			// 判断登陆ip与请求ip是否一致
 			if token_info.Login_Ip != ClientIP && token_info.Login_Ip != "" {
 				ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+				ctx.Abort()
 				return
 			}
 

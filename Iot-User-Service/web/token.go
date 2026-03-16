@@ -161,8 +161,8 @@ func Create_Short_Token(salt_length int, private_key *rsa.PrivateKey, encrypted_
 
 	// 6. 最终Token结构（用.分隔）：
 	// base64(加密用户信息).签发时间戳.过期时间戳.base64(随机盐).base64(签名)
-	token := fmt.Sprintf("%s.%s.%s.%s.%s", base64UserInfo, issueTs, expireTs, base64Salt, base64Signature)
-	return token, nil
+	token := fmt.Sprintf("%s.%s.%s.%s.%s", base64UserInfo, Base64Encode(issueTs), Base64Encode(expireTs), base64Salt, base64Signature)
+	return Base64Encode(token), nil
 }
 
 // VerifyShortToken 验证带随机盐的Token
@@ -173,17 +173,30 @@ func Create_Short_Token(salt_length int, private_key *rsa.PrivateKey, encrypted_
 //
 // 返回：AES加密后的用户信息 | 错误
 func Verify_Short_Token(public_key *rsa.PublicKey, token string) ([]byte, error) {
+	token_decode, err := Base64Decode(token)
+	if err != nil {
+		return nil, fmt.Errorf("ERROR 签发时间解码失败: %v", err)
+	}
+
 	// 1. 拆分Token（按.分隔，需拆分为5部分）
-	parts := strings.Split(token, ".")
+	parts := strings.Split(token_decode, ".")
 	if len(parts) != 5 {
-		return nil, errors.New("ERROR Token格式错误，需为5部分")
+		return nil, fmt.Errorf("ERROR Token格式错误，需为5部分 %d", len(parts))
 	}
 	// 提取各部分
 	base64UserInfo := parts[0]
-	issueTsStr := parts[1]
-	expireTsStr := parts[2]
 	base64Salt := parts[3]
 	base64Signature := parts[4]
+
+	issueTsStr, err := Base64Decode(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("ERROR 签发时间解码失败: %v", err)
+	}
+
+	expireTsStr, err := Base64Decode(parts[2])
+	if err != nil {
+		return nil, fmt.Errorf("ERROR 签发时间解码失败: %v", err)
+	}
 
 	// 2. 验证时间有效性
 	issueTs, err := time.Parse(time.RFC3339Nano, issueTsStr)
@@ -272,6 +285,24 @@ func pkcs7Unpadding(data []byte) []byte {
 	return data[:length-padding]
 }
 
+// Base64Encode 标准Base64编码（输出不含空格/点，包含+、/、=）
+func Base64Encode(input string) string {
+	// 将字符串转字节数组后编码
+	encoded := base64.StdEncoding.EncodeToString([]byte(input))
+	return encoded
+}
+
+// Base64Decode 标准Base64解码
+func Base64Decode(encodedStr string) (string, error) {
+	decodedBytes, err := base64.StdEncoding.DecodeString(encodedStr)
+	if err != nil {
+		return "", fmt.Errorf("Base64解码失败：%v", err)
+	}
+	return string(decodedBytes), nil
+}
+
+// ======================  api中的token ======================
+
 // api中的token中的api信息结构体
 type Token_Api_Info struct {
 	Api_Id   uint   // 接口Id
@@ -293,6 +324,42 @@ func Token_Api_Info__Json_AES_Encrypt(Aes string, info Token_Api_Info) (aes_data
 
 // 信息数据AES解密并转结构体
 func Token_Api__Info__Json_AES_Decrypt(Aes string, d []byte) (info Token_Api_Info, err error) {
+	cloud_Aes_Decrypt, err := cloud.AesDecryptGCM(d, Aes) // AES解密（GCM模式 - 推荐）
+	if err != nil {
+		err = fmt.Errorf("ERROR AES解密失败: %v", err)
+		return
+	}
+
+	err = json.Unmarshal(cloud_Aes_Decrypt, &info)
+	if err != nil {
+		err = fmt.Errorf("ERROR JSON解析失败: %v", err)
+	}
+	return
+}
+
+// ======================  用户中的token ======================
+
+// api中的token中的api信息结构体
+type Token_User_Info struct {
+	User_Id  uint   // 接口Id
+	Login_Ip string // 登录ip
+
+}
+
+// 信息结构体转json并AES加密
+func Token_User_Info__Json_AES_Encrypt(Aes string, info Token_User_Info) (aes_data []byte, err error) {
+	jsonByte, err := json.Marshal(info)
+	if err != nil {
+		err = fmt.Errorf("ERROR Token_User_Info结构体转json失败: %v", err)
+		return
+	}
+
+	aes_data, err = cloud.AesEncryptGCM(jsonByte, Aes) // AES加密（GCM模式 - 推荐）
+	return
+}
+
+// 信息数据AES解密并转结构体
+func Token_User_Info__Json_AES_Decrypt(Aes string, d []byte) (info Token_User_Info, err error) {
 	cloud_Aes_Decrypt, err := cloud.AesDecryptGCM(d, Aes) // AES解密（GCM模式 - 推荐）
 	if err != nil {
 		err = fmt.Errorf("ERROR AES解密失败: %v", err)

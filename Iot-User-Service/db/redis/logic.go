@@ -28,14 +28,14 @@ type Refresh_Token_redis_type struct {
 	Expires_in    time.Time // 访问令牌过期时间
 	Login_Ip      string    // 登录ip
 
-	Salt               string // 随机盐
-	RSA_PrivateKeyPath string // RSA私钥路径
-	RSA_PublicKeyPath  string // RSA公钥路径
+	Salt            string // 随机盐
+	RSA_Private_Key string // RSA私钥
+	RSA_Public_Key  string // RSA公钥
 }
 
 // 创建访问令牌
-func Refresh_Token_Add(User_Id uint, Refresh_Token string, Value Refresh_Token_redis_type, Expiration time.Duration) (err error) {
-	if User_Id == 0 || Refresh_Token == "" {
+func Refresh_Token_Add(Refresh_Token string, Value Refresh_Token_redis_type) (err error) {
+	if Value.User_Id == 0 || Refresh_Token == "" {
 		err = fmt.Errorf("参数错误")
 		return
 	}
@@ -47,8 +47,8 @@ func Refresh_Token_Add(User_Id uint, Refresh_Token string, Value Refresh_Token_r
 		return
 	}
 
-	key := fmt.Sprintf("Refresh_Token:%d:%s", User_Id, Refresh_Token)
-	err = Rdb.Set(ctx, key, string(jsonByte), Expiration).Err()
+	key := fmt.Sprintf("Refresh_Token:%d:%s", Value.User_Id, Refresh_Token)
+	err = Rdb.Set(ctx, key, string(jsonByte), time.Until(Value.Expires_in)).Err()
 	if err != nil {
 		log.Printf("ERROR %v", err)
 	}
@@ -87,9 +87,9 @@ type Access_Token_redis_type struct {
 	Refresh_Token string    // 本访问令牌的刷新令牌
 	Login_Ip      string    // 登录ip
 
-	Salt               string // 随机盐
-	RSA_PrivateKeyPath string // RSA私钥路径
-	RSA_PublicKeyPath  string // RSA公钥路径
+	Salt            string // 随机盐
+	RSA_Private_Key string // RSA私钥
+	RSA_Public_Key  string // RSA公钥
 }
 
 // 创建访问令牌

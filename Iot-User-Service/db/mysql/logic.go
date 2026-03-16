@@ -28,14 +28,18 @@ func init() {
  */
 // 登陆结构体
 type User__table_type struct {
-	Id                 uint
-	Name               string // 用户名
-	Avatar             string // 头像url地址
-	Permissions        uint   // 权限
-	Refresh_Token_Time uint   // 过期时间设定（s）
-	Discontinued       bool   // 停用
-	Phone              string // 电话
-	Email              string // 邮箱
+	Id           uint
+	Name         string // 用户名
+	Avatar       string // 头像url地址
+	Permissions  uint   // 权限
+	Discontinued bool   // 停用
+	Phone        string // 电话
+	Email        string // 邮箱
+
+	Refresh_Token_bits int // 刷新令牌RSA密钥长度
+	Access_Token_bits  int // 访问令牌RSA密钥长度
+	Refresh_Token_TTL  int // 刷新令牌过期时间
+	Access_Token_TTL   int // 访问令牌过期时间
 }
 
 type User__all_table_type struct {
@@ -62,11 +66,14 @@ func User__NamePasswd_Query(User_Name string, User_Passwd string) (User User__ta
 	SELECT
 		Id,
 		Name,
-		Permissions,
-		Refresh_Token_Time,
+		Permissions, 
 		Phone,
 		Email,
-		Discontinued
+		Discontinued,
+		Refresh_Token_bits,
+		Access_Token_bits,
+		Refresh_Token_TTL,
+		Access_Token_TTL
 	FROM
 		User
 	WHERE
@@ -78,10 +85,13 @@ func User__NamePasswd_Query(User_Name string, User_Passwd string) (User User__ta
 		&User.Id,
 		&User.Name,
 		&User.Permissions,
-		&User.Refresh_Token_Time,
 		&Phone,
 		&Email,
 		&User.Discontinued,
+		&User.Refresh_Token_bits,
+		&User.Access_Token_bits,
+		&User.Refresh_Token_TTL,
+		&User.Access_Token_TTL,
 	)
 	if err != nil {
 		log.Print(err.Error())
@@ -109,12 +119,15 @@ func User__Info_Query(User_Id uint) (User User__table_type, err error) {
 	SELECT
 		Id,
 		Name,
-		Permissions,
-		Refresh_Token_Time,
+		Permissions, 
 		Discontinued,
 		Phone,
 		Email,
-		Avatar
+		Avatar,
+		Refresh_Token_bits,
+		Access_Token_bits,
+		Refresh_Token_TTL,
+		Access_Token_TTL
 	FROM
 		User
 	WHERE
@@ -124,11 +137,14 @@ func User__Info_Query(User_Id uint) (User User__table_type, err error) {
 		&User.Id,
 		&User.Name,
 		&User.Permissions,
-		&User.Refresh_Token_Time,
 		&User.Discontinued,
 		&Phone,
 		&Email,
 		&Avatar,
+		&User.Refresh_Token_bits,
+		&User.Access_Token_bits,
+		&User.Refresh_Token_TTL,
+		&User.Access_Token_TTL,
 	)
 	if err != nil {
 		log.Print(err.Error())
@@ -172,11 +188,14 @@ func User__Info_Array_Query(User_Id_array []uint) (User_array []User__table_type
 		Id,
 		Name,
 		Permissions,
-		Refresh_Token_Time,
 		Discontinued,
 		Phone,
 		Email,
-		Avatar
+		Avatar,
+		Refresh_Token_bits,
+		Access_Token_bits,
+		Refresh_Token_TTL,
+		Access_Token_TTL
 	FROM
 		User
 	WHERE
@@ -206,11 +225,14 @@ func User__Info_Array_Query(User_Id_array []uint) (User_array []User__table_type
 			&User.Id,
 			&User.Name,
 			&User.Permissions,
-			&User.Refresh_Token_Time,
 			&User.Discontinued,
 			&Phone,
 			&Email,
 			&Avatar,
+			&User.Refresh_Token_bits,
+			&User.Access_Token_bits,
+			&User.Refresh_Token_TTL,
+			&User.Access_Token_TTL,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -247,10 +269,13 @@ func User__Info_Array_Search(Search string, Type string, Number uint) (User_arra
 			Name,
 			Avatar,
 			Permissions,
-			Refresh_Token_Time,
 			Discontinued,
 			Phone,
-			Email
+			Email,
+			Refresh_Token_bits,
+			Access_Token_bits,
+			Refresh_Token_TTL,
+			Access_Token_TTL
 		FROM
 			User 
 		WHERE ? LIKE ? LIMIT ? 
@@ -277,10 +302,13 @@ func User__Info_Array_Search(Search string, Type string, Number uint) (User_arra
 			&User.Name,
 			&Avatar,
 			&User.Permissions,
-			&User.Refresh_Token_Time,
 			&User.Discontinued,
 			&Phone,
 			&Email,
+			&User.Refresh_Token_bits,
+			&User.Access_Token_bits,
+			&User.Refresh_Token_TTL,
+			&User.Access_Token_TTL,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -514,14 +542,10 @@ func User__Add(value User__all_table_type) (Id uint, err error) {
 		return
 	}
 
-	if value.Refresh_Token_Time == 0 {
-		value.Refresh_Token_Time = 604800
-	}
-
 	query := `
 	INSERT
 		INTO
-		User(Name, Passwd, Permissions, Refresh_Token_Time, Discontinued, Phone, Email) 
+		User(Name, Passwd, Permissions, Discontinued, Phone, Email, Refresh_Token_bits, Access_Token_bits, Refresh_Token_TTL, Access_Token_TTL) 
 		VALUES(?,?,?,?,?,?,?)
 	`
 	// 修改数据库
@@ -530,7 +554,6 @@ func User__Add(value User__all_table_type) (Id uint, err error) {
 		value.Name,
 		value.Passwd,
 		value.Permissions,
-		value.Refresh_Token_Time,
 		value.Discontinued,
 		sql.NullString{
 			String: value.Phone,       // 空字符串
@@ -539,7 +562,12 @@ func User__Add(value User__all_table_type) (Id uint, err error) {
 		sql.NullString{
 			String: value.Email,       // 空字符串
 			Valid:  value.Email != "", // 表示是 NULL
-		})
+		},
+		value.Refresh_Token_bits,
+		value.Access_Token_bits,
+		value.Refresh_Token_TTL,
+		value.Access_Token_TTL,
+	)
 	if err != nil {
 		log.Print(err.Error())
 		return
@@ -638,7 +666,7 @@ func User__All_Query(Page uint, Page_Size uint) (User_Array []User__table_type, 
 		return
 	}
 
-	query := "SELECT `Id`, `Name`, `Avatar`, `Permissions`, `Refresh_Token_Time`, `Discontinued`, `Phone`, `Email` FROM `User` ORDER BY `Id` DESC "
+	query := "SELECT `Id`, `Name`, `Avatar`, `Permissions`, `Discontinued`, `Phone`, `Email`, `Refresh_Token_Bits`, `Access_Token_Bits`, `Refresh_Token_TTL`, `Access_Token_TTL` FROM `User` ORDER BY `Id` DESC "
 
 	var (
 		rows *sql.Rows
@@ -667,13 +695,16 @@ func User__All_Query(Page uint, Page_Size uint) (User_Array []User__table_type, 
 		)
 		err = rows.Scan(
 			&User.Id,
-			&User.Name,               // 用户名
-			&Avatar,                  // 头像url地址
-			&User.Permissions,        // 权限
-			&User.Refresh_Token_Time, // 过期时间设定（s）
-			&User.Discontinued,       // 停用
-			&Phone,                   // 电话
-			&Email,                   // 邮箱
+			&User.Name,         // 用户名
+			&Avatar,            // 头像url地址
+			&User.Permissions,  // 权限
+			&User.Discontinued, // 停用
+			&Phone,             // 电话
+			&Email,             // 邮箱
+			&User.Refresh_Token_bits,
+			&User.Access_Token_bits,
+			&User.Refresh_Token_TTL,
+			&User.Access_Token_TTL,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -685,6 +716,30 @@ func User__All_Query(Page uint, Page_Size uint) (User_Array []User__table_type, 
 		User.Avatar = Avatar.String
 
 		User_Array = append(User_Array, User)
+	}
+
+	return
+}
+
+type User__Query_Id__AccessTokenBits_AccessTokenTTL_type struct {
+	Access_Token_bits int           // 访问令牌RSA密钥长度
+	Access_Token_TTL  time.Duration // 访问令牌过期时间
+}
+
+// 查询接口信息
+func User__Query_Id__AccessTokenBits_AccessTokenTTL(Id uint) (r User__Query_Id__AccessTokenBits_AccessTokenTTL_type, err error) {
+	query := `
+	SELECT
+		Access_Token_bits,
+		Access_Token_TTL
+	FROM
+		User
+	WHERE
+		Id = ?
+	`
+	err = DB.QueryRow(query, Id).Scan(&r.Access_Token_bits, &r.Access_Token_TTL)
+	if err != nil {
+		log.Print(err.Error())
 	}
 
 	return
@@ -2155,11 +2210,12 @@ type Api__table_type struct {
 	User_Id            uint // 用户id
 	ApiKey             string
 	Secret             string // 秘密
-	Refresh_Token_Time uint   // 过期时间设定（s）
 	Allow_Ip           string // ip
 	Discontinued       bool   // 是否禁用
-	Refresh_Token_bits int    // 刷新令牌RSA私钥长度
-	Access_Token_bits  int    // 访问令牌RSA公钥长度
+	Refresh_Token_bits int    // 刷新令牌RSA密钥长度
+	Access_Token_bits  int    // 访问令牌RSA密钥长度
+	Refresh_Token_TTL  int    // 刷新令牌过期时间
+	Access_Token_TTL   int    // 访问令牌过期时间
 }
 
 // 查询接口信息
@@ -2169,12 +2225,13 @@ func Api__Query_ApiKey(ApiKey string) (Api Api__table_type, err error) {
 		Id,
 		User_Id,
 		ApiKey,
-		Secret,
-		Refresh_Token_Time,
+		Secret, 
 		Allow_Ip,
 		Discontinued,
 		Refresh_Token_bits,
-		Access_Token_bits
+		Access_Token_bits,
+		Refresh_Token_TTL,
+		Access_Token_TTL
 	FROM
 		Api
 	WHERE
@@ -2185,18 +2242,15 @@ func Api__Query_ApiKey(ApiKey string) (Api Api__table_type, err error) {
 		&Api.User_Id,
 		&Api.ApiKey,
 		&Api.Secret,
-		&Api.Refresh_Token_Time,
 		&Api.Allow_Ip,
 		&Api.Discontinued,
 		&Api.Refresh_Token_bits,
 		&Api.Access_Token_bits,
+		&Api.Refresh_Token_TTL,
+		&Api.Access_Token_TTL,
 	)
 	if err != nil {
 		log.Print(err.Error())
-	}
-
-	if Api.Discontinued {
-		err = fmt.Errorf("Warning ApiKey:%s 已经禁用了", ApiKey)
 	}
 	return
 }
@@ -2209,11 +2263,12 @@ func Api__Query() (Api Api__table_type, err error) {
 		User_Id,
 		ApiKey,
 		Secret,
-		Refresh_Token_Time,
 		Allow_Ip,
 		Discontinued,
 		Refresh_Token_bits,
-		Access_Token_bits
+		Access_Token_bits,
+		Refresh_Token_TTL,
+		Access_Token_TTL
 	FROM
 		Api
 	`
@@ -2222,11 +2277,12 @@ func Api__Query() (Api Api__table_type, err error) {
 		&Api.User_Id,
 		&Api.ApiKey,
 		&Api.Secret,
-		&Api.Refresh_Token_Time,
 		&Api.Allow_Ip,
 		&Api.Discontinued,
 		&Api.Refresh_Token_bits,
 		&Api.Access_Token_bits,
+		&Api.Refresh_Token_TTL,
+		&Api.Access_Token_TTL,
 	)
 	if err != nil {
 		log.Print(err.Error())
@@ -2235,17 +2291,22 @@ func Api__Query() (Api Api__table_type, err error) {
 	return
 }
 
+type Api__Query_Id__AccessTokenBits_AccessTokenTTL_type struct {
+	User__Query_Id__AccessTokenBits_AccessTokenTTL_type // 这里的与用户查询的结构体一样，所以直接嵌套了
+}
+
 // 查询接口信息
-func Api__Query_Id__AccessTokenBits(Id uint) (Access_Token_bits int, err error) {
+func Api__Query_Id__AccessTokenBits_AccessTokenTTL(Id uint) (r Api__Query_Id__AccessTokenBits_AccessTokenTTL_type, err error) {
 	query := `
 	SELECT
-		Access_Token_bits
+		Access_Token_bits,
+		Access_Token_TTL
 	FROM
 		Api
 	WHERE
 		Id = ?
 	`
-	err = DB.QueryRow(query, Id).Scan(&Access_Token_bits)
+	err = DB.QueryRow(query, Id).Scan(&r.Access_Token_bits, &r.Access_Token_TTL)
 	if err != nil {
 		log.Print(err.Error())
 	}
@@ -2262,8 +2323,8 @@ func Api__Add(Value Api__table_type) (Id uint, err error) {
 	query := `
 	INSERT
 		INTO
-		Api(User_Id, ApiKey, Secret, Refresh_Token_Time, Allow_Ip, Discontinued, Refresh_Token_bits, Access_Token_bits)
-	VALUES(?,?,?,?,?,?,?,?)
+		Api(User_Id, ApiKey, Secret, Allow_Ip, Discontinued, Refresh_Token_bits, Access_Token_bits, Refresh_Token_TTL, Access_Token_TTL)
+	VALUES(?,?,?,?,?,?,?,?,?)
 	`
 	// 修改数据库
 	var result sql.Result
@@ -2271,11 +2332,12 @@ func Api__Add(Value Api__table_type) (Id uint, err error) {
 		Value.User_Id,
 		Value.ApiKey,
 		Value.Secret,
-		Value.Refresh_Token_Time,
 		Value.Allow_Ip,
 		Value.Discontinued,
 		Value.Refresh_Token_bits,
 		Value.Access_Token_bits,
+		Value.Refresh_Token_TTL,
+		Value.Access_Token_TTL,
 	)
 	if err != nil {
 		log.Print(err.Error())

@@ -13,7 +13,6 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -74,42 +73,87 @@ func User_Login_Name(ctx *gin.Context) {
 		ctx.Set("Response", []any{403, "此用户已禁用"})
 		return
 	}
-
-	// 生成随即刷新令牌
-	Refresh_Token, err := GenerateSecureRandomString(Refresh_Token_Salt_Length)
-	if err != nil {
-		ctx.Set("Response", []any{541, err.Error()})
-		return
-	}
-	fmt.Print(Refresh_Token, "========\n")
 	var (
-		Ip            = ctx.ClientIP()
+		ClientIP      = ctx.ClientIP()
 		Header        = ctx.Request.Header.Get("User-Agent")
 		Terminal_Uuid = ctx.Request.Header.Get("F_Terminal_Uuid")
 	)
 
-	now := time.Now()
-	Expiration := time.Duration(User.Refresh_Token_Time) * time.Second
-	Expires_in := now.Add(Expiration)
+	// 生成RSA密钥对
+	PrivateKey, PublicKey, err := Generate_RSA_Key_Pair(User.Refresh_Token_bits)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
 
-	// 把刷新令牌写入对应用户的表里
+	// 将RSA密钥对转换为PEM格式字符串
+	PrivateKey_str, err := Private_Key_ToPEM(PrivateKey)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	// 将RSA密钥对转换为PEM格式字符串
+	PublicKey_str, err := Public_Key_ToPEM(PublicKey)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	// 生成随即刷新令牌
+	Aes_Key, err := GenerateSecureRandomString(Refresh_Token_Salt_Length) // 生成AES加密随机盐
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	// 将接口信息结构体转json并AES加密
+	encrypted, err := Token_User_Info__Json_AES_Encrypt(Aes_Key, Token_User_Info{
+		User_Id:  User.Id,
+		Login_Ip: ClientIP,
+	})
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	timeNow := time.Now()
+	Refresh_Token_Time := timeNow.Add(time.Duration(User.Refresh_Token_TTL) * time.Second)
+
+	// 生成随即刷新令牌
+	Refresh_Token, err := Create_Short_Token(
+		Refresh_Token_Salt_Length,
+		PrivateKey,
+		encrypted,
+		timeNow,
+		Refresh_Token_Time,
+	)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
 
 	err = db_mysql.User_Terminal__Add(db_mysql.User_Terminal__table_type{
 		User_Id:       User.Id,       // 用户id
 		Terminal_Uuid: Terminal_Uuid, // 终端uuid
 		Device_Name:   Header,        // 设备名称
-		Ip:            Ip,            // 登陆ip
+		Ip:            ClientIP,      // 登陆ip
 	})
 	if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
 	}
 
-	err = db_redis.Refresh_Token_Add(User.Id, Refresh_Token, db_redis.Refresh_Token_redis_type{
-		User_Id:       User.Id,       // 用户id
-		Terminal_Uuid: Terminal_Uuid, // 用户终端Id
-		Expires_in:    Expires_in,    // 访问令牌过期时间
-	}, Expiration)
+	err = db_redis.Refresh_Token_Add(Refresh_Token, db_redis.Refresh_Token_redis_type{
+		User_Id:       User.Id,            // 用户id
+		Terminal_Uuid: Terminal_Uuid,      // 用户终端Id
+		Expires_in:    Refresh_Token_Time, // 访问令牌过期时间
+		Login_Ip:      ClientIP,           // 登录ip
+
+		Salt:            Aes_Key,        // 随机盐
+		RSA_Private_Key: PrivateKey_str, // RSA私钥
+		RSA_Public_Key:  PublicKey_str,  // RSA公钥
+	})
 
 	if err != nil {
 		ctx.Set("Response", []any{StatusRedis, err.Error()})
@@ -117,16 +161,16 @@ func User_Login_Name(ctx *gin.Context) {
 	}
 
 	db_mysql.Log__Add(db_mysql.Log__table_type{
-		User_Id: User.Id,                                      // 用户id
-		Type:    "login",                                      // 类型
-		Message: fmt.Sprintf("登陆成功 IP:%s;请求头:%s", Ip, Header), // 描述
-		Time:    time.Now(),                                   // 时间
+		User_Id: User.Id,                                            // 用户id
+		Type:    "login",                                            // 类型
+		Message: fmt.Sprintf("登陆成功 IP:%s;请求头:%s", ClientIP, Header), // 描述
+		Time:    time.Now(),                                         // 时间
 	})
 
 	ctx.Set("Response", []any{200, "ok", gin.H{
 		"User_Id":         User.Id,
 		"F_Refresh_Token": Refresh_Token,
-		"F_Expires_in":    Expires_in.Format(time.RFC3339Nano),
+		"F_Expires_in":    Refresh_Token_Time.Format(time.RFC3339Nano),
 	}})
 }
 
@@ -143,7 +187,7 @@ func User_Access_Token_query(ctx *gin.Context) {
 	}
 
 	// 判断刷新令牌是否过期
-	Access_Token_redis, err := db_redis.Refresh_Token_Query(jsondata.User_Id, jsondata.F_Refresh_Token)
+	Refresh_Token_redis, err := db_redis.Refresh_Token_Query(jsondata.User_Id, jsondata.F_Refresh_Token)
 	if err == redis.Nil {
 		ctx.Set("Response", []any{401, "刷新令牌过期"})
 		return
@@ -152,34 +196,86 @@ func User_Access_Token_query(ctx *gin.Context) {
 		return
 	}
 
-	// 生成随即刷新令牌
-	Access_Token, err := GenerateSecureRandomString(Access_Token_Salt_Length)
-	if err != nil {
-		ctx.Set("Response", []any{541, err.Error()})
+	if Refresh_Token_redis.User_Id != jsondata.User_Id {
+		ctx.Set("Response", []any{500, "请求用户 ID和缓存ID不一致"})
 		return
 	}
 
-	value, err := db_mysql.Set_Type_Query("User_Access_Token_Time")
-	if err != nil {
-		ctx.Set("Response", []any{520, err.Error()})
+	var ClientIP = ctx.ClientIP() // 获取客户端ip
+	if Refresh_Token_redis.Login_Ip != ClientIP && Refresh_Token_redis.Login_Ip != "" {
+		ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
 		return
 	}
-	User_Access_Token_Time, err := strconv.Atoi(value)
+
+	// 查询访问令牌的RSA密钥长度
+	r, err := db_mysql.User__Query_Id__AccessTokenBits_AccessTokenTTL(Refresh_Token_redis.User_Id)
+	if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	// 生成RSA密钥对
+	PrivateKey, PublicKey, err := Generate_RSA_Key_Pair(r.Access_Token_bits)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
 
-	// 把刷新令牌写入对应用户的表里
-	now := time.Now()
-	User_Access_Token_Time_Second := time.Duration(User_Access_Token_Time) * time.Second
-	Expires_in := now.Add(User_Access_Token_Time_Second)
+	// 将RSA密钥对转换为PEM格式字符串
+	PrivateKey_str, err := Private_Key_ToPEM(PrivateKey)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	// 将RSA密钥对转换为PEM格式字符串
+	PublicKey_str, err := Public_Key_ToPEM(PublicKey)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	// 生成随即访问令牌
+	Aes_Key, err := GenerateSecureRandomString(Access_Token_Salt_Length) // 生成AES加密随机盐
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	// 将接口信息结构体转json并AES加密
+	encrypted, err := Token_User_Info__Json_AES_Encrypt(Aes_Key, Token_User_Info{
+		User_Id:  Refresh_Token_redis.User_Id,  // 用户id
+		Login_Ip: Refresh_Token_redis.Login_Ip, // 登陆ip
+	})
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	timeNow := time.Now()                                                             // 当前时间
+	Access_Token_Time := timeNow.Add(time.Duration(r.Access_Token_TTL) * time.Second) // 访问令牌过期时间
+
+	// 生成随即刷新令牌
+	Access_Token, err := Create_Short_Token(
+		Refresh_Token_Salt_Length,
+		PrivateKey,
+		encrypted,
+		timeNow,
+		Access_Token_Time,
+	)
+
+	// 将访问令牌存入redis
 	err = db_redis.Access_Token_Add(
 		Access_Token,
 		db_redis.Access_Token_redis_type{
-			User_Id:       Access_Token_redis.User_Id, // 用户id
-			Expires_in:    Expires_in,                 // 访问令牌过期时间
-			Refresh_Token: jsondata.F_Refresh_Token,   // 本访问令牌的刷新令牌
+			User_Id:       jsondata.User_Id,
+			Expires_in:    Access_Token_Time, // 访问令牌过期时间
+			Refresh_Token: jsondata.F_Refresh_Token,
+			Login_Ip:      ClientIP, // 登录ip --- IGNORE ---
+
+			Salt:            Aes_Key,        // 随机盐
+			RSA_Private_Key: PrivateKey_str, // RSA私钥
+			RSA_Public_Key:  PublicKey_str,  // RSA公钥
 		},
 	)
 	if err != nil {
@@ -189,7 +285,7 @@ func User_Access_Token_query(ctx *gin.Context) {
 
 	ctx.Set("Response", []any{200, "ok", gin.H{
 		"F_Access_Token": Access_Token,
-		"F_Expires_in":   Expires_in.Format(time.RFC3339Nano),
+		"F_Expires_in":   Access_Token_Time.Format(time.RFC3339Nano),
 	}})
 }
 

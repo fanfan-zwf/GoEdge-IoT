@@ -6,12 +6,12 @@
 package web
 
 import (
+	db_mysql "main/db/mysql"
+	db_redis "main/db/redis"
+
 	"database/sql"
 	"fmt"
 	"log"
-	"main/Init"
-	db_mysql "main/db/mysql"
-	db_redis "main/db/redis"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -94,7 +94,7 @@ func Api__Login_Refresh_Token(ctx *gin.Context) {
 	}
 
 	timeNow := time.Now()
-	Refresh_Token_Time := timeNow.Add(time.Duration(db_api.Refresh_Token_Time) * time.Second)
+	Refresh_Token_Time := timeNow.Add(time.Duration(db_api.Refresh_Token_TTL) * time.Second)
 	// 生成随即刷新令牌
 	Refresh_Token, err := Create_Short_Token(
 		Refresh_Token_Salt_Length,
@@ -171,14 +171,14 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 	}
 
 	// 查询访问令牌的RSA密钥长度
-	Access_Token_bits, err := db_mysql.Api__Query_Id__AccessTokenBits(Refresh_Token_redis.Api_Id)
+	r, err := db_mysql.Api__Query_Id__AccessTokenBits_AccessTokenTTL(Refresh_Token_redis.Api_Id)
 	if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
 	}
 
 	// 生成RSA密钥对
-	PrivateKey, PublicKey, err := Generate_RSA_Key_Pair(Access_Token_bits)
+	PrivateKey, PublicKey, err := Generate_RSA_Key_Pair(r.Access_Token_bits)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
@@ -215,8 +215,8 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 		return
 	}
 
-	timeNow := time.Now()                                                                                // 当前时间
-	Access_Token_Time := timeNow.Add(time.Duration(Init.Config.SET.Api_Access_Token_Time) * time.Second) // 访问令牌过期时间
+	timeNow := time.Now()                                                             // 当前时间
+	Access_Token_Time := timeNow.Add(time.Duration(r.Access_Token_TTL) * time.Second) // 访问令牌过期时间
 
 	// 生成随即刷新令牌
 	Access_Token, err := Create_Short_Token(
