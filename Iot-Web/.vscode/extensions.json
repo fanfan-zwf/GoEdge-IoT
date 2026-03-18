@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "Vue.volar",
+    "vitest.explorer",
+    "ms-playwright.playwright",
+    "dbaeumer.vscode-eslint",
+    "EditorConfig.EditorConfig",
+    "esbenp.prettier-vscode",
+    "egoing.codecounter",
+    "doubao.doubao-app-share-vscode-plugin",
+    "alibaba-cloud.tongyi-lingma"
+  ]
+}
