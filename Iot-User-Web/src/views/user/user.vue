@@ -112,11 +112,14 @@ const getRole = (role: number) => {
 const User_info: User__table_interface = reactive({
     Id: 0, // 用户ID
     Name: '', // 用户名
-    Permissions: 0,   // 权限
-    Refresh_Token_Time: 0,   // 过期时间设定（s）
+    Permissions: 0,   // 权限 
     Discontinued: false,    // 停用
     Phone: '',  // 电话
-    Email: ''  // 邮箱
+    Email: '',  // 邮箱
+    Refresh_Token_bits: 1024,    // 刷新令牌RSA密钥长度 
+    Access_Token_bits: 2048,    // 访问令牌RSA密钥长度 
+    Refresh_Token_TTL: 86400,    // 刷新令牌过期时间（s）
+    Access_Token_TTL: 1800,    // 访问令牌过期时间（s）
 })
 
 const Set_get = () => {

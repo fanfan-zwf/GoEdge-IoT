@@ -20,40 +20,46 @@ const router = createRouter({
             redirect: "/user/0",
         },
         {
-            path: '/login',
-            name: 'login',
-            component: login,
+            path: '/user', 
+            children: [
+                {
+                    path: 'login',
+                    name: 'login',
+                    component: login,
+                },
+                {
+                    path: 'info/:User_Id',
+                    name: 'user',
+                    component: user,
+                },
+                {
+                    path: 'authority',
+                    name: 'authority',
+                    component: authority,
+                },
+                {
+                    path: 'authority_user',
+                    name: 'authority_user',
+                    component: authority_user,
+                },
+                {
+                    path: 'group',
+                    name: 'group',
+                    component: group,
+                },
+                {
+                    path: 'group_user/:group_user__id',
+                    name: 'group_user',
+                    component: group_user,
+                },
+                {
+                    path: 'user_account',
+                    name: 'user_account',
+                    component: user_account,
+                },
+            ],
         },
-        {
-            path: '/user/:User_Id',
-            name: 'user',
-            component: user,
-        },
-        {
-            path: '/authority',
-            name: 'authority',
-            component: authority,
-        },
-        {
-            path: '/authority_user',
-            name: 'authority_user',
-            component: authority_user,
-        },
-        {
-            path: '/group',
-            name: 'group',
-            component: group,
-        },
-        {
-            path: '/group_user/:group_user__id',
-            name: 'group_user',
-            component: group_user,
-        },
-        {
-            path: '/user_account',
-            name: 'user_account',
-            component: user_account,
-        },
+
     ]
 })
 

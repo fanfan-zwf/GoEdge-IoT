@@ -1083,7 +1083,7 @@ type Authority__table_type struct {
 	Id      uint
 	Name    string // 权限名称
 	Theme   string // 权限主题
-	Explain string // 说明
+	Explain string // 说明 非必填
 }
 
 var Authority__Search_Type = []string{"Name", "Theme", "Explain"}
@@ -1128,18 +1128,22 @@ func Authority__All_Query(Page uint, Page_Size uint) (Authority_Array []Authorit
 	defer rows.Close()
 
 	for rows.Next() {
-		var Authority Authority__table_type
+		var (
+			Authority Authority__table_type
+			Explain   sql.NullString
+		)
 		err = rows.Scan(
 			&Authority.Id,
 			&Authority.Name,
 			&Authority.Theme,
-			&Authority.Explain,
+			&Explain,
 		)
 		if err != nil {
 			log.Print(err.Error())
 			return
 		}
 
+		Authority.Explain = Explain.String
 		Authority_Array = append(Authority_Array, Authority)
 	}
 
@@ -1169,18 +1173,22 @@ func Authority__User_Id_Query(Page uint, Page_Size uint) (Authority_Array []Auth
 	defer rows.Close()
 
 	for rows.Next() {
-		var Authority Authority__table_type
+		var (
+			Authority Authority__table_type
+			Explain   sql.NullString
+		)
 		err = rows.Scan(
 			&Authority.Id,
 			&Authority.Name,
 			&Authority.Theme,
-			&Authority.Explain,
+			&Explain,
 		)
 		if err != nil {
 			log.Print(err.Error())
 			return
 		}
 
+		Authority.Explain = Explain.String
 		Authority_Array = append(Authority_Array, Authority)
 	}
 
@@ -1221,18 +1229,22 @@ func Authority__Id_Array_Query(Authority_Id []uint) (Authority_Array []Authority
 	defer rows.Close()
 
 	for rows.Next() {
-		var Authority Authority__table_type
+		var (
+			Authority Authority__table_type
+			Explain   sql.NullString
+		)
 		err = rows.Scan(
 			&Authority.Id,
 			&Authority.Name,
 			&Authority.Theme,
-			&Authority.Explain,
+			&Explain,
 		)
 		if err != nil {
 			log.Print(err.Error())
 			return
 		}
 
+		Authority.Explain = Explain.String
 		Authority_Array = append(Authority_Array, Authority)
 	}
 
@@ -1269,18 +1281,22 @@ func Authority__Array_Search(Search string, Type string, Number uint) (Authority
 	defer rows.Close()
 
 	for rows.Next() {
-		var Authority Authority__table_type
+		var (
+			Authority Authority__table_type
+			Explain   sql.NullString
+		)
 		err = rows.Scan(
 			&Authority.Id,
 			&Authority.Name,
 			&Authority.Theme,
-			&Authority.Explain,
+			&Explain,
 		)
 		if err != nil {
 			log.Print(err.Error())
 			return
 		}
 
+		Authority.Explain = Explain.String
 		Authority_Array = append(Authority_Array, Authority)
 	}
 
@@ -1296,7 +1312,10 @@ func Authority__Add(Value Authority__table_type) (Authority_Id uint, err error) 
 	query := "INSERT INTO `Authority`(`Name`, `Theme`, `Explain`) VALUES(?,?,?) "
 	// 修改数据库
 	var result sql.Result
-	result, err = DB.Exec(query, Value.Name, Value.Theme, Value.Explain)
+	result, err = DB.Exec(query, Value.Name, Value.Theme, sql.NullString{
+		String: Value.Explain,
+		Valid:  Value.Explain != "",
+	})
 	if err != nil {
 		log.Print(err.Error())
 		return
@@ -1322,7 +1341,10 @@ func Authority__Update(Value Authority__table_type) (err error) {
 
 	query := "UPDATE `Authority` SET `Name` = ?, `Theme` = ?, `Explain` = ? WHERE `Id` = ? "
 	// 修改数据库
-	_, err = DB.Exec(query, Value.Name, Value.Theme, Value.Explain, Value.Id)
+	_, err = DB.Exec(query, Value.Name, Value.Theme, sql.NullString{
+		String: Value.Explain,
+		Valid:  Value.Explain != "",
+	}, Value.Id)
 	if err != nil {
 		log.Print(err.Error())
 	}
@@ -1648,7 +1670,7 @@ func Authority_User__Query_AuthorityTheme_Exist(User_Id uint, Authority_Theme st
 type Group__table_type struct {
 	Id      uint
 	Name    string // 组名称
-	Explain string // 组说明
+	Explain string // 组说明 非必填
 }
 
 // 用户组全部条数
@@ -1686,17 +1708,20 @@ func Group__All_Query(Page uint, Page_Size uint) (Group_Array []Group__table_typ
 	defer rows.Close()
 
 	for rows.Next() {
-		var Group Group__table_type
+		var (
+			Group   Group__table_type
+			Explain sql.NullString
+		)
 		err = rows.Scan(
 			&Group.Id,
 			&Group.Name,
-			&Group.Explain,
+			&Explain,
 		)
 		if err != nil {
 			log.Print(err.Error())
 			return
 		}
-
+		Group.Explain = Explain.String
 		Group_Array = append(Group_Array, Group)
 	}
 
@@ -1712,7 +1737,10 @@ func Group__Add(Value Group__table_type) (err error) {
 
 	query := "INSERT INTO `Group`(`Name`, `Explain`) VALUES(?,?) "
 	// 修改数据库
-	_, err = DB.Exec(query, Value.Name, Value.Explain)
+	_, err = DB.Exec(query, Value.Name, sql.NullString{
+		String: Value.Explain,
+		Valid:  Value.Explain != "",
+	})
 	if err != nil {
 		log.Print(err.Error())
 	}
@@ -1730,7 +1758,10 @@ func Group_Update(Value Group__table_type) (err error) {
 	query := "UPDATE `Group` SET `Name` = ?, `Explain` = ? WHERE `Id` = ? "
 
 	// 修改数据库
-	_, err = DB.Exec(query, Value.Name, Value.Explain)
+	_, err = DB.Exec(query, Value.Name, sql.NullString{
+		String: Value.Explain,
+		Valid:  Value.Explain != "",
+	}, Value.Id)
 	if err != nil {
 		log.Print(err.Error())
 	}

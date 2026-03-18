@@ -14,11 +14,15 @@ import { sha3_256_sync } from '@/typer/function'
 export interface User__table_interface {
     Id: number // 用户ID
     Name: string // 用户名
-    Permissions: number   // 权限
-    Refresh_Token_Time: number   // 过期时间设定（s）
+    Permissions: number   // 权限 
     Discontinued: boolean    // 停用
     Phone: string  // 电话
     Email: string  // 邮箱
+
+    Refresh_Token_bits: number    // 刷新令牌RSA密钥长度 
+    Access_Token_bits: number    // 访问令牌RSA密钥长度 
+    Refresh_Token_TTL: number    // 刷新令牌过期时间（s）
+    Access_Token_TTL: number    // 访问令牌过期时间（s）
 }
 
 /**

@@ -6,7 +6,7 @@
                 <el-table-column fixed prop="Id" label="Id" max-width="70" />
                 <el-table-column prop="Name" label="名称" max-width="50" />
                 <el-table-column prop="Permissions" label="权限" max-width="70" />
-                <el-table-column prop="Refresh_Token_Time" label="自动登出时间(s)" max-width="100" />
+                <el-table-column prop="Refresh_Token_TTL" label="自动登出时间(s)" max-width="100" />
                 <el-table-column prop="Phone" label="电话" max-width="100" />
                 <el-table-column prop="Email" label="邮箱" max-width="100" />
                 <el-table-column prop="Discontinued" label="禁用" max-width="50" />
@@ -51,7 +51,7 @@
                 </el-form-item>
 
                 <el-form-item prop="Refresh_Token_Time" label="过期时间">
-                    <el-input v-model.number="newItem.Refresh_Token_Time" type="Refresh_Token_Time"
+                    <el-input v-model.number="newItem.Refresh_Token_TTL" type="Refresh_Token_Time"
                         placeholder="请输入过期时间设定（s）" size="large" :prefix-icon="Lock" show-Refresh_Token_Time />
                 </el-form-item>
 
@@ -83,11 +83,13 @@ import { User, Lock, Key, Phone, Message } from '@element-plus/icons-vue'
 import { reactive, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User__All_Count, 
-    User__All_Query, 
-    User__Set_Del, 
-    type User__all_table_type, 
-    type User__table_interface } from '@/api/api'
+import {
+    User__All_Count,
+    User__All_Query,
+    User__Set_Del,
+    type User__all_table_type,
+    type User__table_interface
+} from '@/api/api'
 
 const router = useRouter()
 
@@ -161,11 +163,15 @@ const newItem: User__all_table_type = reactive({
     Id: 0, // 用户ID
     Name: '', // 用户名
     Passwd: '', // 密码
-    Permissions: 0,   // 权限
-    Refresh_Token_Time: 604800,  // 过期时间设定（s）
+    Permissions: 0,   // 权限 
     Discontinued: true,    // 停用
     Phone: '',  // 电话
     Email: '', // 邮箱
+
+    Refresh_Token_bits: 1024,    // 刷新令牌RSA密钥长度 
+    Access_Token_bits: 2048,    // 访问令牌RSA密钥长度 
+    Refresh_Token_TTL: 86400,    // 刷新令牌过期时间（s）
+    Access_Token_TTL: 1800,    // 访问令牌过期时间（s）
 })
 
 // 新增用户

@@ -100,6 +100,7 @@
                                     <el-breadcrumb-item>Dashboard</el-breadcrumb-item>
                                 </el-breadcrumb>
                             </div>  </div> -->
+                            <men_body />
                             <RouterView />
 
 
@@ -126,6 +127,8 @@ import { RouterView } from 'vue-router'
 import { Menu, Fold, Expand, Key } from '@element-plus/icons-vue'
 import { User__Get_Info } from '@/api/api'
 import type { User__table_interface } from '@/api/api'
+import men_body from '@/views/layout/user-men.vue'
+
 
 const User_info: User__table_interface = reactive({
     Id: 0, // 用户ID
@@ -135,6 +138,10 @@ const User_info: User__table_interface = reactive({
     Discontinued: false,    // 停用
     Phone: '',  // 电话
     Email: '',  // 邮箱 
+    Refresh_Token_bits: 0,    // 刷新令牌RSA密钥长度 
+    Access_Token_bits: 0,     // 访问令牌RSA密钥长度 
+    Refresh_Token_TTL: 0,     // 刷新令牌过期时间（s）
+    Access_Token_TTL: 0,     // 访问令牌过期时间（s）
 })
 
 User__Get_Info().then((User) => {
