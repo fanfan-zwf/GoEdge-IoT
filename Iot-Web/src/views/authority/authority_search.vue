@@ -35,7 +35,7 @@
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Authority__Search, type Authority__table_interface } from '@/typer/api'
+import { Authority__Search, type Authority__table_interface } from '@/api/api'
 import { Search } from '@element-plus/icons-vue'
 
 interface search_interface {

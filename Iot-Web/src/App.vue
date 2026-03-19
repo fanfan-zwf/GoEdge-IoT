@@ -7,8 +7,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Access_Token_Query } from "@/typer/token"
-import { ElMessage } from 'element-plus'
+import { Access_Token_Query } from "@/api/token"
+import { User__Get_Info } from '@/api/api'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
 
 import demo from "@/views/layout/body.vue"
 import login from '@/views/layout/login.vue'
@@ -33,6 +36,15 @@ var Loading_Completed = ref(false)
 //     Loading_Completed.value = true
 // })
 
+Access_Token_Query().then((Access_Token_value) => {
+    User__Get_Info().then((User_info) => {
+ 
+
+        console.log("userStore", userStore.Id)
+    })
+}).finally(() => {
+    Loading_Completed.value = true
+})
 
 
 </script>

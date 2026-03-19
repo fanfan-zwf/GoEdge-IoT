@@ -1,8 +1,7 @@
 import { http_Front_url } from '@/api/index'
 import axios from 'axios'
 import router from '@/router/index'
-import { DualMutex } from '@/typer/function'
-import { sha3_256_sync } from '@/typer/function'
+import { DualMutex,sha3_256_sync } from '@/api/index' 
 
 
 const mutex = new DualMutex();
@@ -60,7 +59,7 @@ axios.interceptors.request.use(
             return config;
         }
         const token = JSON.parse(tokenString) as localStorage_Access_Token_interface
-        if (token && !config.url?.includes('/app/v1.0/Login')) {
+        if (token && !config.url?.includes('/app/v1.0/login')) {
             config.headers['F_Access_Token'] = token.F_Access_Token;
             console.log('请求拦截器添加令牌', config.url);
         }

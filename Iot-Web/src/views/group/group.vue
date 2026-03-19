@@ -64,7 +64,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { Group__Count, Group__Query, Group__Add, Group__Update, Group__Del, type Group__table_interface } from '@/typer/api'
+import { Group__Count, Group__Query, Group__Add, Group__Update, Group__Del, type Group__table_interface } from '@/api/api'
 
 const router = useRouter()
 

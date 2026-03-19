@@ -81,7 +81,7 @@ import {
     type Authority_User__table_interface,
     type Authority__table_interface,
     type User__table_interface,
-} from '@/typer/api'
+} from '@/api/api'
 import authority_search from '@/views/authority/authority_search.vue'
 import user_search from '@/views/user/user_search.vue'
 

@@ -75,15 +75,18 @@
 import { reactive, onMounted, watch, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Message, OfficeBuilding, Phone } from '@element-plus/icons-vue'
-import { User__Get_Info, User__Set_Phone, User__Set_Email, User__Set_Passwd, User__Set_Name, type User__table_interface } from '@/typer/api'
+import { User__Get_Info, User__Set_Phone, User__Set_Email, User__Set_Passwd, User__Set_Name, type User__table_interface } from '@/api/api'
 import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
+const UserStore = useUserStore() // 获取用户信息
 const route = useRoute()
 const User_Id = ref<number>(0)
 User_Id.value = Number(route.params.User_Id)
 
 watch(User_Id, (_, oldValue) => {
-    User__Get_Info(oldValue, true).then((User) => {
+    console.log("获取用户信息", oldValue)
+    User__Get_Info(oldValue).then((User) => {
         console.log("获取用户信息", User)
         Object.assign(User_info, User)
     })
@@ -112,25 +115,35 @@ const getRole = (role: number) => {
 const User_info: User__table_interface = reactive({
     Id: 0, // 用户ID
     Name: '', // 用户名
-    Permissions: 0,   // 权限
-    Refresh_Token_Time: 0,   // 过期时间设定（s）
+    Avatar: '', // 头像 
+    Permissions: 0,   // 权限 
     Discontinued: false,    // 停用
     Phone: '',  // 电话
-    Email: ''  // 邮箱
+    Email: '',  // 邮箱
+
+    Refresh_Token_bits: 0,    // 刷新令牌RSA密钥长度 
+    Access_Token_bits: 0,    // 访问令牌RSA密钥长度 
+    Refresh_Token_TTL: 0,    // 刷新令牌过期时间（s）
+    Access_Token_TTL: 0,    // 访问令牌过期时间（s）
 })
 
 const Set_get = () => {
-    User__Get_Info(User_Id.value, true).then((User) => {
+    User__Get_Info(User_Id.value).then((User) => {
         console.log("获取用户信息", User)
         Object.assign(User_info, User)
     })
 
 }
 onMounted(() => {
-    User__Get_Info(User_Id.value).then((User) => {
-        console.log("获取用户信息", User)
-        Object.assign(User_info, User)
-    })
+    if (UserStore.Id == User_Id.value || User_Id.value == 0) {
+        Object.assign(User_info, UserStore.get)
+    } else {
+        User__Get_Info(User_Id.value).then((User) => {
+            console.log("获取用户信息", User)
+            Object.assign(User_info, User)
+        })
+    }
+
 })
 
 

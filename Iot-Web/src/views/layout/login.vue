@@ -67,16 +67,17 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { User, Lock, Key } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { Api_Name_login_Refresh_Token_update, Api_Access_Token_update } from '@/typer/token'
-import { User__Get_Info } from '@/typer/api'
-
+import { Api_Name_login_Refresh_Token_update, Api_Access_Token_update } from '@/api/token'
+import { User__Get_Info } from '@/api/api'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+
 // 表单数据
 const loginForm = reactive({
     Name: '',
@@ -106,33 +107,49 @@ const loginRules = {
 const loading = ref(false)
 const showCaptcha = ref(false)
 
-// 登录处理
+
+// 登录处理 - 重构为 async/await 确保时序
 const handleLogin = async () => {
+    // 在此处获取 store，确保 Pinia 已初始化
+    const userStore = useUserStore()
+
+    // 手动触发校验（如果使用了 ref 绑定 form）
+    // await loginFormRef.value?.validate() 
+
     try {
         loading.value = true
-        Api_Name_login_Refresh_Token_update(loginForm.Name, loginForm.Passwd).then((response) => {
-            Api_Access_Token_update().then(() => {
-                User__Get_Info(0, true).then(() => {
-                    ElMessage({
-                        message: '登录成功',
-                        type: 'success',
-                    })
-                    router.push("/")
-                })
-            })
-        }).catch((error) => {
-            console.log(error)
-            ElMessage.error(error)
+
+        // 1. 第一步：获取 Refresh Token
+        console.log('正在获取 Refresh Token...')
+        const refreshData = await Api_Name_login_Refresh_Token_update(loginForm.Name, loginForm.Passwd)
+        console.log('Refresh Token 获取成功:', refreshData)
+
+        // 2. 第二步：获取 Access Token (此步骤会将 token 写入 localStorage)
+        console.log('正在获取 Access Token...')
+        const accessData = await Api_Access_Token_update()
+        console.log('Access Token 获取成功:', accessData)
+
+        // 3. 第三步：获取用户信息 (此时 localStorage 中一定有 token，拦截器会正常添加)
+        console.log('正在获取用户信息...')
+        const userInfo = await User__Get_Info(0)
+
+        // 4. 登录成功后的处理
+        ElMessage({
+            message: '登录成功',
+            type: 'success',
         })
-    } catch (error) {
-        console.log(error)
-        ElMessage.error(error)
-        showCaptcha.value = true
+
+        userStore.set(userInfo)
+        router.push("/")
+
+    } catch (error: any) {
+        console.error('登录过程失败:', error)
+        const msg = typeof error === 'string' ? error : (error.message || '登录失败，请稍后重试')
+        ElMessage.error(msg)
     } finally {
         loading.value = false
     }
 }
-
 
 </script>
 

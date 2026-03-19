@@ -124,25 +124,17 @@ import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 import { Fold, Expand } from '@element-plus/icons-vue'
 import UserMenu from '@/components/UserMenu.vue'
-import { User__Get_Info } from '@/typer/api'
-import type { User__table_interface } from '@/typer/api'
+import { User__Get_Info } from '@/api/api'
+import type { User__table_interface } from '@/api/api'
+import { useUserStore } from '@/stores/user'
+
+const UserStore = useUserStore() // 获取用户信息
 
 const router = useRouter()
 
-const User_info: User__table_interface = reactive({
-    Id: 0,
-    Name: '',
-    Permissions: 0,
-    Refresh_Token_Time: 0,
-    Discontinued: false,
-    Phone: '',
-    Email: '',
-})
+const User_info: User__table_interface = UserStore.get
 
-User__Get_Info().then((User) => {
-    Object.assign(User_info, User)
-})
-
+ 
 const isCollapsed = ref(false)
 // 新增：移动端状态控制
 const isMobile = ref(false)
@@ -310,14 +302,18 @@ img {
 }
 
 .sidebar-logo {
-    height: 60px !important; /* 稍微增加高度以容纳放大的图标 */
+    height: 60px !important;
+    /* 稍微增加高度以容纳放大的图标 */
     display: flex !important;
-    justify-content: flex-start !important; /* 左对齐开始 */
+    justify-content: flex-start !important;
+    /* 左对齐开始 */
     align-items: center !important;
-    padding: 0 10px; /* 调整内边距 */
+    padding: 0 10px;
+    /* 调整内边距 */
     background: #ffffff !important;
     border-bottom: 1px solid #f5f5f5;
-    overflow: hidden; /* 防止放大时溢出 */
+    overflow: hidden;
+    /* 防止放大时溢出 */
     transition: all 0.3s ease;
 }
 
@@ -326,21 +322,25 @@ img {
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 44px; /* 固定宽度占位，防止文字消失时抖动 */
+    width: 44px;
+    /* 固定宽度占位，防止文字消失时抖动 */
     flex-shrink: 0;
-    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 添加弹性过渡 */
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    /* 添加弹性过渡 */
 }
 
 /* 核心需求：折叠时图标顶比例缩放放大 */
 .sidebar-content.collapsed .logo-icon-wrapper {
-    transform: scale(1.6); /* 放大显示 */
-    width: 100%; /* 占满整个折叠后的宽度 */
+    transform: scale(1.6);
+    /* 放大显示 */
+    width: 100%;
+    /* 占满整个折叠后的宽度 */
 }
 
 /* 移动端不应用放大效果，保持正常 */
 @media (max-width: 767px) {
     .sidebar-content.collapsed .logo-icon-wrapper {
-        transform: scale(1); 
+        transform: scale(1);
         width: 44px;
     }
 }

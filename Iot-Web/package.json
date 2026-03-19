@@ -28,7 +28,7 @@
     "jquery": "^3.7.1",
     "js-sha3": "^0.9.3",
     "naive-ui": "latest",
-    "pinia": "^3.0.3",
+    "pinia": "^3.0.4",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "tailwindcss": "^4.1.13",

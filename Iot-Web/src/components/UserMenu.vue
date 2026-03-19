@@ -1,10 +1,11 @@
 <template>
-    <el-dropdown trigger="click" @command="handleCommand" class="user-menu-dropdown">
+    <el-dropdown trigger="click" class="user-menu-dropdown">
         <span class="user-dropdown-trigger">
             <!-- 恢复使用标准的 el-avatar 组件 -->
-            <el-avatar :size="36" :icon="user.Name ? undefined : 'User'" :name="user.Name" class="user-avatar-img">
+            <el-avatar :size="36" :icon="UserStore.Avatar ? undefined : 'User'" :name="UserStore.Name"
+                class="user-avatar-img">
                 <!-- 如果有头像 URL 可以在这里通过 src 属性传入，目前使用名字首字母或默认图标 -->
-                {{ user.Name ? user.Name.charAt(0).toUpperCase() : '' }}
+                {{ UserStore.Name ? UserStore.Name.charAt(0).toUpperCase() : '' }}
             </el-avatar>
         </span>
 
@@ -15,18 +16,23 @@
                     <el-avatar size="48" icon="User" class="header-avatar" />
                     <div class="header-info">
                         <div class="header-main">
-                            <span class="header-name">{{ user.Name || '未登录' }}</span>
-                            <span class="header-badge">Pro</span>
+                            <span class="header-name">{{ UserStore.Name || '未登录' }}</span>
+                            <span class="header-badge" v-if="UserStore.Permissions < 100">Pro</span>
                         </div>
-                        <div class="header-email">{{ user.Email || '未设置邮箱' }}</div>
+                        <div class="header-email">{{ UserStore.Email || '未设置邮箱' }}</div>
                     </div>
                 </div>
 
                 <el-dropdown-menu class="menu-list">
-                    <el-dropdown-item command="profile" icon="User">个人中心</el-dropdown-item>
-                    <el-dropdown-item command="docs" icon="Document">文档</el-dropdown-item>
-                    <el-dropdown-item command="github" icon="Document">GitHub</el-dropdown-item>
-                    <el-dropdown-item command="help" icon="Help">问题 & 帮助</el-dropdown-item>
+                    <el-dropdown-item command="profile" icon="User">
+                        <router-link active-class="active" class="custom-router-link"
+                            :to="{ name: 'info', params: { User_Id: UserStore.Id } }">
+                            个人中心
+                        </router-link>
+                    </el-dropdown-item>
+                    <el-dropdown-item command="docs" icon="Document">用户分组</el-dropdown-item>
+                    <el-dropdown-item command="github" icon="Document">用户权限</el-dropdown-item>
+                    <el-dropdown-item command="help" icon="Help">我的日志</el-dropdown-item>
                     <el-dropdown-item command="lock" icon="Lock">锁定屏幕</el-dropdown-item>
                     <el-dropdown-item divided command="logout" icon="SwitchButton">退出登录</el-dropdown-item>
                 </el-dropdown-menu>
@@ -39,12 +45,13 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { User__Get_Info } from '@/typer/api'
-import type { User__table_interface } from '@/typer/api'
+import { User__Get_Info } from '@/api/api'
+import type { User__table_interface } from '@/api/api'
+import { useUserStore } from '@/stores/user'
 
-const props = defineProps<{
-    user: User__table_interface
-}>()
+const UserStore = useUserStore() // 获取用户信息
+
+
 
 const isMobile = ref(false)
 
@@ -61,35 +68,9 @@ onUnmounted(() => {
     window.removeEventListener('resize', checkMobile)
 })
 
-const router = useRouter()
 
-const handleCommand = (command: string) => {
-    switch (command) {
-        case 'profile':
-            router.push({ name: 'info', params: { User_Id: props.user.Id } })
-            break
-        case 'docs':
-            window.open('https://www.your-docs-domain.com', '_blank')
-            break
-        case 'github':
-            window.open('https://github.com', '_blank')
-            break
-        case 'help':
-            ElMessage({ message: '请联系管理员或查看文档获取帮助', type: 'info' })
-            break
-        case 'lock':
-            ElMessage({ message: '锁屏功能暂未实现', type: 'warning' })
-            break
-        case 'logout':
-            localStorage.removeItem('F_Access_Token')
-            localStorage.removeItem('F_Refresh_Token')
-            sessionStorage.removeItem('F_User_Info')
-            router.push({ name: 'login' })
-            break
-        default:
-            break
-    }
-}
+
+
 </script>
 
 <style scoped>
@@ -140,15 +121,15 @@ const handleCommand = (command: string) => {
         /* 确保移动端下拉框背景为白色 */
         background-color: #ffffff !important;
     }
-    
+
     .header-info {
         margin-left: 8px;
     }
-    
+
     .header-name {
         font-size: 14px;
     }
-    
+
     .header-email {
         font-size: 11px;
     }
@@ -204,5 +185,19 @@ const handleCommand = (command: string) => {
 
 .el-dropdown-menu__item:hover {
     background: rgba(64, 158, 255, 0.08);
+}
+
+/* 新增：重置 router-link 的默认 a 标签样式 */
+.custom-router-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.custom-router-link:hover {
+    text-decoration: none;
+    color: inherit;
 }
 </style>

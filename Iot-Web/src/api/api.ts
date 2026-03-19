@@ -1,7 +1,9 @@
 import { http_Front_url } from '@/api/index'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { sha3_256_sync } from '@/typer/function'
+import { sha3_256_sync } from '@/api/index'
+import { useUserStore } from '@/stores/user'
+
 
 
 /**
@@ -14,10 +16,11 @@ import { sha3_256_sync } from '@/typer/function'
 export interface User__table_interface {
     Id: number // 用户ID
     Name: string // 用户名
+    Avatar: string // 头像
     Permissions: number   // 权限 
     Discontinued: boolean    // 停用
     Phone: string  // 电话
-    Email: string  // 邮箱
+    Email: string  // 邮箱 
 
     Refresh_Token_bits: number    // 刷新令牌RSA密钥长度 
     Access_Token_bits: number    // 访问令牌RSA密钥长度 
@@ -36,14 +39,7 @@ export interface User__all_table_type extends User__table_interface {
  * 获取用户信息
  * Param User_Id 用户ID(默认0-当前用户)
  */
-export async function User__Get_Info(User_Id: number = 0, Again: boolean = false): Promise<User__table_interface> {
-    if (User_Id == 0) {
-        const data = sessionStorage.getItem('F_User_Info') || null;
-        if (data != null && !Again) {
-            return JSON.parse(data) as User__table_interface;
-        }
-    }
-
+export async function User__Get_Info(User_Id: number = 0): Promise<User__table_interface> {
 
     try {
         const response = axios.post(http_Front_url + '/api/gui/v1.0/user/get/info', {
@@ -56,6 +52,8 @@ export async function User__Get_Info(User_Id: number = 0, Again: boolean = false
             if (User_Id == 0) {
                 sessionStorage.removeItem('F_User_Info');
                 sessionStorage.setItem('F_User_Info', JSON.stringify(User_info))
+                const userStore = useUserStore()
+                userStore.set(User_info) 
             }
             return User_info
         }
@@ -66,7 +64,7 @@ export async function User__Get_Info(User_Id: number = 0, Again: boolean = false
             ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
-        ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
+        // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
         throw axiosError.response?.data?.Msg || '请求失败';
     }
 

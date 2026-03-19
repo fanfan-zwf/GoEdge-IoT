@@ -12,8 +12,8 @@ const router = useRouter()
 // export type Persons = Array<PersonInter>
 // export const ip = '192.168.31.32'
 // export const ip = '192.168.31.123'
-export const ip = '192.168.220.20'
-export const port = 8078
+export const ip = '192.168.220.30'
+export const port = 8101
 
 export const http_Front_url = `http://${ip}:${port}`
 export const ws_Front_url = `ws://${ip}:${port}`

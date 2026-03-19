@@ -49,12 +49,7 @@
                     <el-input v-model.number="newItem.Permissions" type="Permissions" placeholder="请输入权限" size="large"
                         :prefix-icon="Lock" show-Permissions />
                 </el-form-item>
-
-                <el-form-item prop="Refresh_Token_Time" label="过期时间">
-                    <el-input v-model.number="newItem.Refresh_Token_Time" type="Refresh_Token_Time"
-                        placeholder="请输入过期时间设定（s）" size="large" :prefix-icon="Lock" show-Refresh_Token_Time />
-                </el-form-item>
-
+ 
                 <el-form-item prop="Phone" label="电话">
                     <el-input v-model="newItem.Phone" type="Phone" placeholder="请输入电话" size="large" :prefix-icon="Phone"
                         show-Phone />
@@ -83,7 +78,7 @@ import { User, Lock, Key, Phone, Message } from '@element-plus/icons-vue'
 import { reactive, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User__All_Count, User__All_Query, User__Set_Del, type User__all_table_type, type User__table_interface } from '@/typer/api'
+import { User__All_Count, User__All_Query, User__Set_Del, type User__all_table_type, type User__table_interface } from '@/api/api'
 
 const router = useRouter()
 
@@ -134,7 +129,7 @@ const handleCurrentChange = (value: number) => {
 const editRow = (scope: any) => {
     const id: number = scope.row.Id
     router.push({
-        name: 'user',
+        name: 'info',
         params: { User_Id: id }
     })
 }
@@ -158,10 +153,14 @@ const newItem: User__all_table_type = reactive({
     Name: '', // 用户名
     Passwd: '', // 密码
     Permissions: 0,   // 权限
-    Refresh_Token_Time: 604800,  // 过期时间设定（s）
     Discontinued: true,    // 停用
     Phone: '',  // 电话
     Email: '', // 邮箱
+
+    Refresh_Token_bits: 0,    // 刷新令牌RSA密钥长度 
+    Access_Token_bits: 0,    // 访问令牌RSA密钥长度 
+    Refresh_Token_TTL: 0,    // 刷新令牌过期时间（s）
+    Access_Token_TTL: 0,    // 访问令牌过期时间（s）
 })
 
 // 新增用户
