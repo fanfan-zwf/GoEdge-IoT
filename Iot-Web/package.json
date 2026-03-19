@@ -20,7 +20,7 @@
     "@tailwindcss/vite": "^4.1.13",
     "ant-design-vue": "^4.2.6",
     "antd": "^5.27.3",
-    "axios": "^1.12.1",
+    "axios": "^1.13.5",
     "bootstrap": "^5.3.8",
     "element-plus": "^2.11.2",
     "equal-vue": "^0.731.0",
