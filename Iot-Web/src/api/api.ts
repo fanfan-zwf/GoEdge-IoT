@@ -53,7 +53,7 @@ export async function User__Get_Info(User_Id: number = 0): Promise<User__table_i
                 sessionStorage.removeItem('F_User_Info');
                 sessionStorage.setItem('F_User_Info', JSON.stringify(User_info))
                 const userStore = useUserStore()
-                userStore.set(User_info) 
+                userStore.set(User_info)
             }
             return User_info
         }
@@ -243,6 +243,37 @@ export async function User__Set_Passwd(Passwd: string, User_Id: number = 0): Pro
         throw axiosError.response?.data?.Msg || '请求失败';
     }
 }
+
+/**
+ * 设置密码
+ * Param Url 头像地址, User_Id 用户ID(默认0-当前用户)
+ */
+export async function User__Set_Avatar(Url: string, User_Id: number = 0): Promise<void> {
+    try {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/set/Url', {
+            User_Id: User_Id,
+            Url: Url,
+        })
+        const status = (await response).status
+        if (status == 200) {
+            ElMessage({
+                message: (await response).data.Msg || 'ok',
+                type: 'success',
+            })
+            return
+        }
+        throw (await response).data.Msg || '未知错误';
+    } catch (error: unknown) {
+        const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
+        if (axiosError.code == "ERR_NETWORK") {
+            ElMessage({ message: '请求超时', type: 'error' })
+            throw '请求超时'
+        }
+        ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
+        throw axiosError.response?.data?.Msg || '请求失败';
+    }
+}
+
 
 /**
  * 设置电话

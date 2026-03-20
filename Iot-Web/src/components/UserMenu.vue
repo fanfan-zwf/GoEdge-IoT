@@ -2,7 +2,7 @@
     <el-dropdown trigger="click" class="user-menu-dropdown">
         <span class="user-dropdown-trigger">
             <!-- 恢复使用标准的 el-avatar 组件 -->
-            <el-avatar :size="36" :icon="UserStore.Avatar ? undefined : 'User'" :name="UserStore.Name"
+            <el-avatar :size="36" :src="UserStore.Avatar" :icon="UserStore.Avatar ? undefined : 'User'" :name="UserStore.Name"
                 class="user-avatar-img">
                 <!-- 如果有头像 URL 可以在这里通过 src 属性传入，目前使用名字首字母或默认图标 -->
                 {{ UserStore.Name ? UserStore.Name.charAt(0).toUpperCase() : '' }}
@@ -13,7 +13,7 @@
             <!-- 修改：确保下拉卡片在移动端也有正确的背景色，防止继承黑色 -->
             <div class="dropdown-card" :class="{ 'mobile-card': isMobile }">
                 <div class="dropdown-header">
-                    <el-avatar size="48" icon="User" class="header-avatar" />
+                    <el-avatar size="48" :src="UserStore.Avatar" icon="User" class="header-avatar" />
                     <div class="header-info">
                         <div class="header-main">
                             <span class="header-name">{{ UserStore.Name || '未登录' }}</span>
@@ -40,7 +40,6 @@
         </template>
     </el-dropdown>
 </template>
-
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'

@@ -2,13 +2,17 @@
     <div class="common-layout">
         <el-container class="layout-container">
             <!-- 左侧侧边栏 -->
-            <el-aside :width="asideWidth" class="left-sidebar" :class="{ 'mobile-visible': isMobileVisible }">
-                <div class="sidebar-content" :class="{ 'collapsed': isCollapsed }">
+            <el-aside
+                :width="asideWidth"
+                class="left-sidebar"
+                :class="{ 'mobile-visible': isMobileVisible }"
+            >
+                <div class="sidebar-content" :class="{ collapsed: isCollapsed }">
                     <!-- Logo 区域 - 修改：分为左右两部分 -->
                     <div class="sidebar-logo">
                         <!-- 左侧：Logo 图标 -->
                         <div class="logo-icon-wrapper">
-                            <img src="@/assets/icons/log.svg" alt="Logo" class="logo-image" />
+                            <img src="@/assets/icons/mr.jpg" alt="Logo" class="logo-image" />
                         </div>
                         <!-- 右侧：文字标题 -->
                         <div class="logo-text-wrapper" v-show="!isCollapsed || isMobile">
@@ -17,9 +21,17 @@
                     </div>
 
                     <!-- 菜单区域 -->
-                    <el-menu default-active="1" class="sidebar-menu" :collapse="isCollapsed" @select="handleMenuSelect">
+                    <el-menu
+                        default-active="1"
+                        class="sidebar-menu"
+                        :collapse="isCollapsed"
+                        @select="handleMenuSelect"
+                    >
                         <!-- 修改：路由名称应为 'info' 而非 'user' -->
-                        <router-link active-class="active" :to="{ name: 'info', params: { User_Id: User_info.Id } }">
+                        <router-link
+                            active-class="active"
+                            :to="{ name: 'info', params: { User_Id: User_info.Id } }"
+                        >
                             <el-menu-item index="1">
                                 <el-icon>
                                     <img src="@/assets/icons/账号信息.svg" alt="账号信息" />
@@ -73,14 +85,23 @@
 
                     <!-- 折叠按钮 -->
                     <div class="sidebar-footer">
-                        <el-button :icon="isCollapsed ? Expand : Fold" @click="toggleCollapse" circle size="small"
-                            class="collapse-button" />
+                        <el-button
+                            :icon="isCollapsed ? Expand : Fold"
+                            @click="toggleCollapse"
+                            circle
+                            size="small"
+                            class="collapse-button"
+                        />
                     </div>
                 </div>
 
                 <!-- 修改：优化遮罩层，确保仅在移动端且可见时显示，调整类名控制动画 -->
-                <div v-if="isMobile && isMobileVisible" class="mobile-overlay" :class="{ 'fade-in': isMobileVisible }"
-                    @click="closeSidebar"></div>
+                <div
+                    v-if="isMobile && isMobileVisible"
+                    class="mobile-overlay"
+                    :class="{ 'fade-in': isMobileVisible }"
+                    @click="closeSidebar"
+                ></div>
             </el-aside>
 
             <!-- 右侧主内容区域 -->
@@ -93,9 +114,16 @@
                             <Fold v-if="!isCollapsed" />
                             <Expand v-else />
                         </el-icon>
+
+                        <!-- 修改：重构面包屑，支持多级路径解析和点击跳转 -->
                         <el-breadcrumb separator="/">
-                            <el-breadcrumb-item :to="{ path: '/' }">Home</el-breadcrumb-item>
-                            <el-breadcrumb-item>Dashboard</el-breadcrumb-item>
+                            <el-breadcrumb-item
+                                v-for="(item, index) in breadcrumbList"
+                                :key="index"
+                                :to="item.path"
+                            >
+                                {{ item.name }}
+                            </el-breadcrumb-item>
                         </el-breadcrumb>
                     </div>
                     <div class="header-right">
@@ -105,7 +133,7 @@
 
                 <el-container class="main-content">
                     <el-main class="content-main">
-                        <RouterView />
+                        <router-view />
                     </el-main>
                     <el-footer class="content-footer">
                         <div class="footer-content">
@@ -120,8 +148,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
-import { RouterView, useRouter } from 'vue-router'
+import { ref, computed, reactive, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { Fold, Expand } from '@element-plus/icons-vue'
 import UserMenu from '@/components/UserMenu.vue'
 import { User__Get_Info } from '@/api/api'
@@ -131,10 +159,10 @@ import { useUserStore } from '@/stores/user'
 const UserStore = useUserStore() // 获取用户信息
 
 const router = useRouter()
+const route = useRoute()
 
 const User_info: User__table_interface = UserStore.get
 
- 
 const isCollapsed = ref(false)
 // 新增：移动端状态控制
 const isMobile = ref(false)
@@ -195,6 +223,50 @@ const asideWidth = computed(() => {
     return isCollapsed.value ? '64px' : '200px'
 })
 
+// 修改：计算面包屑列表，解析 hash 中的完整路径
+// 依赖 route.fullPath 确保路由变化时自动更新
+const breadcrumbList = computed(() => {
+    // 使用 route.fullPath 获取当前完整路径（包含 hash）
+    // 在 hash 模式下，fullPath 通常包含 #/path/to/page
+    const fullPath = route.fullPath
+
+    // 提取 hash 部分（去掉 # 号）
+    let hashPath = fullPath.startsWith('#') ? fullPath.slice(1) : fullPath
+
+    // 如果没有路径，默认为 /
+    if (!hashPath || hashPath === '') {
+        hashPath = '/'
+    }
+
+    // 按 '/' 分割路径，过滤掉空字符串
+    const segments = hashPath.split('/').filter((segment) => segment !== '')
+
+    const list: { name: string; path: string }[] = []
+
+    // 添加根节点
+    list.push({
+        name: '首页',
+        path: '/',
+    })
+
+    let currentPath = ''
+
+    segments.forEach((segment) => {
+        currentPath += '/' + segment
+
+        // 简单显示路径段作为名称
+        // 后续可根据 segment 映射具体的中文名称（如匹配路由 meta 标题）
+        let displayName = segment
+
+        list.push({
+            name: displayName,
+            path: currentPath,
+        })
+    })
+
+    return list
+})
+
 const handleMenuSelect = (index: any) => {
     // 移动端选择菜单后自动关闭侧边栏
     if (isMobile.value) {
@@ -202,7 +274,6 @@ const handleMenuSelect = (index: any) => {
     }
     // 菜单选择逻辑
 }
-
 </script>
 
 <style scoped>
@@ -232,7 +303,9 @@ img {
     background: #ffffff !important;
     border-right: 1px solid #f0f0f0 !important;
     box-shadow: none;
-    transition: width 0.3s ease, background-color 0.3s ease;
+    transition:
+        width 0.3s ease,
+        background-color 0.3s ease;
     position: relative;
     z-index: 1001;
     overflow: hidden;
@@ -250,7 +323,9 @@ img {
         /* 再次确保移动端侧边栏背景也是白色，防止动画期间变黑 */
         background: #ffffff !important;
         box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
-        transition: width 0.3s ease, background-color 0.3s ease;
+        transition:
+            width 0.3s ease,
+            background-color 0.3s ease;
         z-index: 1002;
     }
 
@@ -352,12 +427,18 @@ img {
     display: block !important;
 }
 
+.collapsed .logo-image {
+    max-width: 22px !important;
+    max-height: 22px !important;
+}
 /* 右侧文字容器 */
 .logo-text-wrapper {
     margin-left: 12px;
     white-space: nowrap;
     opacity: 1;
-    transition: opacity 0.3s ease, margin 0.3s ease;
+    transition:
+        opacity 0.3s ease,
+        margin 0.3s ease;
     overflow: hidden;
 }
 
@@ -418,7 +499,7 @@ img {
 
 :deep(.el-sub-menu__title:hover) {
     background-color: rgba(64, 158, 255, 0.1) !important;
-    color: #409EFF !important;
+    color: #409eff !important;
 }
 
 /* 新增：修复折叠状态下的图标对齐 */
@@ -455,14 +536,14 @@ img {
     /* 修改：悬停背景为浅蓝色 */
     background-color: rgba(64, 158, 255, 0.1) !important;
     /* 修改：悬停文字颜色保持深色或微蓝 */
-    color: #409EFF !important;
+    color: #409eff !important;
 }
 
 .el-menu-item.is-active {
     /* 修改：选中背景为更明显的浅蓝色 */
     background-color: rgba(64, 158, 255, 0.15) !important;
     /* 修改：选中文字颜色为蓝色 */
-    color: #409EFF !important;
+    color: #409eff !important;
     font-weight: 600;
 }
 
@@ -496,13 +577,16 @@ img {
     border: 1px solid #e6e6e6;
     outline: none;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+    transition:
+        transform 0.3s ease,
+        background-color 0.3s ease,
+        color 0.3s ease;
 }
 
 .collapse-button:hover {
-    background-color: #409EFF;
+    background-color: #409eff;
     color: #ffffff;
-    border-color: #409EFF;
+    border-color: #409eff;
     transform: rotate(180deg);
 }
 
@@ -614,7 +698,7 @@ img {
 }
 
 .el-breadcrumb-item a:hover {
-    color: #409EFF;
+    color: #409eff;
 }
 
 .el-breadcrumb-item.is-link {
@@ -622,7 +706,7 @@ img {
 }
 
 .el-breadcrumb-item:last-child {
-    color: #409EFF;
+    color: #409eff;
     font-weight: 500;
 }
 

@@ -134,13 +134,9 @@ const handleLogin = async () => {
         const userInfo = await User__Get_Info(0)
 
         // 4. 登录成功后的处理
-        ElMessage({
-            message: '登录成功',
-            type: 'success',
-        })
-
         userStore.set(userInfo)
         router.push("/")
+        ElMessage.info('登录成功')
 
     } catch (error: any) {
         console.error('登录过程失败:', error)

@@ -8,7 +8,7 @@ const router = createRouter({
     routes: [
         {
             path: '/',
-            redirect: "/user/0",
+            redirect: "/user/info/0",
         },
         {
             path: '/login',
@@ -17,7 +17,12 @@ const router = createRouter({
         },
         {
             path: '/user',
+            redirect: "/user/info/0",
             children: [
+                {
+                    path: 'info',
+                    redirect: "/user/info/0",
+                },
                 {
                     path: 'info/:User_Id',
                     name: 'info',

@@ -45,7 +45,7 @@ export default defineConfig({
   },
   server: {
     host: "0.0.0.0",
-    port: 8701 // 端口
+    port: 8111 // 端口
   },
   build: {
     target: 'es2015'
