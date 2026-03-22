@@ -8,17 +8,27 @@ package cloud
 
 import (
 	"bytes"
-	"compress/gzip" // ✅ Added missing gzip import (also standard library)
+	"compress/gzip"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/pbkdf2"
 	"crypto/rand"
-	"crypto/sha256"
+	"crypto/sha512"
 	"errors"
 	"fmt"
-	"hash/crc32" // ✅ Corrected import path (not crypto/crc32)
+	"hash/crc32"
 	"io"
 	"strconv"
 )
+
+// GetPasswordHashGood 获取密码的哈希值（安全）
+func GetPasswordHashGood(password string) ([]byte, error) {
+	// GOOD, PBKDF2 is a strong hashing algorithm and it is computationally expensive
+	salt := make([]byte, 16)
+	rand.Read(salt)
+	return pbkdf2.Key(sha512.New, password, salt, 4096, 32)
+
+}
 
 // Gzip压缩
 func GzipCompress(data []byte) ([]byte, error) {
@@ -62,7 +72,10 @@ func AesEncryptGCM(plainText []byte, key string) ([]byte, error) {
 	if key == "" {
 		return plainText, nil
 	}
-	hashKey := sha256.Sum256([]byte(key))
+	hashKey, err := GetPasswordHashGood(key)
+	if err != nil {
+		return nil, fmt.Errorf("获取密码哈希失败: %w", err)
+	}
 
 	block, err := aes.NewCipher(hashKey[:])
 	if err != nil {
@@ -87,7 +100,10 @@ func AesDecryptGCM(cipherText []byte, key string) ([]byte, error) {
 	if key == "" {
 		return cipherText, nil
 	}
-	hashKey := sha256.Sum256([]byte(key))
+	hashKey, err := GetPasswordHashGood(key)
+	if err != nil {
+		return nil, fmt.Errorf("获取密码哈希失败: %w", err)
+	}
 
 	block, err := aes.NewCipher(hashKey[:])
 	if err != nil {
