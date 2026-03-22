@@ -256,6 +256,7 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 // 获取访问令牌
 func Api__User_status(ctx *gin.Context) {
 	var jsondata struct {
+		Api_Id             uint
 		User__Access_Token string // 用户刷新令牌
 	}
 	err := ctx.BindJSON(&jsondata)
@@ -275,30 +276,27 @@ func Api__User_status(ctx *gin.Context) {
 	}
 	if err == redis.Nil {
 		ctx.Set("Response", []any{200, "ok", gin.H{
-			"Code":          403,   // 执行码
-			"Msg":           "未登陆", // 执行说明
-			"User_Id":       0,     // 用户id
-			"Expires_in":    "",    // 访问令牌过期时间
-			"Refresh_Token": "",    // 本访问令牌的刷新令牌
+			"Code":               403,   // 执行码
+			"Msg":                "未登陆", // 执行说明
+			"User__Access_Token": jsondata.User__Access_Token,
+			"Access_Token_redis": Access_Token_redis,
 		}})
 		return
 	} else if err != nil {
 		ctx.Set("Response", []any{StatusRedis, err.Error(), gin.H{
-			"Code":          403,         // 执行码
-			"Msg":           err.Error(), // 执行说明
-			"User_Id":       0,           // 用户id
-			"Expires_in":    "",          // 访问令牌过期时间
-			"Refresh_Token": "",          // 本访问令牌的刷新令牌
+			"Code":               403,         // 执行码
+			"Msg":                err.Error(), // 执行说明
+			"User__Access_Token": jsondata.User__Access_Token,
+			"Access_Token_redis": Access_Token_redis,
 		}})
 		return
 	}
 
 	ctx.Set("Response", []any{200, "ok", gin.H{
-		"Code":          200,                              // 执行码
-		"Msg":           "已登陆",                            // 执行说明
-		"User_Id":       Access_Token_redis.User_Id,       // 用户id
-		"Expires_in":    Access_Token_redis.Expires_in,    // 访问令牌过期时间
-		"Refresh_Token": Access_Token_redis.Refresh_Token, // 本访问令牌的刷新令牌
+		"Code":               200,   // 执行码
+		"Msg":                "已登陆", // 执行说明
+		"User__Access_Token": jsondata.User__Access_Token,
+		"Access_Token_redis": Access_Token_redis,
 	}})
 
 }

@@ -28,6 +28,7 @@ func Init_sql(dsn string) error {
 		return err
 	}
 
+	CheckSqlStructure()
 	return nil
 }
 

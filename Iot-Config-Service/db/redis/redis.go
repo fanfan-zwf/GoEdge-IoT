@@ -11,6 +11,8 @@ import (
 
 var Rdb *redis.Client
 
+var Nil = redis.Nil
+
 func Init_rdb(Addr string, Passwd string, Database int) {
 
 	Rdb = redis.NewClient(&redis.Options{
