@@ -13,6 +13,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+/*
+***************采集配置接口***************
+ */
+
 // 采集-》查询数量 传递: page 页码, pageSize 每页数量 返回: Count 数量, err 错误
 func Collector_Info__Count(ctx *gin.Context) {
 	var jsondata struct {
@@ -82,7 +86,7 @@ func Collector_Info__Add(ctx *gin.Context) {
 // 采集-》增加配置 传递: config 配置数组形式 返回: err 错误
 func Collector_Info__Del(ctx *gin.Context) {
 	var jsondata struct {
-		id uint
+		Id uint
 	}
 	err := ctx.BindJSON(&jsondata)
 	if err != nil {
@@ -90,7 +94,7 @@ func Collector_Info__Del(ctx *gin.Context) {
 		return
 	}
 
-	err = db_mysql.Collector_Info__Del(jsondata.id)
+	err = db_mysql.Collector_Info__Del(jsondata.Id)
 	if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
@@ -99,6 +103,11 @@ func Collector_Info__Del(ctx *gin.Context) {
 	ctx.Set("Response", []any{200, "ok"})
 }
 
+/*
+***************驱动配置接口***************
+ */
+
+// 驱动-》查询数量 传递: driveType 驱动类型, page 页码, pageSize 每页数量 返回: Count 数量, err 错误
 func Drive_Config__Count(ctx *gin.Context) {
 	var jsondata struct {
 		Page         uint
@@ -123,10 +132,208 @@ func Drive_Config__Count(ctx *gin.Context) {
 
 	ctx.Set("Response", []any{200, "ok", count})
 }
+
+// 驱动-》查询配置 传递: driveType 驱动类型, page 页码, pageSize 每页数量 返回: configs 配置, err 错误
+func Drive_Config__Query(ctx *gin.Context) {
+	var jsondata struct {
+		Page         uint
+		Page_Size    uint
+		Collector_Id uint
+		Drive_Type   string
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	config_list, err := db_mysql.Drive_Config__Query(jsondata.Collector_Id, jsondata.Drive_Type, jsondata.Page, jsondata.Page_Size)
+	if err == sql.ErrNoRows || len(config_list) == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
+	} else if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok", config_list})
+}
+
+// 驱动-》增加配置 传递: config 配置数组形式 返回: err 错误
+func Drive_Config__Add(ctx *gin.Context) {
+	var jsondata db_mysql.Drive_Config_Add_type
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	err = db_mysql.Drive_Config__Add(jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
+
+// 驱动-》修改配置 传递: config 配置 返回: conid 获取自增的Id, err 错误
+func Drive_Config__Update(ctx *gin.Context) {
+	var jsondata db_mysql.Drive_Config_Update_type
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	err = db_mysql.Drive_Config__Update(jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
+
+// 驱动-》删除配置 传递: ids 删除的id数组 返回: err 错误
+func Drive_Config__Del(ctx *gin.Context) {
+	var jsondata struct {
+		Id uint
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	err = db_mysql.Drive_Config__Del(jsondata.Id)
+	if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+
+}
+
+/*
+***************点位配置接口***************
+ */
+// 点位-》查询数量 传递: driveid 设备id, page 页码, pageSize 每页数量 返回: Count 数量, err 错误
+func Points_Config__Count(ctx *gin.Context) {
+	var jsondata struct {
+		Page      uint
+		Page_Size uint
+		Drive_Id  uint
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	count, err := db_mysql.Points_Config__Count(jsondata.Drive_Id, jsondata.Page, jsondata.Page_Size)
+	if err == sql.ErrNoRows || count == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
+	} else if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok", count})
+}
+
+// 点位-》查询配置 传递: driveid 设备id, page 页码, pageSize 每页数量 返回: configs 配置, err 错误
+func Points_Config__Query(ctx *gin.Context) {
+	var jsondata struct {
+		Page      uint
+		Page_Size uint
+		Drive_Id  uint
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	config_list, err := db_mysql.Points_Config__Query(jsondata.Drive_Id, jsondata.Page, jsondata.Page_Size)
+	if err == sql.ErrNoRows || len(config_list) == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
+	} else if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok", config_list})
+}
+
+// 点位-》增加配置 传递: config 配置数组形式 返回: err 错误
+func Points_Config__Add(ctx *gin.Context) {
+	var jsondata db_mysql.Points_Config_Add_type
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	err = db_mysql.Points_Config__Add(jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
+
+// 点位-》修改配置 传递: config 配置 返回: conid 获取自增的Id, err 错误
+func Points_Config__Update(ctx *gin.Context) {
+	var jsondata db_mysql.Points_Config_Update_type
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	err = db_mysql.Points_Config__Update(jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
+
+// 点位-》删除配置 传递: ids 删除的id数组 返回: err 错误
+func Points_Config__Del(ctx *gin.Context) {
+	var jsondata struct {
+		Id uint
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	err = db_mysql.Points_Config__Del(jsondata.Id)
+	if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
+
 func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/login/name", Collector_Info__Count)
 	r.POST("/api/gui/v1.0/login/name", Collector_Info__Query)
 	r.POST("/api/gui/v1.0/login/name", Collector_Info__Add)
 	r.POST("/api/gui/v1.0/login/name", Collector_Info__Del)
 
+	r.POST("/api/gui/v1.0/login/name", Drive_Config__Count)
+	r.POST("/api/gui/v1.0/login/name", Drive_Config__Query)
+	r.POST("/api/gui/v1.0/login/name", Drive_Config__Add)
+	r.POST("/api/gui/v1.0/login/name", Drive_Config__Update)
+	r.POST("/api/gui/v1.0/login/name", Drive_Config__Del)
 }

@@ -335,9 +335,9 @@ func Drive_Config__Count(collectorId uint, driveType string, page uint, pageSize
 	return count, err
 }
 
-// 驱动-》查询配置
-// 传递: driveType 驱动类型, page 页码, pageSize 每页数量
-// 返回: configs 配置, err 错误
+// 驱动 -》查询配置
+// 传递：driveType 驱动类型，page 页码，pageSize 每页数量
+// 返回：configs 配置，err 错误
 func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize uint) (configs []Drive_Config_type, err error) {
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
@@ -360,32 +360,26 @@ func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize
 	if len(whereConditions) > 0 {
 		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
 	}
+
+	if page != 0 {
+		// 分页计算：page从1开始的话，偏移量是 (page-1)*pageSize；page为0则不分页
+		offset := (page - 1) * pageSize
+		baseQuery += " LIMIT ?, ?"
+		args = append(args, offset, pageSize)
+	}
+
 	// 4. 执行查询（统一处理，减少重复代码）
 	rows, err := DB.Query(baseQuery, args...)
 
-	// 区分无数据和查询错误，日志补充上下文便于排查
-	if err == sql.ErrNoRows {
-		// log.Printf("查询驱动配置无数据，驱动类型：%s, 分页%d/%d", driveType, page, pageSize)
-		return
-	} else if err != nil {
-		err = fmt.Errorf("ERROR 查询驱动配置失败, 错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
+	// 修复：先检查 err，若出错则 rows 为 nil，不能执行 defer close
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询驱动配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
 		log.Print(err)
 		return
 	}
 
-	if err == sql.ErrNoRows {
-		return
-	} else if err != nil {
-		return
-	}
-
-	defer func(rows *sql.Rows) {
-		// 关闭rows时检查错误，避免资源泄漏且捕获隐藏错误
-		closeErr := rows.Close()
-		if closeErr != nil {
-			log.Printf("ERROR 关闭rows失败: %v", closeErr)
-		}
-	}(rows)
+	// 只有在 rows 不为 nil 时才注册 defer 关闭
+	defer rows.Close()
 
 	for rows.Next() {
 		var config Drive_Config_type
@@ -451,7 +445,7 @@ func Drive_Config__Add(configs ...Drive_Config_Add_type) (err error) {
 
 // 驱动-》修改配置
 // 传递: config 配置
-// 返回: conid 获取自增的Id, err 错误
+// 返回: err 错误
 func Drive_Config__Update(configs ...Drive_Config_Update_type) (err error) {
 	// 1. 空列表校验
 	if len(configs) == 0 {
