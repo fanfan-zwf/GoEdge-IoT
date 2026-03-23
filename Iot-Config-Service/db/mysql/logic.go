@@ -38,19 +38,13 @@ type Collector_Info_type struct {
 }
 
 // 采集-》查询数量
-// 传递: driveType 驱动类型, page 页码, pageSize 每页数量
+// 传递: page 页码, pageSize 每页数量
 // 返回: Count 数量, err 错误
-func Collector_Info__Count(driveType string, page uint, pageSize uint) (count uint, err error) {
+func Collector_Info__Count(page uint, pageSize uint) (count uint, err error) {
 	// 1. 初始化SQL和条件切片（规范WHERE条件拼接）
 	baseQuery := "SELECT COUNT(`Id`) FROM `Collector_Info`"
 	var whereConditions []string // 存储WHERE子句的条件片段
 	var args []interface{}       // 存储SQL参数，防止注入
-
-	// 2. 拼接WHERE条件（统一收集条件，最后合并）
-	if driveType != "" {
-		whereConditions = append(whereConditions, "`Type` = ?")
-		args = append(args, driveType)
-	}
 
 	// 3. 合并WHERE条件（解决AND开头的语法错误）
 	if len(whereConditions) > 0 {
@@ -65,10 +59,10 @@ func Collector_Info__Count(driveType string, page uint, pageSize uint) (count ui
 	if err == sql.ErrNoRows {
 		// 无数据时返回0，符合COUNT的语义（COUNT本身不会返回NoRows，此处兜底）
 		count = 0
-		log.Printf("[Drive_Config__Count] 无符合条件的数据 | driveType=%s", driveType)
+		log.Printf("[Drive_Config__Count] 无符合条件的数据 | ")
 	} else if err != nil {
-		err = fmt.Errorf("[Drive_Config__Count] 查询失败 | driveType=%s | SQL=%s | args=%v | err=%w",
-			driveType, baseQuery, args, err)
+		err = fmt.Errorf("[Drive_Config__Count] 查询失败 | SQL=%s | args=%v | err=%w",
+			baseQuery, args, err)
 		log.Print(err) // 建议用结构化日志，此处简化为log.Error
 	}
 
@@ -183,7 +177,7 @@ func Collector_Info__Add(configs ...Collector_Info_Add_type) (err error) {
 	return
 }
 
-// 驱动-》删除配置
+// 采集-》删除配置
 // 传递: ids 删除的id数组
 // 返回: err 错误
 func Collector_Info__Del(ids ...uint) (err error) {

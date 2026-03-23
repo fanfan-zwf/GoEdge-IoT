@@ -170,6 +170,14 @@ func Read_Cache_User_status(User__Access_Token string) (r Access_Token_redis, er
 			return
 		}
 
+		if user_status.Code == 401 {
+			err = m_redis.Nil
+			return
+		} else if !(user_status.Code >= 200 && user_status.Code < 300) {
+			err = fmt.Errorf("%s", user_status.Msg)
+			return
+		}
+
 		var jsonBytes []byte
 		jsonBytes, err = json.Marshal(user_status)
 		if err != nil {
