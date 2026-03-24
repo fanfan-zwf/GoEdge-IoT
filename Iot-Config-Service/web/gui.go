@@ -18,7 +18,7 @@ import (
  */
 
 // 采集-》查询数量 传递: page 页码, pageSize 每页数量 返回: Count 数量, err 错误
-func Collector_Info__Count(ctx *gin.Context) {
+func Device_Info__Count(ctx *gin.Context) {
 	var jsondata struct {
 		Page      uint
 		Page_Size uint
@@ -29,7 +29,7 @@ func Collector_Info__Count(ctx *gin.Context) {
 		return
 	}
 
-	count, err := db_mysql.Collector_Info__Count(jsondata.Page, jsondata.Page_Size)
+	count, err := db_mysql.Device_Info__Count(jsondata.Page, jsondata.Page_Size)
 	if err == sql.ErrNoRows || count == 0 {
 		ctx.Set("Response", []any{404, "无数据"})
 		return
@@ -42,7 +42,7 @@ func Collector_Info__Count(ctx *gin.Context) {
 }
 
 // 采集-》查询配置 传递: page 页码, pageSize 每页数量 返回: configs 配置, err 错误
-func Collector_Info__Query(ctx *gin.Context) {
+func Device_Info__Query(ctx *gin.Context) {
 	var jsondata struct {
 		Page      uint
 		Page_Size uint
@@ -53,7 +53,7 @@ func Collector_Info__Query(ctx *gin.Context) {
 		return
 	}
 
-	config_list, err := db_mysql.Collector_Info__Query(jsondata.Page, jsondata.Page_Size)
+	config_list, err := db_mysql.Device_Info__Query(jsondata.Page, jsondata.Page_Size)
 	if err == sql.ErrNoRows || len(config_list) == 0 {
 		ctx.Set("Response", []any{404, "无数据"})
 		return
@@ -66,15 +66,15 @@ func Collector_Info__Query(ctx *gin.Context) {
 }
 
 // 采集-》增加配置 传递: config 配置数组形式 返回: err 错误
-func Collector_Info__Add(ctx *gin.Context) {
-	var jsondata db_mysql.Collector_Info_Add_type
+func Device_Info__Add(ctx *gin.Context) {
+	var jsondata db_mysql.Device_Info_Add_type
 	err := ctx.BindJSON(&jsondata)
 	if err != nil {
 		ctx.Set("Response", []any{417, "请求格式不对"})
 		return
 	}
 
-	err = db_mysql.Collector_Info__Add(jsondata)
+	err = db_mysql.Device_Info__Add(jsondata)
 	if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
@@ -84,7 +84,7 @@ func Collector_Info__Add(ctx *gin.Context) {
 }
 
 // 采集-》增加配置 传递: config 配置数组形式 返回: err 错误
-func Collector_Info__Del(ctx *gin.Context) {
+func Device_Info__Del(ctx *gin.Context) {
 	var jsondata struct {
 		Id uint
 	}
@@ -94,7 +94,7 @@ func Collector_Info__Del(ctx *gin.Context) {
 		return
 	}
 
-	err = db_mysql.Collector_Info__Del(jsondata.Id)
+	err = db_mysql.Device_Info__Del(jsondata.Id)
 	if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
@@ -326,14 +326,20 @@ func Points_Config__Del(ctx *gin.Context) {
 }
 
 func gui_api(r *gin.Engine) {
-	r.POST("/api/gui/v1.0/login/name", Collector_Info__Count)
-	r.POST("/api/gui/v1.0/login/name", Collector_Info__Query)
-	r.POST("/api/gui/v1.0/login/name", Collector_Info__Add)
-	r.POST("/api/gui/v1.0/login/name", Collector_Info__Del)
+	r.POST("/api/gui/v1.0/device_info/count", Device_Info__Count)
+	r.POST("/api/gui/v1.0/device_info/query", Device_Info__Query)
+	r.POST("/api/gui/v1.0/device_info/add", Device_Info__Add)
+	r.POST("/api/gui/v1.0/device_info/del", Device_Info__Del)
 
-	r.POST("/api/gui/v1.0/login/name", Drive_Config__Count)
-	r.POST("/api/gui/v1.0/login/name", Drive_Config__Query)
-	r.POST("/api/gui/v1.0/login/name", Drive_Config__Add)
-	r.POST("/api/gui/v1.0/login/name", Drive_Config__Update)
-	r.POST("/api/gui/v1.0/login/name", Drive_Config__Del)
+	r.POST("/api/gui/v1.0/config/drive/count", Drive_Config__Count)
+	r.POST("/api/gui/v1.0/config/drive/query", Drive_Config__Query)
+	r.POST("/api/gui/v1.0/config/drive/add", Drive_Config__Add)
+	r.POST("/api/gui/v1.0/config/drive/update", Drive_Config__Update)
+	r.POST("/api/gui/v1.0/config/drive/del", Drive_Config__Del)
+
+	r.POST("/api/gui/v1.0/config/points/name", Points_Config__Count)
+	r.POST("/api/gui/v1.0/config/points/name", Points_Config__Query)
+	r.POST("/api/gui/v1.0/config/points/name", Points_Config__Add)
+	r.POST("/api/gui/v1.0/config/points/name", Points_Config__Update)
+	r.POST("/api/gui/v1.0/config/points/name", Points_Config__Del)
 }
