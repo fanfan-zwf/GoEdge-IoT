@@ -131,7 +131,7 @@ func token_use() gin.HandlerFunc {
 				return
 			}
 
-			Access_Token_redis, err := user_service.Read_Cache_User_status(accessToken)
+			Access_Token_redis, err := user_service.Cache_User_status(accessToken)
 			if err == redis.Nil {
 				ctx.Set("Response", []any{401, "访问令牌过期或无效"})
 				ctx.Abort()
@@ -200,7 +200,7 @@ func token_use() gin.HandlerFunc {
 				return
 			}
 
-			Access_Token_redis, err := user_service.Read_Cache_Api_status(accessToken)
+			Access_Token_redis, err := user_service.Cache_Api_status(accessToken)
 			if err == redis.Nil {
 				ctx.Set("Response", []any{401, "访问令牌过期或无效"})
 				ctx.Abort()

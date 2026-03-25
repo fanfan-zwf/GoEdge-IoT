@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 
 	"github.com/go-yaml/yaml"
 	"github.com/google/uuid"
@@ -51,16 +52,19 @@ type Config_type struct {
 	} `yaml:"REDIS"` // 数据库
 
 	LOG struct {
-		Enable   bool   `yaml:"enable"`
-		Path     string `yaml:"path"`
-		CacheTTL uint   `yaml:"cacheTTL"`
-		Flags    string `yaml:"flags"`
+		Enable   bool          `yaml:"enable"`
+		Path     string        `yaml:"path"`
+		CacheTTL time.Duration `yaml:"cacheTTL"`
+		Flags    string        `yaml:"flags"`
 	} `yaml:"LOG"` // GPIO
 
 	User_Service struct {
 		Url    string `yaml:"url"`
 		ApiKey string `yaml:"apikey"`
 		Secret string `yaml:"secret"`
+
+		Cache_Ttl_Ok  time.Duration `yaml:"cache_ttl_ok"`
+		Cache_Ttl_Err time.Duration `yaml:"cache_ttl_err"`
 	} `yaml:"User_Service"` // 用户服务
 
 }

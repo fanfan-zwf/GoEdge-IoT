@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 
 	"github.com/go-yaml/yaml"
 	"github.com/google/uuid"
@@ -25,10 +26,9 @@ const (
 
 type Config_type struct {
 	APP struct {
-		Version                 string    `yaml:"version"`                 // 版本号
-		SN                      string    `yaml:"sn"`                      // 设备id
-		Historical_Storage_Time uint      `yaml:"historical_storage_time"` // 历史缓存时间, 先存入redis再批量写入mysql
-		Uuid                    uuid.UUID `yaml:"uuid"`
+		Version string    `yaml:"version"` // 版本号
+		SN      string    `yaml:"sn"`      // 设备id
+		Uuid    uuid.UUID `yaml:"uuid"`
 	} `yaml:"APP"` // 程序主要参数
 
 	API struct {
@@ -52,10 +52,10 @@ type Config_type struct {
 	} `yaml:"REDIS"` // 数据库
 
 	LOG struct {
-		Enable   bool   `yaml:"enable"`
-		Path     string `yaml:"path"`
-		CacheTTL uint   `yaml:"cacheTTL"`
-		Flags    string `yaml:"flags"`
+		Enable   bool          `yaml:"enable"`
+		Path     string        `yaml:"path"`
+		CacheTTL time.Duration `yaml:"cacheTTL"`
+		Flags    string        `yaml:"flags"`
 	} `yaml:"LOG"` // GPIO
 
 }

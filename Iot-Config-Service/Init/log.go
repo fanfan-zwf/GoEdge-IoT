@@ -928,7 +928,7 @@ func init_log() {
 		}
 	}
 
-	logger := NewDedupDailyLogger(Config.LOG.Path, "", time.Duration(Config.LOG.CacheTTL)*time.Second)
+	logger := NewDedupDailyLogger(Config.LOG.Path, "", Config.LOG.CacheTTL)
 
 	// 设置回调函数
 

@@ -27,7 +27,7 @@ REDIS:
 LOG:
   enable: true
   path: ./logs
-  cacheTTL: 30
+  cacheTTL: 30s
   flags: Ldate Lmicroseconds Llongfile
 
  

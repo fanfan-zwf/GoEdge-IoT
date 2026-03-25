@@ -332,7 +332,10 @@ func Api__User_Authority_Exist(ctx *gin.Context) {
 
 	var Exist bool
 	Exist, err = db_mysql.Authority_User__Query_AuthorityTheme_Exist(Access_Token_redis.User_Id, jsondata.Authority_Theme)
-	if err != nil && err != sql.ErrNoRows {
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{404, "没有用户权限主题"})
+		return
+	} else if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
 	}
