@@ -64,11 +64,10 @@ var expectTableRules = []TableRule{
 		TableComment: "用户终端",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "用户id"},
+			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "", Comment: "用户id"},
 			{ColumnName: "Terminal_Uuid", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: false, DefaultValue: "", Comment: "终端id"},
 			{ColumnName: "Device_Name", ColumnType: "varchar(500)", IsAutoInc: false, IsRequired: false, DefaultValue: "", Comment: "设备名称"},
 			{ColumnName: "Ip", ColumnType: "varchar(80)", IsAutoInc: false, IsRequired: false, DefaultValue: "", Comment: "请求的ip"},
-			{ColumnName: "Del", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: true, DefaultValue: "", Comment: "删除"},
 		},
 	}, {
 		TableName:    "Set",
@@ -93,7 +92,7 @@ var expectTableRules = []TableRule{
 		TableComment: "用户组",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "Name", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "'未命名组'", Comment: "组名称"},
+			{ColumnName: "Name", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "未命名组", Comment: "组名称"},
 			{ColumnName: "Explain", ColumnType: "varchar(255)", IsAutoInc: false, IsRequired: false, DefaultValue: "", Comment: "描述"},
 		},
 	}, {

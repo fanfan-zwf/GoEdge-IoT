@@ -250,7 +250,7 @@ export async function User__Set_Passwd(Passwd: string, User_Id: number = 0): Pro
  */
 export async function User__Set_Avatar(Url: string, User_Id: number = 0): Promise<void> {
     try {
-        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/set/Url', {
+        const response = axios.post(http_Front_url + '/api/gui/v1.0/user/set/avatar', {
             User_Id: User_Id,
             Url: Url,
         })

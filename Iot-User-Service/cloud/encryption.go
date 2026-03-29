@@ -11,7 +11,6 @@ import (
 	"compress/gzip"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha512"
 	"errors"
@@ -23,11 +22,8 @@ import (
 
 // GetPasswordHashGood 获取密码的哈希值（安全）
 func GetPasswordHashGood(password string) ([]byte, error) {
-	// GOOD, PBKDF2 is a strong hashing algorithm and it is computationally expensive
-	salt := make([]byte, 16)
-	rand.Read(salt)
-	return pbkdf2.Key(sha512.New, password, salt, 4096, 32)
-
+	hash := sha512.Sum512([]byte(password))
+	return hash[:], nil // 返回完整的64字节哈希值
 }
 
 // Gzip压缩
@@ -72,12 +68,12 @@ func AesEncryptGCM(plainText []byte, key string) ([]byte, error) {
 	if key == "" {
 		return plainText, nil
 	}
-	hashKey, err := GetPasswordHashGood(key)
+	hashKey, err := GetPasswordHashGood(key[:])
 	if err != nil {
 		return nil, fmt.Errorf("获取密码哈希失败: %w", err)
 	}
 
-	block, err := aes.NewCipher(hashKey[:])
+	block, err := aes.NewCipher(hashKey[:32])
 	if err != nil {
 		return nil, fmt.Errorf("创建AES块失败: %w", err)
 	}
@@ -105,7 +101,7 @@ func AesDecryptGCM(cipherText []byte, key string) ([]byte, error) {
 		return nil, fmt.Errorf("获取密码哈希失败: %w", err)
 	}
 
-	block, err := aes.NewCipher(hashKey[:])
+	block, err := aes.NewCipher(hashKey[:32])
 	if err != nil {
 		return nil, fmt.Errorf("创建AES块失败: %w", err)
 	}
