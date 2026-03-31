@@ -2,11 +2,7 @@
     <div class="common-layout">
         <el-container class="layout-container">
             <!-- 左侧侧边栏 -->
-            <el-aside
-                :width="asideWidth"
-                class="left-sidebar"
-                :class="{ 'mobile-visible': isMobileVisible }"
-            >
+            <el-aside :width="asideWidth" class="left-sidebar" :class="{ 'mobile-visible': isMobileVisible }">
                 <div class="sidebar-content" :class="{ collapsed: isCollapsed }">
                     <!-- Logo 区域 - 修改：分为左右两部分 -->
                     <div class="sidebar-logo">
@@ -21,87 +17,61 @@
                     </div>
 
                     <!-- 菜单区域 -->
-                    <el-menu
-                        default-active="1"
-                        class="sidebar-menu"
-                        :collapse="isCollapsed"
-                        @select="handleMenuSelect"
-                    >
+                    <el-menu default-active="1" class="sidebar-menu" :collapse="isCollapsed" @select="handleMenuSelect">
                         <!-- 修改：路由名称应为 'info' 而非 'user' -->
-                        <router-link
-                            active-class="active"
-                            :to="{ name: 'info', params: { User_Id: User_info.Id } }"
-                        >
-                            <el-menu-item index="1">
-                                <el-icon>
-                                    <img src="@/assets/icons/账号信息.svg" alt="账号信息" />
-                                </el-icon>
-                                <template #title>账号信息</template>
-                            </el-menu-item>
-                        </router-link>
-
-                        <el-sub-menu index="2" v-if="User_info.Permissions == 0">
+                        <el-sub-menu index="1" v-if="User_info.Permissions == 0">
                             <template #title>
-                                <el-icon>
-                                    <img src="@/assets/icons/log.svg" alt="系统日志" />
-                                </el-icon>
-                                <span>权限管理</span>
-                            </template>
-                            <router-link active-class="active" :to="{ name: 'authority_user' }">
-                                <el-menu-item index="2-1">用户权限</el-menu-item>
-                            </router-link>
-                            <router-link active-class="active" :to="{ name: 'authority' }">
-                                <el-menu-item index="2-2">权限创建</el-menu-item>
-                            </router-link>
-                        </el-sub-menu>
-
-                        <router-link active-class="active" :to="{ name: 'group' }">
-                            <el-menu-item index="3" v-if="User_info.Permissions == 0">
-                                <el-icon>
-                                    <img src="@/assets/icons/20gl-userGroup.svg" alt="分组管理" />
-                                </el-icon>
-                                <template #title>分组管理</template>
-                            </el-menu-item>
-                        </router-link>
-                        <router-link active-class="active" :to="{ name: 'user_account' }">
-                            <el-menu-item index="4" v-if="User_info.Permissions == 0">
                                 <el-icon>
                                     <img src="@/assets/icons/用户管理.svg" alt="用户管理" />
                                 </el-icon>
-                                <template #title>用户管理</template>
-                            </el-menu-item>
-                        </router-link>
-                        <el-sub-menu index="5" v-if="User_info.Permissions == 0">
-                            <template #title>
-                                <el-icon>
-                                    <img src="@/assets/icons/log.svg" alt="系统日志" />
-                                </el-icon>
-                                <span>系统日志</span>
+                                <span>账号管理</span>
                             </template>
-                            <el-menu-item index="5-1">我的</el-menu-item>
-                            <el-menu-item index="5-2"></el-menu-item>
+                            <router-link active-class="active"
+                                :to="{ name: 'info', params: { User_Id: User_info.Id } }">
+                                <el-menu-item index="1-1">
+                                    <el-icon>
+                                        <img src="@/assets/icons/账号信息.svg" alt="账号信息" />
+                                    </el-icon>
+                                    <template #title>账号信息</template>
+                                </el-menu-item>
+                            </router-link>
+                            <router-link active-class="active" :to="{ name: 'authority_user' }">
+                                <el-menu-item index="1-2" v-if="User_info.Permissions == 0">
+                                    <el-icon>
+                                        <img src="@/assets/icons/分组管理.svg" alt="分组管理" />
+                                    </el-icon>
+                                    <template #title>用户权限</template>
+                                </el-menu-item>
+                            </router-link>
+                            <router-link active-class="active" :to="{ name: 'group' }">
+                                <el-menu-item index="1-3" v-if="User_info.Permissions == 0">
+                                    <el-icon>
+                                        <img src="@/assets/icons/分组管理.svg" alt="分组管理" />
+                                    </el-icon>
+                                    <template #title>分组管理</template>
+                                </el-menu-item>
+                            </router-link>
+                            <router-link active-class="active" :to="{ name: 'user_account' }">
+                                <el-menu-item index="1-4" v-if="User_info.Permissions == 0">
+                                    <el-icon>
+                                        <img src="@/assets/icons/用户管理.svg" alt="用户管理" />
+                                    </el-icon>
+                                    <template #title>用户管理</template>
+                                </el-menu-item>
+                            </router-link>
                         </el-sub-menu>
                     </el-menu>
 
                     <!-- 折叠按钮 -->
                     <div class="sidebar-footer">
-                        <el-button
-                            :icon="isCollapsed ? Expand : Fold"
-                            @click="toggleCollapse"
-                            circle
-                            size="small"
-                            class="collapse-button"
-                        />
+                        <el-button :icon="isCollapsed ? Expand : Fold" @click="toggleCollapse" circle size="small"
+                            class="collapse-button" />
                     </div>
                 </div>
 
                 <!-- 修改：优化遮罩层，确保仅在移动端且可见时显示，调整类名控制动画 -->
-                <div
-                    v-if="isMobile && isMobileVisible"
-                    class="mobile-overlay"
-                    :class="{ 'fade-in': isMobileVisible }"
-                    @click="closeSidebar"
-                ></div>
+                <div v-if="isMobile && isMobileVisible" class="mobile-overlay" :class="{ 'fade-in': isMobileVisible }"
+                    @click="closeSidebar"></div>
             </el-aside>
 
             <!-- 右侧主内容区域 -->
@@ -117,11 +87,7 @@
 
                         <!-- 修改：重构面包屑，支持多级路径解析和点击跳转 -->
                         <el-breadcrumb separator="/">
-                            <el-breadcrumb-item
-                                v-for="(item, index) in breadcrumbList"
-                                :key="index"
-                                :to="item.path"
-                            >
+                            <el-breadcrumb-item v-for="(item, index) in breadcrumbList" :key="index" :to="item.path">
                                 {{ item.name }}
                             </el-breadcrumb-item>
                         </el-breadcrumb>
@@ -431,6 +397,7 @@ img {
     max-width: 22px !important;
     max-height: 22px !important;
 }
+
 /* 右侧文字容器 */
 .logo-text-wrapper {
     margin-left: 12px;

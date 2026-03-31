@@ -18,14 +18,14 @@ import (
 ***************采集配置结构体***************
  */
 // 采集配置增加结构体
-type Device_Info_Add_type struct {
+type Collector_Info_Add_type struct {
 	Label   string // 标识
 	Uuid    string // Uuid
 	User_Id uint   // 用户id
 }
 
 // 采集配置结构体
-type Device_Info_type struct {
+type Collector_Info_type struct {
 	Id                 uint      // 采集Id
 	Device_Id          uint      // 设备Id
 	Label              string    // 标识
@@ -40,9 +40,9 @@ type Device_Info_type struct {
 // 采集-》查询数量
 // 传递: page 页码, pageSize 每页数量
 // 返回: Count 数量, err 错误
-func Device_Info__Count(page uint, pageSize uint) (count uint, err error) {
+func Collector_Info__Count(page uint, pageSize uint) (count uint, err error) {
 	// 1. 初始化SQL和条件切片（规范WHERE条件拼接）
-	baseQuery := "SELECT COUNT(`Id`) FROM `Device_Info`"
+	baseQuery := "SELECT COUNT(`Id`) FROM `Collector_Info`"
 	var whereConditions []string // 存储WHERE子句的条件片段
 	var args []interface{}       // 存储SQL参数，防止注入
 
@@ -59,9 +59,9 @@ func Device_Info__Count(page uint, pageSize uint) (count uint, err error) {
 	if err == sql.ErrNoRows {
 		// 无数据时返回0，符合COUNT的语义（COUNT本身不会返回NoRows，此处兜底）
 		count = 0
-		log.Printf("[Drive_Config__Count] 无符合条件的数据 | ")
+		log.Printf("[Collector_Info__Count] 无符合条件的数据 | ")
 	} else if err != nil {
-		err = fmt.Errorf("[Drive_Config__Count] 查询失败 | SQL=%s | args=%v | err=%w",
+		err = fmt.Errorf("[Collector_Info__Count] 查询失败 | SQL=%s | args=%v | err=%w",
 			baseQuery, args, err)
 		log.Print(err) // 建议用结构化日志，此处简化为log.Error
 	}
@@ -72,10 +72,10 @@ func Device_Info__Count(page uint, pageSize uint) (count uint, err error) {
 // 采集-》查询配置
 // 传递: driveType 驱动类型, page 页码, pageSize 每页数量
 // 返回: configs 配置, err 错误
-func Device_Info__Query(page uint, pageSize uint) (configs []Device_Info_type, err error) {
+func Collector_Info__Query(page uint, pageSize uint) (configs []Collector_Info_type, err error) {
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT `Id`, `Equipment_Id`, `Label`, `Creation_Time`, `Uuid`, `Sn`, `User_Id`, `Version`, `Last_Activity_Time` FROM `Device_Info`"
+	baseQuery := "SELECT `Id`, `Equipment_Id`, `Label`, `Creation_Time`, `Uuid`, `Sn`, `User_Id`, `Version`, `Last_Activity_Time` FROM `Collector_Info`"
 
 	var whereConditions []string // 存储WHERE子句的条件片段
 	var args []interface{}       // 存储SQL参数，防止注入
@@ -114,7 +114,7 @@ func Device_Info__Query(page uint, pageSize uint) (configs []Device_Info_type, e
 	}(rows)
 
 	for rows.Next() {
-		var Config Device_Info_type
+		var Config Collector_Info_type
 		err = rows.Scan(
 			&Config.Id,                 // 采集Id
 			&Config.Device_Id,          // 设备Id
@@ -139,7 +139,7 @@ func Device_Info__Query(page uint, pageSize uint) (configs []Device_Info_type, e
 // 采集-》增加配置
 // 传递: config 配置数组形式
 // 返回: err 错误
-func Device_Info__Add(configs ...Device_Info_Add_type) (err error) {
+func Collector_Info__Add(configs ...Collector_Info_Add_type) (err error) {
 	// 1. 基础校验：空列表直接返回
 	if len(configs) == 0 {
 		err = fmt.Errorf("批量新增失败：待新增配置列表为空")
@@ -156,7 +156,7 @@ func Device_Info__Add(configs ...Device_Info_Add_type) (err error) {
 	}
 
 	// 3. 拼接批量INSERT的SQL和参数
-	baseQuery := "INSERT INTO `Device_Info`(`Label`, `Uuid`, `User_Id`, `Creation_Time`) VALUES "
+	baseQuery := "INSERT INTO `Collector_Info`(`Label`, `Uuid`, `User_Id`, `Creation_Time`) VALUES "
 	var args []interface{}         // 存储所有参数
 	var valuePlaceholders []string // 存储每个值组的占位符 (?, ?, ?)
 
@@ -180,7 +180,7 @@ func Device_Info__Add(configs ...Device_Info_Add_type) (err error) {
 // 采集-》删除配置
 // 传递: ids 删除的id数组
 // 返回: err 错误
-func Device_Info__Del(ids ...uint) (err error) {
+func Collector_Info__Del(ids ...uint) (err error) {
 	// 1. 遍历逐个
 	for idx, id := range ids {
 		// 1.1 单条配置参数校验
@@ -189,7 +189,7 @@ func Device_Info__Del(ids ...uint) (err error) {
 			return
 		}
 
-		query := "DELETE FROM `Device_Info` WHERE `Id` = ? "
+		query := "DELETE FROM `Collector_Info` WHERE `Id` = ? "
 		// 修改数据库
 		_, err = DB.Exec(query, id)
 		if err != nil {

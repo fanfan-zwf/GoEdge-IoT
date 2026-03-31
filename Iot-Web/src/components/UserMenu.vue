@@ -2,8 +2,8 @@
     <el-dropdown trigger="click" class="user-menu-dropdown">
         <span class="user-dropdown-trigger">
             <!-- 恢复使用标准的 el-avatar 组件 -->
-            <el-avatar :size="36" :src="UserStore.Avatar" :icon="UserStore.Avatar ? undefined : 'User'" :name="UserStore.Name"
-                class="user-avatar-img">
+            <el-avatar :size="36" :src="UserStore.Avatar" :icon="UserStore.Avatar ? undefined : 'User'"
+                :name="UserStore.Name" class="user-avatar-img">
                 <!-- 如果有头像 URL 可以在这里通过 src 属性传入，目前使用名字首字母或默认图标 -->
                 {{ UserStore.Name ? UserStore.Name.charAt(0).toUpperCase() : '' }}
             </el-avatar>
@@ -24,33 +24,52 @@
                 </div>
 
                 <el-dropdown-menu class="menu-list">
-                    <el-dropdown-item command="profile" icon="User">
-                        <router-link active-class="active" class="custom-router-link"
-                            :to="{ name: 'info', params: { User_Id: UserStore.Id } }">
-                            个人中心
-                        </router-link>
+                    <el-dropdown-item>
+                        <div class="menu-item-content">
+                            <img src="@/assets/icons/账号信息.svg" class="custom-icon-img" alt="个人信息" />
+                            <router-link active-class="active" class="custom-router-link"
+                                :to="{ name: 'info', params: { User_Id: UserStore.Id } }">
+                                个人信息
+                            </router-link>
+                        </div>
                     </el-dropdown-item>
-                    <el-dropdown-item command="docs" icon="Document">用户分组</el-dropdown-item>
-                    <el-dropdown-item command="github" icon="Document">用户权限</el-dropdown-item>
-                    <el-dropdown-item command="help" icon="Help">我的日志</el-dropdown-item>
-                    <el-dropdown-item command="lock" icon="Lock">锁定屏幕</el-dropdown-item>
-                    <el-dropdown-item divided command="logout" icon="SwitchButton">退出登录</el-dropdown-item>
+                    <el-dropdown-item>
+                        <div class="menu-item-content">
+                            <img src="@/assets/icons/分组管理.svg" class="custom-icon-img" alt="分组管理" />
+                            <router-link active-class="active" class="custom-router-link" :to="{ name: 'group' }">
+                                分组管理
+                            </router-link>
+                        </div>
+                    </el-dropdown-item>
+                    <el-dropdown-item>
+                        <div class="menu-item-content">
+                            <img src="@/assets/icons/用户权限.svg" class="custom-icon-img" alt="权限管理" />
+                            <router-link active-class="active" class="custom-router-link" :to="{ name: 'authority_user' }">
+                                权限管理
+                            </router-link>
+                        </div>
+                    </el-dropdown-item>
+                    <el-dropdown-item>
+                        <div class="menu-item-content">
+                            <img src="@/assets/icons/用户管理.svg"  class="custom-icon-img" alt="用户管理" />
+                            <router-link active-class="active" class="custom-router-link" :to="{ name: 'user_account' }">
+                                用户管理
+                            </router-link>
+                        </div>
+                    </el-dropdown-item>
+                    <!-- <el-dropdown-item divided command="logout" icon="SwitchButton">退出登录</el-dropdown-item> -->
                 </el-dropdown-menu>
             </div>
         </template>
     </el-dropdown>
 </template>
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted } from 'vue' 
 import { User__Get_Info } from '@/api/api'
 import type { User__table_interface } from '@/api/api'
 import { useUserStore } from '@/stores/user'
 
 const UserStore = useUserStore() // 获取用户信息
-
-
 
 const isMobile = ref(false)
 
@@ -66,10 +85,6 @@ onMounted(() => {
 onUnmounted(() => {
     window.removeEventListener('resize', checkMobile)
 })
-
-
-
-
 </script>
 
 <style scoped>
@@ -198,5 +213,40 @@ onUnmounted(() => {
 .custom-router-link:hover {
     text-decoration: none;
     color: inherit;
+}
+
+/* 自定义图标样式 */
+.custom-icon {
+    width: 1em;
+    height: 1em;
+    font-size: 16px;
+    margin-right: 8px;
+    vertical-align: middle;
+    fill: currentColor;
+    color: inherit;
+}
+
+.el-dropdown-menu__item:hover .custom-icon {
+    color: inherit;
+}
+
+/* 图片图标样式 */
+.custom-icon-img {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    vertical-align: middle;
+    object-fit: contain;
+}
+
+.el-dropdown-menu__item:hover .custom-icon-img {
+    opacity: 0.8;
+}
+
+/* 新增：菜单项内容容器样式，确保图标和文字水平排列 */
+.menu-item-content {
+    display: flex;
+    align-items: center;
+    width: 100%;
 }
 </style>

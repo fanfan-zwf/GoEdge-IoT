@@ -47,7 +47,7 @@ var expectTableRules = []TableRule{
 		TableComment: "采集设备的信息",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true, Comment: ""},
-			{ColumnName: "Equipment_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true, IsUnique: true, Comment: "设备id"},
+			{ColumnName: "Equipment_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true, IsUnique: true, Comment: "设备id-公用平台监控"},
 			{ColumnName: "Label", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true, IsUnique: true, Comment: "标识"},
 			{ColumnName: "Uuid", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true, Comment: "uuid"},
 			{ColumnName: "Sn", ColumnType: "varchar(100)", IsIndex: true, Comment: "sn号"},
@@ -55,7 +55,7 @@ var expectTableRules = []TableRule{
 			{ColumnName: "Version", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true, Comment: "版本号"},
 			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true, Comment: "创建时间"},
 			{ColumnName: "Last_Activity_Time", ColumnType: "datetime", IsIndex: true, Comment: "最后活动时间"},
-			{ColumnName: "Name", ColumnType: "varchar(100)", IsIndex: true, Comment: "最后活动时间"},
+			{ColumnName: "Name", ColumnType: "varchar(100)", IsIndex: true, Comment: "名称"},
 		},
 	}, {
 		TableName:    "Drive_Config",

@@ -27,7 +27,11 @@
                 </el-table-column>
             </el-table>
             <div style="margin-top: 20px">
+                <el-button @click="() => {
+                    router.push({ name: 'authority' })
+                }">权限设置</el-button>
                 <el-button type="primary" @click="addNewRow">新增数据</el-button>
+
             </div>
             <div class="demo-pagination-block input-group ">
                 <!-- 分页查询 -->
@@ -84,6 +88,10 @@ import {
 } from '@/api/api'
 import authority_search from '@/views/authority/authority_search.vue'
 import user_search from '@/views/user/user_search.vue'
+import { useRouter, useRoute } from 'vue-router'
+
+const router = useRouter()
+
 
 export interface Authority_User_interface extends Authority_User__table_interface {
     User: User__table_interface

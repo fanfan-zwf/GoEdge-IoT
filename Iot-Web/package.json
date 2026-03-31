@@ -39,7 +39,7 @@
     "@playwright/test": "^1.55.0",
     "@tsconfig/node22": "^22.0.2",
     "@types/jsdom": "^21.1.7",
-    "@types/node": "^24.10.4",
+    "@types/node": "^24.12.0",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-legacy": "^7.2.1",
     "@vitejs/plugin-vue": "^6.0.1",

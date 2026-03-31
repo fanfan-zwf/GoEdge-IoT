@@ -1,43 +1,9 @@
-// export type Persons = Array<PersonInter>
-// export const ip = '192.168.31.32'
-// export const ip = '192.168.31.123'
-export const ip = '192.168.220.30'
-export const port = 8101
-
-export const http_Front_url = `http://${ip}:${port}`
-export const ws_Front_url = `ws://${ip}:${port}`
-
-
-// export const http_Front_url = `/api`
-// export const ws_Front_url = `ws:/api`
-
-
-// export const apiClient = axios.create({
-//     baseURL: http_Front_url, // 设置基础URL
-// });
-
-
-
 import { ElMessage } from 'element-plus'
 import { sha3_256 } from 'js-sha3';
+import config from '@/config' 
 
-
-export class SimpleMutex {
-    private locked = false;
-
-    // 尝试获取锁，成功返回 true，失败返回 false
-    tryLock(): boolean {
-        if (this.locked) return false;
-        this.locked = true;
-        return true;
-    }
-
-    // 释放锁
-    unlock(): void {
-        this.locked = false;
-    }
-}
-
+export const http_Front_url = config.http_Front_url
+export const config_service_url = config.config_service_url
 
 export class DualMutex {
     private locked = false;
