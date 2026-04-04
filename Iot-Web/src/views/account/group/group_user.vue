@@ -65,7 +65,7 @@ import {
     type Group_User__table_interface,
     type User__table_interface,
 } from '@/api/api'
-import user_search from '@/views/user/user_search.vue'
+import user_search from '@/views/account/user/user_search.vue'
 
 
 const route = useRoute()
@@ -169,13 +169,18 @@ const newItem = reactive({
     Group_Id: 0,          // 用户组id
     Administrator: false,    // 是否是管理员
     User: {
-        Id: 0,  // 用户ID
+        Id: 0, // 用户ID
         Name: '', // 用户名
-        Permissions: 0,    // 权限
-        Refresh_Token_Time: 0,    // 过期时间设定（s）
+        Avatar: '', // 头像
+        Permissions: 0,   // 权限 
         Discontinued: false,    // 停用
         Phone: '',  // 电话
-        Email: '',  // 邮箱
+        Email: '',  // 邮箱 
+
+        Refresh_Token_bits: 0,  // 刷新令牌RSA密钥长度 
+        Access_Token_bits: 0,// 访问令牌RSA密钥长度 
+        Refresh_Token_TTL: 0,   // 刷新令牌过期时间（s）
+        Access_Token_TTL: 0,  // 访问令牌过期时间（s）
     }
 })
 

@@ -33,7 +33,7 @@
 
         <!-- 新增数据对话框 -->
         <el-dialog v-model="showAddDialog" title="新增用户" width="700px">
-            <el-form :model="newItem" label-width="100px" ref="addFormRef" :rules="newItemRules" status-icon>
+            <el-form :model="newItem" label-width="100px" ref="addFormRef" :rules="newItemRules">
                 <!-- 用户名输入框 -->
                 <el-form-item prop="Name" label="用户名">
                     <el-input v-model="newItem.Name" placeholder="请输入用户名" size="large" :prefix-icon="User" clearable />
@@ -46,27 +46,27 @@
                 </el-form-item>
 
                 <el-form-item prop="Permissions" label="权限">
-                    <el-input v-model.number="newItem.Permissions" type="number" placeholder="请输入权限" size="large"
-                        :prefix-icon="Key" />
+                    <el-input v-model.number="newItem.Permissions" type="Permissions" placeholder="请输入权限" size="large"
+                        :prefix-icon="Lock" show-Permissions />
                 </el-form-item>
 
                 <el-form-item prop="Phone" label="电话">
-                    <el-input v-model="newItem.Phone" type="text" placeholder="请输入电话" size="large" :prefix-icon="Phone"
-                        clearable />
+                    <el-input v-model="newItem.Phone" type="Phone" placeholder="请输入电话" size="large" :prefix-icon="Phone"
+                        show-Phone />
                 </el-form-item>
 
                 <el-form-item prop="Email" label="邮箱">
-                    <el-input v-model="newItem.Email" type="text" placeholder="请输入邮箱" size="large"
-                        :prefix-icon="Message" clearable />
+                    <el-input v-model="newItem.Email" type="Email" placeholder="请输入邮箱" size="large"
+                        :prefix-icon="Message" show-Message />
                 </el-form-item>
-
+  
                 <el-form-item prop="Discontinued" label="停用">
                     <el-switch v-model="newItem.Discontinued" />
                 </el-form-item>
             </el-form>
             <template #footer>
                 <el-button @click="showAddDialog = false">取消</el-button>
-                <el-button type="primary" @click="submitAddRow">确定添加</el-button>
+                <el-button type="primary" @click="addNewRow">确定添加</el-button>
             </template>
         </el-dialog>
     </el-config-provider>
@@ -147,7 +147,6 @@ const deleteRow = (scope: any) => {
 
 // 响应式数据 
 const showAddDialog = ref(false)
-const addFormRef = ref() // 添加表单引用
 // 新项目数据
 const newItem: User__all_table_type = reactive({
     Id: 0, // 用户ID
@@ -165,43 +164,10 @@ const newItem: User__all_table_type = reactive({
     Passwd: '' // 密码
 })
 
-// 新增用户 (打开弹窗)
+// 新增用户
 const addNewRow = () => {
-    // 重置表单数据
-    Object.assign(newItem, {
-        Id: 0, Name: '', Avatar: '', Permissions: 0, Discontinued: false, 
-        Phone: '', Email: '', Refresh_Token_bits: 0, Access_Token_bits: 0, 
-        Refresh_Token_TTL: 0, Access_Token_TTL: 0, Passwd: ''
-    })
-    if(addFormRef.value) {
-        addFormRef.value.clearValidate()
-    }
     showAddDialog.value = true
 }
-
-// 提交新增 (执行校验)
-const submitAddRow = async () => {
-    if (!addFormRef.value) return
-    
-    await addFormRef.value.validate((valid: boolean) => {
-        if (valid) {
-            // TODO: 调用后端 API 进行添加
-            // User__Add(newItem).then(() => {
-            //     ElMessage.success('添加成功')
-            //     showAddDialog.value = false
-            //     Count() // 刷新列表
-            // }).catch(err => {
-            //     ElMessage.error(err)
-            // })
-            console.log('提交数据:', newItem)
-            showAddDialog.value = false
-            ElMessage.success('模拟添加成功，请对接实际 API')
-        } else {
-            return false
-        }
-    })
-}
-
 // 验证规则
 const newItemRules = {
     Name: [

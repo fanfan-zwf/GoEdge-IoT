@@ -16,6 +16,17 @@ const router = createRouter({
             component: import('@/views/layout/login.vue'),
         },
         {
+            path: '/drive',
+            // redirect: "/drive/info/0",
+            children: [
+                {
+                    path: ':type/:id',
+                    name: 'drive_config',
+                    component: import('@/views/config/drive.vue'),
+                },
+            ]
+        },
+        {
             path: '/user',
             redirect: "/user/info/0",
             children: [
@@ -26,32 +37,32 @@ const router = createRouter({
                 {
                     path: 'info/:User_Id',
                     name: 'info',
-                    component: import('@/views/user/user.vue'),
+                    component: import('@/views/account/user/user.vue'),
                 },
                 {
                     path: 'authority',
                     name: 'authority',
-                    component: import('@/views/authority/authority.vue'),
+                    component: import('@/views/account/authority/authority.vue'),
                 },
                 {
                     path: 'authority_user',
                     name: 'authority_user',
-                    component: import('@/views/authority/authority_user.vue'),
+                    component: import('@/views/account/authority/authority_user.vue'),
                 },
                 {
                     path: 'group',
                     name: 'group',
-                    component: import('@/views/group/group.vue'),
+                    component: import('@/views/account/group/group.vue'),
                 },
                 {
                     path: 'group_user/:group_user__id',
                     name: 'group_user',
-                    component: import('@/views/group/group_user.vue'),
+                    component: import('@/views/account/group/group_user.vue'),
                 },
                 {
                     path: 'user_account',
                     name: 'user_account',
-                    component: import('@/views/user/user_account.vue'),
+                    component: import('@/views/account/user/user_account.vue'),
                 },
             ]
         },

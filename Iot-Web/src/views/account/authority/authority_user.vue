@@ -86,8 +86,8 @@ import {
     type Authority__table_interface,
     type User__table_interface,
 } from '@/api/api'
-import authority_search from '@/views/authority/authority_search.vue'
-import user_search from '@/views/user/user_search.vue'
+import authority_search from '@/views/account/authority/authority_search.vue'
+import user_search from '@/views/account/user/user_search.vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()

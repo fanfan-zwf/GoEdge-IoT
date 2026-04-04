@@ -29,7 +29,6 @@ type ColumnRule struct {
 	// - "任意字符串"：字符串默认值（代码自动加单引号）
 	// - "0"/"123" ：数值默认值
 	// - "CURRENT_TIMESTAMP"：时间默认值
-	Comment string // 字段注释
 }
 
 // ---------------------- 2. 表级别配置 ----------------------
@@ -46,96 +45,96 @@ var expectTableRules = []TableRule{
 		TableName:    "User",
 		TableComment: "存储用户基础信息",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "Name", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "用户名"},
-			{ColumnName: "Passwd", ColumnType: "varchar(200)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "密码"},
-			{ColumnName: "Permissions", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "1", Comment: "权限"},
-			{ColumnName: "Discontinued", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "0", Comment: "停用"},
-			{ColumnName: "Phone", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: false, IsUnique: true, DefaultValue: "", Comment: "电话"},
-			{ColumnName: "Email", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: false, IsUnique: true, DefaultValue: "", Comment: "邮箱"},
-			{ColumnName: "Avatar", ColumnType: "varchar(200)", IsAutoInc: false, IsRequired: false, DefaultValue: "", Comment: "头像路径"},
-			{ColumnName: "Refresh_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "2048", Comment: "刷新令牌RSA密钥长度"},
-			{ColumnName: "Access_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "1024", Comment: "访问令牌RSA密钥长度"},
-			{ColumnName: "Refresh_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "86400", Comment: "刷新令牌过期时间s"},
-			{ColumnName: "Access_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "1800", Comment: "访问令牌过期时间s"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "Name", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "Passwd", ColumnType: "varchar(200)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "Permissions", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "1"},
+			{ColumnName: "Discontinued", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "0"},
+			{ColumnName: "Phone", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: false, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "Email", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: false, IsUnique: true, DefaultValue: ""}, // 邮箱
+			{ColumnName: "Avatar", ColumnType: "varchar(200)", IsAutoInc: false, IsRequired: false, DefaultValue: ""},                // 头像路径
+			{ColumnName: "Refresh_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "2048"},          // 刷新令牌RSA密钥长度
+			{ColumnName: "Access_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "1024"},           // 访问令牌RSA密钥长度
+			{ColumnName: "Refresh_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "86400"}, // 刷新令牌过期时间s
+			{ColumnName: "Access_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "1800"},
 		},
 	}, {
 		TableName:    "User_Terminal",
 		TableComment: "用户终端",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "", Comment: "用户id"},
-			{ColumnName: "Terminal_Uuid", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: false, DefaultValue: "", Comment: "终端id"},
-			{ColumnName: "Device_Name", ColumnType: "varchar(500)", IsAutoInc: false, IsRequired: false, DefaultValue: "", Comment: "设备名称"},
-			{ColumnName: "Ip", ColumnType: "varchar(80)", IsAutoInc: false, IsRequired: false, DefaultValue: "", Comment: "请求的ip"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: ""},        // 用户id
+			{ColumnName: "Terminal_Uuid", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: false, DefaultValue: ""}, // 终端id
+			{ColumnName: "Device_Name", ColumnType: "varchar(500)", IsAutoInc: false, IsRequired: false, DefaultValue: ""},   // 设备名称
+			{ColumnName: "Ip", ColumnType: "varchar(80)", IsAutoInc: false, IsRequired: false, DefaultValue: ""},             // 请求的ip
 		},
 	}, {
 		TableName:    "Set",
 		TableComment: "设置",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "Type", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "类型"},
-			{ColumnName: "Msg", ColumnType: "text", IsAutoInc: false, IsRequired: true, DefaultValue: "", Comment: "终端id"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "Type", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""}, //类型
+			{ColumnName: "Msg", ColumnType: "text", IsAutoInc: false, IsRequired: true, DefaultValue: ""},
 		},
 	}, {
 		TableName:    "Log",
 		TableComment: "日志",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "Type", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "login: 登录日志"},
-			{ColumnName: "Message", ColumnType: "varchar(255)", IsAutoInc: false, IsRequired: true, DefaultValue: "", Comment: "描述"},
-			{ColumnName: "Time", ColumnType: "datetime", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "时间"},
-			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: false, IsUnique: true, DefaultValue: "", Comment: "用户id"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "Type", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},     // login: 登录日志
+			{ColumnName: "Message", ColumnType: "varchar(255)", IsAutoInc: false, IsRequired: true, DefaultValue: ""},                  // 描述
+			{ColumnName: "Time", ColumnType: "datetime", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},         // 时间
+			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: false, IsUnique: true, DefaultValue: ""}, // 用户id
 		},
 	}, {
 		TableName:    "Group",
 		TableComment: "用户组",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "Name", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "未命名组", Comment: "组名称"},
-			{ColumnName: "Explain", ColumnType: "varchar(255)", IsAutoInc: false, IsRequired: false, DefaultValue: "", Comment: "描述"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "Name", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "未命名组"}, // 组名称
+			{ColumnName: "Explain", ColumnType: "text", IsAutoInc: false, IsRequired: false, DefaultValue: ""},                         // 组说明
 		},
 	}, {
 		TableName:    "Group_User",
 		TableComment: "用户对应的用户组",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "用户id"},
-			{ColumnName: "Group_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "用户组id"},
-			{ColumnName: "Administrator", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: true, DefaultValue: "", Comment: "是否是管理员"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},  // 用户id
+			{ColumnName: "Group_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""}, // 用户组id
+			{ColumnName: "Administrator", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: true, DefaultValue: "0"},             // 是否是管理员
 		},
 	}, {
 		TableName:    "Authority",
 		TableComment: "权限",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "Name", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "权限名称"},
-			{ColumnName: "Theme", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "权限主题"},
-			{ColumnName: "Explain", ColumnType: "text", IsAutoInc: false, IsRequired: false, DefaultValue: "", Comment: "说明"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "Name", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},  // 权限名称
+			{ColumnName: "Theme", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""}, // 权限主题
+			{ColumnName: "Explain", ColumnType: "text", IsAutoInc: false, IsRequired: false, DefaultValue: ""},                      // 说明
 		},
 	}, {
 		TableName:    "Authority_User",
 		TableComment: "用户对应的权限",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "Authority_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "Enable", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: false, DefaultValue: "1", Comment: "使能"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "Authority_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "Enable", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: true, DefaultValue: "1"}, // 使能
 		},
 	}, {
 		TableName:    "Api",
 		TableComment: "api接口授权",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: "", Comment: ""},
-			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "用户id"},
-			{ColumnName: "ApiKey", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "key"},
-			{ColumnName: "Secret", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "", Comment: "秘密"},
-			{ColumnName: "Allow_Ip", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: false, DefaultValue: "", Comment: "允许的ip"},
-			{ColumnName: "Discontinued", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: true, DefaultValue: "0", Comment: "停用"},
-			{ColumnName: "Refresh_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "2048", Comment: "刷新令牌RSA密钥长度"},
-			{ColumnName: "Access_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "1024", Comment: "访问令牌RSA密钥长度"},
-			{ColumnName: "Refresh_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "86400", Comment: "刷新令牌过期时间s"},
-			{ColumnName: "Access_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "1800", Comment: "访问令牌过期时间s"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
+			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""}, // 用户id
+			{ColumnName: "ApiKey", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},  // key
+			{ColumnName: "Secret", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},  // 秘密
+			{ColumnName: "Allow_Ip", ColumnType: "varchar(80)", IsAutoInc: false, IsRequired: false, DefaultValue: ""},                // 允许的ip
+			{ColumnName: "Discontinued", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: true, DefaultValue: "0"},             // 停用
+			{ColumnName: "Refresh_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "2048"},           // 刷新令牌RSA密钥长度
+			{ColumnName: "Access_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "1024"},            // 访问令牌RSA密钥长度
+			{ColumnName: "Refresh_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "86400"},  // 刷新令牌过期时间s
+			{ColumnName: "Access_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "1800"},    // 访问令牌过期时间s
 		},
 	},
 }
@@ -353,12 +352,6 @@ func getTableColumns(tableName string) (map[string]ColumnRule, error) {
 			}
 		}
 
-		// 解析注释
-		comment := ""
-		if colComment.Valid {
-			comment = colComment.String
-		}
-
 		actualColumns[colName] = ColumnRule{
 			ColumnName:   colName,
 			ColumnType:   colType,
@@ -366,7 +359,6 @@ func getTableColumns(tableName string) (map[string]ColumnRule, error) {
 			IsRequired:   isNullable == "NO",
 			IsPrimaryKey: columnKey == "PRI", // 数据库中是否为主键
 			DefaultValue: defaultValue,
-			Comment:      comment,
 		}
 	}
 	return actualColumns, nil
@@ -421,11 +413,6 @@ func createTable(tableRule TableRule) error {
 		if col.DefaultValue != "" {
 			formattedDefault := formatDefaultValue(col)
 			colDef += fmt.Sprintf(" DEFAULT %s", formattedDefault)
-		}
-
-		// 字段注释
-		if col.Comment != "" {
-			colDef += fmt.Sprintf(" COMMENT '%s'", escapeSingleQuote(col.Comment))
 		}
 
 		// 主键定义（单独拼接）
@@ -500,11 +487,6 @@ func addMissingColumn(tableName string, col ColumnRule) error {
 	if col.DefaultValue != "" {
 		formattedDefault := formatDefaultValue(col)
 		colDef += fmt.Sprintf(" DEFAULT %s", formattedDefault)
-	}
-
-	// 字段注释
-	if col.Comment != "" {
-		colDef += fmt.Sprintf(" COMMENT '%s'", escapeSingleQuote(col.Comment))
 	}
 
 	// 禁止新增字段时设为主键
@@ -644,11 +626,6 @@ func CheckAndFixTableStructure(tableRule TableRule) {
 		}
 		if !isDefaultMatch {
 			errMsg = append(errMsg, fmt.Sprintf("默认值不匹配（预期：%s，实际：%s）", expectCol.DefaultValue, actualCol.DefaultValue))
-		}
-
-		// 注释校验
-		if actualCol.Comment != expectCol.Comment {
-			errMsg = append(errMsg, fmt.Sprintf("注释不匹配（预期：%s，实际：%s）", expectCol.Comment, actualCol.Comment))
 		}
 
 		// 属性不匹配 → Panic

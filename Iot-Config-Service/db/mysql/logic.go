@@ -26,119 +26,122 @@ type Collector_Info_Add_type struct {
 
 // 采集配置结构体
 type Collector_Info_type struct {
-	Id                 uint      // 采集Id
-	Device_Id          uint      // 设备Id
+	Id                 uint      // 采集 Id
+	Device_Id          uint      // 设备 Id
 	Label              string    // 标识
 	Creation_Time      time.Time // 创建时间
-	Uuid               string    // Uuid
-	Sn                 string    // 设备sn
-	User_Id            uint      // 用户id
+	Uuid               string    // Uuid (修正为 string)
+	Sn                 string    // 设备 sn
+	User_Id            uint      // 用户 id
 	Version            string    // 版本
 	Last_Activity_Time time.Time // 最后活动时间
 }
 
 // 采集-》查询数量
-// 传递: page 页码, pageSize 每页数量
-// 返回: Count 数量, err 错误
+// 传递：page 页码，pageSize 每页数量
+// 返回：Count 数量，err 错误
 func Collector_Info__Count(page uint, pageSize uint) (count uint, err error) {
-	// 1. 初始化SQL和条件切片（规范WHERE条件拼接）
+	// 1. 初始化 SQL（COUNT 查询不需要 LIMIT，否则统计的是当前页数量而非总数）
 	baseQuery := "SELECT COUNT(`Id`) FROM `Collector_Info`"
-	var whereConditions []string // 存储WHERE子句的条件片段
-	var args []interface{}       // 存储SQL参数，防止注入
+	var whereConditions []string
+	var args []interface{}
 
-	// 3. 合并WHERE条件（解决AND开头的语法错误）
+	// 注意：COUNT 统计全量数据，不应受分页参数影响，故移除原有的 page != 0 添加 LIMIT 的逻辑
+
+	// 2. 合并 WHERE 条件
 	if len(whereConditions) > 0 {
 		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
 	}
 
-	// 4. 执行COUNT查询（COUNT统计绝对不能加LIMIT！）
-	// 注意：COUNT结果用uint64更安全，避免数值溢出
-	err = DB.QueryRow(baseQuery, args...).Scan(&count)
-
-	// 5. 精细化错误处理（补充上下文，便于排查）
-	if err == sql.ErrNoRows {
-		// 无数据时返回0，符合COUNT的语义（COUNT本身不会返回NoRows，此处兜底）
-		count = 0
-		log.Printf("[Collector_Info__Count] 无符合条件的数据 | ")
-	} else if err != nil {
-		err = fmt.Errorf("[Collector_Info__Count] 查询失败 | SQL=%s | args=%v | err=%w",
-			baseQuery, args, err)
-		log.Print(err) // 建议用结构化日志，此处简化为log.Error
+	if page != 0 {
+		// 分页计算：page从1开始的话，偏移量是 (page-1)*pageSize；page为0则不分页
+		offset := (page - 1) * pageSize
+		baseQuery += " LIMIT ?, ?"
+		args = append(args, offset, pageSize)
 	}
 
-	return count, err
+	// 3. 执行 COUNT 查询
+	err = DB.QueryRow(baseQuery, args...).Scan(&count)
+
+	// 4. 错误处理
+	if err != nil {
+		if err == sql.ErrNoRows {
+			count = 0
+			return count, nil
+		}
+		err = fmt.Errorf("[Collector_Info__Count] 查询失败 | SQL=%s | args=%v | err=%w",
+			baseQuery, args, err)
+		log.Print(err)
+		return 0, err
+	}
+
+	return count, nil
 }
 
 // 采集-》查询配置
-// 传递: driveType 驱动类型, page 页码, pageSize 每页数量
-// 返回: configs 配置, err 错误
+// 传递：driveType 驱动类型，page 页码，pageSize 每页数量
+// 返回：configs 配置，err 错误
 func Collector_Info__Query(page uint, pageSize uint) (configs []Collector_Info_type, err error) {
 
-	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
+	// 1. 初始化 SQL
 	baseQuery := "SELECT `Id`, `Equipment_Id`, `Label`, `Creation_Time`, `Uuid`, `Sn`, `User_Id`, `Version`, `Last_Activity_Time` FROM `Collector_Info`"
 
-	var whereConditions []string // 存储WHERE子句的条件片段
-	var args []interface{}       // 存储SQL参数，防止注入
+	var whereConditions []string
+	var args []interface{}
 
-	// 2. 拼接WHERE条件（统一收集条件，最后合并）
-
-	// 3. 合并WHERE条件（解决AND开头的语法错误）
+	// 2. 合并 WHERE 条件
 	if len(whereConditions) > 0 {
 		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
 	}
-	// 4. 执行查询（统一处理，减少重复代码）
+
+	// 3. 添加分页
+	if page != 0 {
+		offset := (page - 1) * pageSize
+		baseQuery += " LIMIT ?, ?"
+		args = append(args, offset, pageSize)
+	}
+
+	// 4. 执行查询
 	rows, err := DB.Query(baseQuery, args...)
-
-	// 区分无数据和查询错误，日志补充上下文便于排查
-	if err == sql.ErrNoRows {
-		// log.Printf("查询驱动配置无数据，驱动类型：%s, 分页%d/%d", driveType, page, pageSize)
-		return
-	} else if err != nil {
-		err = fmt.Errorf("ERROR 查询驱动配置失败, 错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询采集配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
 		log.Print(err)
-		return
+		return nil, err
 	}
-
-	if err == sql.ErrNoRows {
-		return
-	} else if err != nil {
-		return
-	}
-
-	defer func(rows *sql.Rows) {
-		// 关闭rows时检查错误，避免资源泄漏且捕获隐藏错误
-		closeErr := rows.Close()
-		if closeErr != nil {
-			log.Printf("ERROR 关闭rows失败: %v", closeErr)
-		}
-	}(rows)
+	// 修复：仅在 err == nil 时 defer close，避免 panic
+	defer rows.Close()
 
 	for rows.Next() {
 		var Config Collector_Info_type
 		err = rows.Scan(
-			&Config.Id,                 // 采集Id
-			&Config.Device_Id,          // 设备Id
-			&Config.Label,              // 标签
-			&Config.Creation_Time,      // 创建时间
-			&Config.Uuid,               // Uuid
-			&Config.Sn,                 // 设备sn
-			&Config.User_Id,            // 用户id
-			&Config.Version,            // 版本
-			&Config.Last_Activity_Time, // 最后活动时间
+			&Config.Id,
+			&Config.Device_Id,
+			&Config.Label,
+			&Config.Creation_Time,
+			&Config.Uuid,
+			&Config.Sn,
+			&Config.User_Id,
+			&Config.Version,
+			&Config.Last_Activity_Time,
 		)
 		if err != nil {
 			log.Print(err.Error())
-			return
+			return nil, err
 		}
-
 		configs = append(configs, Config)
 	}
-	return
+
+	// 检查遍历过程中的错误
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return configs, nil
 }
 
 // 采集-》增加配置
-// 传递: config 配置数组形式
-// 返回: err 错误
+// 传递：config 配置数组形式
+// 返回：err 错误
 func Collector_Info__Add(configs ...Collector_Info_Add_type) (err error) {
 	// 1. 基础校验：空列表直接返回
 	if len(configs) == 0 {
@@ -178,8 +181,8 @@ func Collector_Info__Add(configs ...Collector_Info_Add_type) (err error) {
 }
 
 // 采集-》删除配置
-// 传递: ids 删除的id数组
-// 返回: err 错误
+// 传递：ids 删除的id数组
+// 返回：err 错误
 func Collector_Info__Del(ids ...uint) (err error) {
 	// 1. 遍历逐个
 	for idx, id := range ids {
@@ -223,8 +226,8 @@ type Drive_Config_type struct {
 }
 
 // 点位-》查询配置
-// 传递: drive_type 设备类型
-// 返回: configs 配置, err 错误
+// 传递：drive_type 设备类型
+// 返回：configs 配置，err 错误
 func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_type, err error) {
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
@@ -272,8 +275,8 @@ func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_ty
 }
 
 // 驱动-》查询配置
-// 传递: driveid 驱动id
-// 返回: configs 配置, err 错误
+// 传递：driveid 驱动id
+// 返回：configs 配置，err 错误
 func Drive_Config__Query_DriveId(driveid uint) (config Drive_Config_type, err error) {
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
@@ -294,8 +297,8 @@ func Drive_Config__Query_DriveId(driveid uint) (config Drive_Config_type, err er
 }
 
 // 驱动-》查询数量
-// 传递: driveType 驱动类型, page 页码, pageSize 每页数量
-// 返回: Count 数量, err 错误
+// 传递：driveType 驱动类型，page 页码，pageSize 每页数量
+// 返回：Count 数量，err 错误
 func Drive_Config__Count(collectorId uint, driveType string, page uint, pageSize uint) (count uint, err error) {
 	// 1. 初始化SQL和条件切片（规范WHERE条件拼接）
 	baseQuery := "SELECT COUNT(`Id`) FROM `Drive_Config`"
@@ -315,6 +318,13 @@ func Drive_Config__Count(collectorId uint, driveType string, page uint, pageSize
 	// 3. 合并WHERE条件（解决AND开头的语法错误）
 	if len(whereConditions) > 0 {
 		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
+	}
+
+	if page != 0 {
+		// 分页计算：page从1开始的话，偏移量是 (page-1)*pageSize；page为0则不分页
+		offset := (page - 1) * pageSize
+		baseQuery += " LIMIT ?, ?"
+		args = append(args, offset, pageSize)
 	}
 
 	// 4. 执行COUNT查询（COUNT统计绝对不能加LIMIT！）
@@ -403,8 +413,8 @@ func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize
 }
 
 // 驱动-》增加配置
-// 传递: config 配置数组形式
-// 返回: err 错误
+// 传递：config 配置数组形式
+// 返回：err 错误
 func Drive_Config__Add(configs ...Drive_Config_Add_type) (err error) {
 	// 1. 基础校验：空列表直接返回
 	if len(configs) == 0 {
@@ -444,8 +454,8 @@ func Drive_Config__Add(configs ...Drive_Config_Add_type) (err error) {
 }
 
 // 驱动-》修改配置
-// 传递: config 配置
-// 返回: err 错误
+// 传递：config 配置
+// 返回：err 错误
 func Drive_Config__Update(configs ...Drive_Config_Update_type) (err error) {
 	// 1. 空列表校验
 	if len(configs) == 0 {
@@ -508,8 +518,8 @@ func Drive_Config__Update(configs ...Drive_Config_Update_type) (err error) {
 }
 
 // 驱动-》删除配置
-// 传递: ids 删除的id数组
-// 返回: err 错误
+// 传递：ids 删除的id数组
+// 返回：err 错误
 func Drive_Config__Del(ids ...uint) (err error) {
 	// 1. 遍历逐个
 	for idx, id := range ids {
@@ -556,12 +566,12 @@ type Points_Config_Update_type struct {
 // 点位配置结构体
 type Points_Config_type struct {
 	Points_Config_Update_type
-	Creation_Time time.Time
+	Creation_Time time.Time // 创建时间
 }
 
 // 点位-》查询数量
-// 传递: driveid 设备id, page 页码, pageSize 每页数量
-// 返回: Count 数量, err 错误
+// 传递：driveid 设备id，page 页码，pageSize 每页数量
+// 返回：Count 数量，err 错误
 func Points_Config__Count(driveid uint, page uint, pageSize uint) (Count uint, err error) {
 	if driveid == 0 {
 		err = fmt.Errorf("ERROR driveid传递参数错误")
@@ -605,12 +615,12 @@ func Points_Config__Count(driveid uint, page uint, pageSize uint) (Count uint, e
 }
 
 // 点位-》查询配置
-// 传递: driveid 设备id, page 页码, pageSize 每页数量
-// 返回: configs 配置, err 错误
+// 传递：driveid 设备 id, page 页码，pageSize 每页数量
+// 返回：configs 配置，err 错误
 func Points_Config__Query(driveid uint, page uint, pageSize uint) (configs []Points_Config_type, err error) {
 	if driveid == 0 {
-		err = fmt.Errorf("ERROR 配置driveid(Id)不能为空")
-		return
+		err = fmt.Errorf("ERROR 配置 driveid(Id) 不能为空")
+		return nil, err
 	}
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
@@ -642,37 +652,20 @@ func Points_Config__Query(driveid uint, page uint, pageSize uint) (configs []Poi
 		args = append(args, offset, pageSize)
 	}
 
-	// 4. 执行查询（统一处理，减少重复代码）
+	// 4. 执行查询
 	rows, err := DB.Query(baseQuery, args...)
-
-	// 区分无数据和查询错误，日志补充上下文便于排查
-	if err == sql.ErrNoRows {
-		// log.Printf("查询驱动配置无数据，驱动类型：%s, 分页%d/%d", driveType, page, pageSize)
-		return
-	} else if err != nil {
-		err = fmt.Errorf("ERROR 查询驱动配置失败, 错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询点位配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
 		log.Print(err)
-		return
+		return nil, err
 	}
-
-	if err == sql.ErrNoRows {
-		return
-	} else if err != nil {
-		return
-	}
-
-	defer func(rows *sql.Rows) {
-		// 关闭rows时检查错误，避免资源泄漏且捕获隐藏错误
-		closeErr := rows.Close()
-		if closeErr != nil {
-			log.Printf("ERROR 关闭rows失败: %v", closeErr)
-		}
-	}(rows)
+	// 修复：移除多余的 ErrNoRows 判断（Query 不会返回 ErrNoRows，只会返回空结果集），并正确 defer
+	defer rows.Close()
 
 	for rows.Next() {
 		var (
 			Config      Points_Config_type
-			Description sql.NullString // 处理可能为NULL的字段
+			Description sql.NullString
 		)
 		err = rows.Scan(
 			&Config.Id,
@@ -685,18 +678,23 @@ func Points_Config__Query(driveid uint, page uint, pageSize uint) (configs []Poi
 		)
 		if err != nil {
 			log.Print(err.Error())
-			return
+			return nil, err
 		}
 
-		Config.Description = Description.String // 将sql.NullString转换为普通字符串
+		Config.Description = Description.String
 		configs = append(configs, Config)
 	}
-	return
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return configs, nil
 }
 
 // 点位-》增加配置
-// 传递: config 配置数组形式
-// 返回: err 错误
+// 传递：config 配置数组形式
+// 返回：err 错误
 func Points_Config__Add(configs ...Points_Config_Add_type) (err error) {
 	// 1. 基础校验：空列表直接返回
 	if len(configs) == 0 {
@@ -768,8 +766,8 @@ func Points_Config__Add(configs ...Points_Config_Add_type) (err error) {
 }
 
 // 点位-》修改配置
-// 传递: config 配置
-// 返回: conid 获取自增的Id, err 错误
+// 传递：config 配置
+// 返回：conid 获取自增的Id，err 错误
 func Points_Config__Update(configs ...Points_Config_Update_type) (err error) {
 	// 1. 空列表校验
 	if len(configs) == 0 {
@@ -842,8 +840,8 @@ func Points_Config__Update(configs ...Points_Config_Update_type) (err error) {
 }
 
 // 点位-》删除配置
-// 传递: ids 删除的id数组
-// 返回: err 错误
+// 传递：ids 删除的id数组
+// 返回：err 错误
 func Points_Config__Del(ids ...uint) (err error) {
 	// 1. 遍历逐个
 	for idx, id := range ids {
