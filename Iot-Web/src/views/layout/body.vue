@@ -18,7 +18,22 @@
 
                     <!-- 菜单区域 -->
                     <el-menu default-active="1" class="sidebar-menu" :collapse="isCollapsed" @select="handleMenuSelect">
-                        <!-- 修改：路由名称应为 'info' 而非 'user' -->
+                        <el-sub-menu index="2" v-if="User_info.Permissions == 0">
+                            <template #title>
+                                <el-icon>
+                                    <img src="@/assets/icons/采集.svg" alt="点位配置" />
+                                </el-icon>
+                                <span>点位配置</span>
+                            </template>
+                            <router-link active-class="active" :to="{ name: 'drive_config' }">
+                                <el-menu-item index="2-1">
+                                    <el-icon>
+                                        <img src="@/assets/icons/PLC.svg" alt="驱动配置" />
+                                    </el-icon>
+                                    <template #title>驱动配置</template>
+                                </el-menu-item>
+                            </router-link>
+                        </el-sub-menu>
                         <el-sub-menu index="1" v-if="User_info.Permissions == 0">
                             <template #title>
                                 <el-icon>

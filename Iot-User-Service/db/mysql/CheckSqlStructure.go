@@ -81,10 +81,10 @@ var expectTableRules = []TableRule{
 		TableComment: "日志",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
-			{ColumnName: "Type", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},     // login: 登录日志
-			{ColumnName: "Message", ColumnType: "varchar(255)", IsAutoInc: false, IsRequired: true, DefaultValue: ""},                  // 描述
-			{ColumnName: "Time", ColumnType: "datetime", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},         // 时间
-			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: false, IsUnique: true, DefaultValue: ""}, // 用户id
+			{ColumnName: "Type", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsIndex: true, DefaultValue: ""},     // login: 登录日志
+			{ColumnName: "Message", ColumnType: "varchar(255)", IsAutoInc: false, IsRequired: true, DefaultValue: ""},                 // 描述
+			{ColumnName: "Time", ColumnType: "datetime", IsAutoInc: false, IsRequired: true, IsIndex: true, DefaultValue: ""},         // 时间
+			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: false, IsIndex: true, DefaultValue: ""}, // 用户id
 		},
 	}, {
 		TableName:    "Group",

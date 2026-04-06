@@ -5,7 +5,7 @@ APP:
 
 API:
   ip: 0.0.0.0
-  post: 8090
+  post: 8102
   header:
     - key: Access-Control-Allow-Origin
       value: "*"
@@ -34,6 +34,5 @@ User_Service:
   url: "http://127.0.0.1:8101" 
   apikey: "123456"
   secret: "123456"
-  cache_ttl_ok: 2m
-  cache_ttl_err: 30s  
+  timeout: 30s 
  

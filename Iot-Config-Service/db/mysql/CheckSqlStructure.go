@@ -29,7 +29,6 @@ type ColumnRule struct {
 	// - "任意字符串"：字符串默认值（代码自动加单引号）
 	// - "0"/"123" ：数值默认值
 	// - "CURRENT_TIMESTAMP"：时间默认值
-	Comment string // 字段注释
 }
 
 // ---------------------- 2. 表级别配置 ----------------------
@@ -46,41 +45,41 @@ var expectTableRules = []TableRule{
 		TableName:    "Collector_Info",
 		TableComment: "采集设备的信息",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true, Comment: ""},
-			{ColumnName: "Equipment_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true, IsUnique: true, Comment: "设备id-公用平台监控"},
-			{ColumnName: "Label", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true, IsUnique: true, Comment: "标识"},
-			{ColumnName: "Uuid", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true, Comment: "uuid"},
-			{ColumnName: "Sn", ColumnType: "varchar(100)", IsIndex: true, Comment: "sn号"},
-			{ColumnName: "User_Id", ColumnType: "int unsigned", DefaultValue: "0", IsIndex: true, Comment: "用户id"},
-			{ColumnName: "Version", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true, Comment: "版本号"},
-			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true, Comment: "创建时间"},
-			{ColumnName: "Last_Activity_Time", ColumnType: "datetime", IsIndex: true, Comment: "最后活动时间"},
-			{ColumnName: "Name", ColumnType: "varchar(100)", IsIndex: true, Comment: "名称"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
+			{ColumnName: "Equipment_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true, IsUnique: true, DefaultValue: "0"},
+			{ColumnName: "Label", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true, IsUnique: true},
+			{ColumnName: "Uuid", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
+			{ColumnName: "Sn", ColumnType: "varchar(100)", IsIndex: true},
+			{ColumnName: "User_Id", ColumnType: "int unsigned", DefaultValue: "0", IsIndex: true},
+			{ColumnName: "Version", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
+			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+			{ColumnName: "Last_Activity_Time", ColumnType: "datetime", IsIndex: true},
+			{ColumnName: "Name", ColumnType: "varchar(100)", IsIndex: true},
 		},
 	}, {
 		TableName:    "Drive_Config",
 		TableComment: "驱动配置",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, Comment: ""},
-			{ColumnName: "Type", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true, Comment: "类型"},
-			{ColumnName: "Name", ColumnType: "varchar(100)", Comment: "驱动名称"},
-			{ColumnName: "Config", ColumnType: "varchar(200)", Comment: "配置参数"},
-			{ColumnName: "Points_Length", ColumnType: "int unsigned", Comment: "点位数量"},
-			{ColumnName: "Collector_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true, Comment: "设备id"},
-			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true, Comment: "创建时间"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true},
+			{ColumnName: "Type", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
+			{ColumnName: "Name", ColumnType: "varchar(100)"},
+			{ColumnName: "Config", ColumnType: "varchar(200)"},
+			{ColumnName: "Points_Length", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0"},
+			{ColumnName: "Collector_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
 		},
 	}, {
 		TableName:    "Points_Config",
 		TableComment: "点位配置",
 		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true, Comment: ""},
-			{ColumnName: "Drive_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true, Comment: "驱动ID"},
-			{ColumnName: "Tag", ColumnType: "varchar(300)", IsRequired: true, IsUnique: true, Comment: "点位标识"},
-			{ColumnName: "Description", ColumnType: "varchar(300)", Comment: "描述"},
-			{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true, Comment: "配置参数"},
-			{ColumnName: "RW_Cancel", ColumnType: "varchar(100)", IsRequired: true, DefaultValue: "'N'", Comment: "读写方式 N：禁用 R：只读 W：只写 R/W：读写"},
-			{ColumnName: "Value_Type", ColumnType: "varchar(100)", IsRequired: true, Comment: "值类型"},
-			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true, Comment: "创建时间"},
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
+			{ColumnName: "Drive_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+			{ColumnName: "Tag", ColumnType: "varchar(300)", IsRequired: true, IsUnique: true},
+			{ColumnName: "Description", ColumnType: "varchar(300)"},
+			{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
+			{ColumnName: "RW_Cancel", ColumnType: "varchar(100)", IsRequired: true, DefaultValue: "N"},
+			{ColumnName: "Value_Type", ColumnType: "varchar(100)", IsRequired: true},
+			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
 		},
 	},
 }
@@ -298,12 +297,6 @@ func getTableColumns(tableName string) (map[string]ColumnRule, error) {
 			}
 		}
 
-		// 解析注释
-		comment := ""
-		if colComment.Valid {
-			comment = colComment.String
-		}
-
 		actualColumns[colName] = ColumnRule{
 			ColumnName:   colName,
 			ColumnType:   colType,
@@ -311,7 +304,6 @@ func getTableColumns(tableName string) (map[string]ColumnRule, error) {
 			IsRequired:   isNullable == "NO",
 			IsPrimaryKey: columnKey == "PRI", // 数据库中是否为主键
 			DefaultValue: defaultValue,
-			Comment:      comment,
 		}
 	}
 	return actualColumns, nil
@@ -366,11 +358,6 @@ func createTable(tableRule TableRule) error {
 		if col.DefaultValue != "" {
 			formattedDefault := formatDefaultValue(col)
 			colDef += fmt.Sprintf(" DEFAULT %s", formattedDefault)
-		}
-
-		// 字段注释
-		if col.Comment != "" {
-			colDef += fmt.Sprintf(" COMMENT '%s'", escapeSingleQuote(col.Comment))
 		}
 
 		// 主键定义（单独拼接）
@@ -445,11 +432,6 @@ func addMissingColumn(tableName string, col ColumnRule) error {
 	if col.DefaultValue != "" {
 		formattedDefault := formatDefaultValue(col)
 		colDef += fmt.Sprintf(" DEFAULT %s", formattedDefault)
-	}
-
-	// 字段注释
-	if col.Comment != "" {
-		colDef += fmt.Sprintf(" COMMENT '%s'", escapeSingleQuote(col.Comment))
 	}
 
 	// 禁止新增字段时设为主键
@@ -589,11 +571,6 @@ func CheckAndFixTableStructure(tableRule TableRule) {
 		}
 		if !isDefaultMatch {
 			errMsg = append(errMsg, fmt.Sprintf("默认值不匹配（预期：%s，实际：%s）", expectCol.DefaultValue, actualCol.DefaultValue))
-		}
-
-		// 注释校验
-		if actualCol.Comment != expectCol.Comment {
-			errMsg = append(errMsg, fmt.Sprintf("注释不匹配（预期：%s，实际：%s）", expectCol.Comment, actualCol.Comment))
 		}
 
 		// 属性不匹配 → Panic

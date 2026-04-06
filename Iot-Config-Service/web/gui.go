@@ -337,9 +337,9 @@ func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/config/drive/update", Drive_Config__Update)
 	r.POST("/api/gui/v1.0/config/drive/del", Drive_Config__Del)
 
-	r.POST("/api/gui/v1.0/config/points/name", Points_Config__Count)
-	r.POST("/api/gui/v1.0/config/points/name", Points_Config__Query)
-	r.POST("/api/gui/v1.0/config/points/name", Points_Config__Add)
-	r.POST("/api/gui/v1.0/config/points/name", Points_Config__Update)
-	r.POST("/api/gui/v1.0/config/points/name", Points_Config__Del)
+	r.POST("/api/gui/v1.0/config/points/count", Points_Config__Count)
+	r.POST("/api/gui/v1.0/config/points/query", Points_Config__Query)
+	r.POST("/api/gui/v1.0/config/points/add", Points_Config__Add)
+	r.POST("/api/gui/v1.0/config/points/update", Points_Config__Update)
+	r.POST("/api/gui/v1.0/config/points/del", Points_Config__Del)
 }

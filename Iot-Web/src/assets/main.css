@@ -1,0 +1,104 @@
+
+img {
+    width: 100%;
+    height: 100%;
+}
+
+.user-info-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    max-width: 100%;
+    margin: 20px auto;
+}
+
+.avatar-section {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.user-avatar {
+    border: 3px solid #409EFF;
+    margin-bottom: 10px;
+}
+
+.role-tag {
+    margin-top: 8px;
+}
+
+.info-section {
+    margin-bottom: 20px;
+}
+
+.user-name {
+    font-size: 20px;
+    font-weight: 600;
+    color: #303133;
+    margin: 0 0 16px 0;
+    text-align: center;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 10px 0;
+}
+
+.user-info .info-set {
+    color: #409EFF;
+    cursor: pointer;
+    /* margin-left: 12px; */
+    border: none;
+}
+
+.user-info:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.info-label {
+    min-width: 60px;
+    color: #606266;
+    font-size: 0.9rem;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.info-value {
+    color: #303133;
+    /* font-size: 0.95rem; */
+    font-weight: 30;
+    min-width: 180px;
+    word-break: break-word;
+    flex-grow: 0;
+    margin-right: 20px;
+}
+
+
+.status-section {
+    border-top: 1px solid #e4e7ed;
+    padding-top: 16px;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.status-item .label {
+    color: #909399;
+    font-size: 13px;
+}
+
+.status-item .value {
+    color: #303133;
+    font-size: 13px;
+}
+
+.user-info .el-icon {
+    margin-right: 8px;
+}

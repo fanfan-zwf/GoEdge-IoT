@@ -2251,6 +2251,7 @@ type Api__table_type struct {
 
 // 查询接口信息
 func Api__Query_ApiKey(ApiKey string) (Api Api__table_type, err error) {
+	var Allow_Ip sql.NullString
 	query := `
 	SELECT
 		Id,
@@ -2273,13 +2274,14 @@ func Api__Query_ApiKey(ApiKey string) (Api Api__table_type, err error) {
 		&Api.User_Id,
 		&Api.ApiKey,
 		&Api.Secret,
-		&Api.Allow_Ip,
+		&Allow_Ip,
 		&Api.Discontinued,
 		&Api.Refresh_Token_bits,
 		&Api.Access_Token_bits,
 		&Api.Refresh_Token_TTL,
 		&Api.Access_Token_TTL,
 	)
+	Api.Allow_Ip = Allow_Ip.String
 	if err != nil {
 		log.Print(err.Error())
 	}
@@ -2288,6 +2290,7 @@ func Api__Query_ApiKey(ApiKey string) (Api Api__table_type, err error) {
 
 // 查询接口信息
 func Api__Query() (Api Api__table_type, err error) {
+	var Allow_Ip sql.NullString
 	query := `
 	SELECT
 		Id,
@@ -2308,13 +2311,14 @@ func Api__Query() (Api Api__table_type, err error) {
 		&Api.User_Id,
 		&Api.ApiKey,
 		&Api.Secret,
-		&Api.Allow_Ip,
+		&Allow_Ip,
 		&Api.Discontinued,
 		&Api.Refresh_Token_bits,
 		&Api.Access_Token_bits,
 		&Api.Refresh_Token_TTL,
 		&Api.Access_Token_TTL,
 	)
+	Api.Allow_Ip = Allow_Ip.String
 	if err != nil {
 		log.Print(err.Error())
 	}
@@ -2363,7 +2367,10 @@ func Api__Add(Value Api__table_type) (Id uint, err error) {
 		Value.User_Id,
 		Value.ApiKey,
 		Value.Secret,
-		Value.Allow_Ip,
+		sql.NullString{
+			String: Value.Allow_Ip,       // 空字符串
+			Valid:  Value.Allow_Ip != "", // 表示是 NULL
+		},
 		Value.Discontinued,
 		Value.Refresh_Token_bits,
 		Value.Access_Token_bits,

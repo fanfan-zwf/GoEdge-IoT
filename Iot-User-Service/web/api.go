@@ -256,7 +256,7 @@ func Api__Access_Token_Query(ctx *gin.Context) {
 // 获取访问令牌
 func Api__User_Status(ctx *gin.Context) {
 	var jsondata struct {
-		User_Id            uint
+		// User__Id           uint
 		User__Access_Token string // 用户刷新令牌
 	}
 	err := ctx.BindJSON(&jsondata)
@@ -351,8 +351,8 @@ func Api__User_Authority_Exist(ctx *gin.Context) {
 // 获取访问令牌
 func Api__Api_Status(ctx *gin.Context) {
 	var jsondata struct {
-		Api_Id           uint
-		Api_Access_Token string // 用户刷新令牌
+		// Api_Id            uint
+		User_Access_Token string // 用户刷新令牌
 	}
 	err := ctx.BindJSON(&jsondata)
 	if err != nil {
@@ -360,38 +360,38 @@ func Api__Api_Status(ctx *gin.Context) {
 		return
 	}
 
-	if jsondata.Api_Access_Token == "" {
+	if jsondata.User_Access_Token == "" {
 		ctx.Set("Response", []any{417, "请求格式不对"})
 		return
 	}
 
-	Access_Token_redis, err := db_redis.Api_Access_Token_Query(jsondata.Api_Access_Token)
+	Access_Token_redis, err := db_redis.Access_Token_Query(jsondata.User_Access_Token)
 	if err != nil {
 		fmt.Print(err, "token无效\n")
 	}
 	if err == redis.Nil {
 		ctx.Set("Response", []any{200, "ok", gin.H{
-			"Code":                   403,   // 执行码
-			"Msg":                    "未登陆", // 执行说明
-			"Api_Access_Token":       jsondata.Api_Access_Token,
-			"Api_Access_Token_redis": Access_Token_redis,
+			"Code":                    403,   // 执行码
+			"Msg":                     "未登陆", // 执行说明
+			"User_Access_Token":       jsondata.User_Access_Token,
+			"User_Access_Token_redis": Access_Token_redis,
 		}})
 		return
 	} else if err != nil {
 		ctx.Set("Response", []any{StatusRedis, err.Error(), gin.H{
-			"Code":                   403,         // 执行码
-			"Msg":                    err.Error(), // 执行说明
-			"Api_Access_Token":       jsondata.Api_Access_Token,
-			"Api_Access_Token_redis": Access_Token_redis,
+			"Code":                    403,         // 执行码
+			"Msg":                     err.Error(), // 执行说明
+			"User_Access_Token":       jsondata.User_Access_Token,
+			"User_Access_Token_redis": Access_Token_redis,
 		}})
 		return
 	}
 
 	ctx.Set("Response", []any{200, "ok", gin.H{
-		"Code":                   200,   // 执行码
-		"Msg":                    "已登陆", // 执行说明
-		"Api_Access_Token":       jsondata.Api_Access_Token,
-		"Api_Access_Token_redis": Access_Token_redis,
+		"Code":                    200,   // 执行码
+		"Msg":                     "已登陆", // 执行说明
+		"User_Access_Token":       jsondata.User_Access_Token,
+		"User_Access_Token_redis": Access_Token_redis,
 	}})
 
 }
@@ -404,5 +404,5 @@ func sdk_api(r *gin.Engine) {
 	r.POST("/api/v1.0/user/login/status", Api__User_Status)       // 查询当前用户登陆状态
 	r.POST("/api/v1.0/user/authority", Api__User_Authority_Exist) // 查询当前用户是否有这个权限
 
-	r.POST("/api/v1.0/api/login/status", Api__Api_Status) // 查询当前接口登陆状态
+	// r.POST("/api/v1.0/user/login/status", Api__Api_Status) // 查询当前用户接口登陆状态
 }

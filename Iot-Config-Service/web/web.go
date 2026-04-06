@@ -63,7 +63,7 @@ func Response_Use() gin.HandlerFunc {
 			"Code":      code,
 			"Msg":       Msg,
 			"Data":      data,
-			"Timestamp": time.Now().Format(time.DateTime),
+			"Timestamp": time.Now().Format(time.RFC3339Nano),
 		})
 	}
 }

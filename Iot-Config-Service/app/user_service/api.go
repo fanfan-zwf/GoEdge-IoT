@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"main/Init"
 	"time"
 )
 
@@ -33,8 +32,8 @@ type Access_Token_redis struct {
 }
 
 type User_Status__Get_type struct {
-	User_Id           uint
-	User_Access_Token string // 用户刷新令牌
+	// User__Id           uint
+	User__Access_Token string // 用户刷新令牌
 }
 
 type User_Status_BodyData_type struct {
@@ -53,9 +52,9 @@ type User_status__Body_type struct {
 // 用户权限查询
 //
 //	输入：User__Access_Token用户刷新令牌
-func Api__User_Status(User_Access_Token string) (r User_Status_BodyData_type, err error) {
+func Api__User_Status(User_Access_Token string) (r Access_Token_redis, err error) {
 	reqData := User_Status__Get_type{
-		User_Access_Token: User_Access_Token,
+		User__Access_Token: User_Access_Token,
 	}
 
 	var jsonBytes []byte
@@ -65,13 +64,11 @@ func Api__User_Status(User_Access_Token string) (r User_Status_BodyData_type, er
 		log.Println("ERROR JSON序列化失败：", err)
 		return
 	}
-
-	url := fmt.Sprintf("%s/api/v1.0/user/login/status", Init.Config.User_Service.Url)
 	var (
 		code int
-		body string
+		body []byte
 	)
-	code, body, err = api_post(url, string(jsonBytes))
+	code, body, err = client.Request("/api/v1.0/user/login/status", jsonBytes)
 	if err != nil {
 		log.Println("ERROR API请求失败：", err)
 		return
@@ -79,25 +76,19 @@ func Api__User_Status(User_Access_Token string) (r User_Status_BodyData_type, er
 
 	// 3. 解析响应数据Read_Cache_User_status
 	var response User_status__Body_type
-	err = json.Unmarshal([]byte(body), &response)
+	err = json.Unmarshal(body, &response)
 	if err != nil {
 		log.Println("ERROR JSON解析失败：", err)
 		return
 	}
 
 	if code != 200 || response.Code != 200 {
-		err = fmt.Errorf("ERROR API请求失败，状态码: %d, 消息: %s", code, response.Msg)
+		err = fmt.Errorf("ERROR API请求失败，状态码: %d, 消息: %s 请求: %s 响应: %s", code, response.Msg, string(jsonBytes), string(body))
 		log.Print(err)
 		return
 	}
 
-	if IsWithin(response.Timestamp, 10*time.Second) {
-		err = fmt.Errorf("ERROR API请求失败，请求超时，Expires_in: %s", response.Timestamp.Format(time.RFC3339Nano))
-		log.Print(err)
-		return
-	}
-
-	r = response.Data
+	r = response.Data.User_Access_Token_redis
 	return
 }
 
@@ -111,29 +102,21 @@ func Cache_User_status(User_Access_Token string) (result Access_Token_redis, err
 
 	// 修复点：此时 r 指代包，r.Nil 指代 redis.Nil
 	if err == r.Nil {
-		var user_status User_Status_BodyData_type
-		user_status, err = Api__User_Status(User_Access_Token)
+		var access_token Access_Token_redis
+		access_token, err = Api__User_Status(User_Access_Token)
 		if err != nil {
 			log.Println("ERROR API 请求失败：", err)
 			return
 		}
 
-		if user_status.Code == 401 {
-			err = r.Nil // 返回 redis.Nil 表示未找到
-			return
-		} else if !(user_status.Code >= 200 && user_status.Code < 300) {
-			err = fmt.Errorf("%s", user_status.Msg)
-			return
-		}
-
 		var jsonBytes []byte
-		jsonBytes, err = json.Marshal(user_status)
+		jsonBytes, err = json.Marshal(access_token)
 		if err != nil {
 			log.Println("ERROR JSON 序列化失败：", err)
 			return
 		}
 
-		ttlDuration := time.Until(user_status.User_Access_Token_redis.Expires_in)
+		ttlDuration := time.Until(access_token.Expires_in)
 		if ttlDuration <= 0 {
 			log.Printf("WARN: 令牌已过期 Token: %s", User_Access_Token)
 			err = r.Nil
@@ -150,7 +133,7 @@ func Cache_User_status(User_Access_Token string) (result Access_Token_redis, err
 		}
 
 		// 赋值给返回值 result
-		result = user_status.User_Access_Token_redis
+		result = access_token
 	} else if err != nil {
 		log.Println("ERROR 读取缓存失败：", err)
 		return
@@ -209,8 +192,7 @@ func Api__Api_Status(Api_Access_Token string) (r Api_Status__type, err error) {
 		return
 	}
 
-	url := fmt.Sprintf("%s/api/v1.0/api/login/status", Init.Config.User_Service.Url)
-	code, body, err := api_post(url, string(jsonBytes))
+	code, body, err := client.Request("/api/v1.0/api/login/status", jsonBytes)
 	if err != nil {
 		log.Println("ERROR API请求失败：", err)
 		return
@@ -218,7 +200,7 @@ func Api__Api_Status(Api_Access_Token string) (r Api_Status__type, err error) {
 
 	// 3. 解析响应数据
 	var response Api_Status__Byte_type
-	err = json.Unmarshal([]byte(body), &response)
+	err = json.Unmarshal(body, &response)
 	if err != nil {
 		log.Println("ERROR JSON解析失败：", err)
 		return
@@ -226,12 +208,6 @@ func Api__Api_Status(Api_Access_Token string) (r Api_Status__type, err error) {
 
 	if code != 200 || response.Code != 200 {
 		err = fmt.Errorf("ERROR API请求失败，状态码: %d, 消息: %s", code, response.Msg)
-		log.Print(err)
-		return
-	}
-
-	if IsWithin(response.Timestamp, 10*time.Second) {
-		err = fmt.Errorf("ERROR API请求失败，请求超时，Expires_in: %s", response.Timestamp.Format(time.RFC3339Nano))
 		log.Print(err)
 		return
 	}
@@ -330,8 +306,7 @@ func Api_User_Authority_Exist(reqData Api_User_Authority_Exist__Get_type) (r Api
 		return
 	}
 
-	url := fmt.Sprintf("%s/api/v1.0/user/authority", Init.Config.User_Service.Url)
-	code, body, err := api_post(url, string(jsonBytes))
+	code, body, err := client.Request("/api/v1.0/user/authority", jsonBytes)
 	if err != nil {
 		log.Println("ERROR API请求失败：", err)
 		return
@@ -339,7 +314,7 @@ func Api_User_Authority_Exist(reqData Api_User_Authority_Exist__Get_type) (r Api
 
 	// 3. 解析响应数据
 	var response Api_User_Authority_Exist__Byte_type
-	err = json.Unmarshal([]byte(body), &response)
+	err = json.Unmarshal(body, &response)
 	if err != nil {
 		log.Println("ERROR JSON解析失败：", err)
 		return
@@ -347,12 +322,6 @@ func Api_User_Authority_Exist(reqData Api_User_Authority_Exist__Get_type) (r Api
 
 	if code != 200 || response.Code != 200 {
 		err = fmt.Errorf("ERROR API请求失败，状态码: %d, 消息: %s", code, response.Msg)
-		log.Print(err)
-		return
-	}
-
-	if IsWithin(response.Timestamp, 10*time.Second) {
-		err = fmt.Errorf("ERROR API请求失败，请求超时，Expires_in: %s", response.Timestamp.Format(time.RFC3339Nano))
 		log.Print(err)
 		return
 	}
@@ -374,9 +343,9 @@ func Cache_User_Authority_status(reqData Api_User_Authority_Exist__Get_type) (re
 		result, err = Api_User_Authority_Exist(reqData)
 		if err != nil {
 			log.Println("ERROR API 请求失败：", err)
-			middle_TTL = Init.Config.User_Service.Cache_Ttl_Err
+			middle_TTL = 30 * time.Second
 		} else {
-			middle_TTL = Init.Config.User_Service.Cache_Ttl_Ok
+			middle_TTL = 10 * time.Minute
 		}
 
 		var jsonBytes []byte

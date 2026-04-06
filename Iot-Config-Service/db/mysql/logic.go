@@ -219,10 +219,11 @@ type Drive_Config_Update_type struct {
 }
 type Drive_Config_type struct {
 	Drive_Config_Update_type
-	Type          string    // 驱动类型
-	Points_Length uint      // 点位数量
-	Collector_Id  uint      // 采集器标识
-	Creation_Time time.Time // 创建时间
+	Type           string    // 驱动类型
+	Points_Length  uint      // 点位数量
+	Collector_Id   uint      // 采集器标识
+	Collector_Name string    // 采集器名称
+	Creation_Time  time.Time // 创建时间
 }
 
 // 点位-》查询配置
@@ -231,7 +232,7 @@ type Drive_Config_type struct {
 func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_type, err error) {
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT `Id`, `Type`, `Name`, `Config`, `Points_Length`, `Collector_Id`, `Creation_Time` FROM `Drive_Config` WHERE `Type` = ?"
+	baseQuery := "SELECT `Drive_Config`.`Id`, `Drive_Config`.`Type`, `Drive_Config`.`Name`, `Drive_Config`.`Config`, `Drive_Config`.`Points_Length`, `Drive_Config`.`Collector_Id`, `Drive_Config`.`Creation_Time`, `Collector_Info`.`Name` as `Creation_Name` FROM `Drive_Config` INNER JOIN `Collector_Info` ON `Drive_Config`.`Collector_Id` = `Collector_Info`.`Id` WHERE `Type` = ?"
 	// 4. 执行查询（统一处理，减少重复代码）
 	rows, err := DB.Query(baseQuery, drive_type)
 
@@ -263,6 +264,7 @@ func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_ty
 			&config.Points_Length,
 			&config.Collector_Id,
 			&config.Creation_Time,
+			&config.Collector_Name,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -280,7 +282,7 @@ func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_ty
 func Drive_Config__Query_DriveId(driveid uint) (config Drive_Config_type, err error) {
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT `Id`, `Type`, `Name`, `Config`, `Points_Length`, `Collector_Id`, `Creation_Time` FROM `Drive_Config` WHERE `Id` = ?"
+	baseQuery := "SELECT `Drive_Config`.`Id`, `Drive_Config`.`Type`, `Drive_Config`.`Name`, `Drive_Config`.`Config`, `Drive_Config`.`Points_Length`, `Drive_Config`.`Collector_Id`, `Drive_Config`.`Creation_Time`, `Collector_Info`.`Name` as `Creation_Name` FROM `Drive_Config` INNER JOIN `Collector_Info` ON `Drive_Config`.`Collector_Id` = `Collector_Info`.`Id` WHERE `Id` = ?"
 
 	// 2. 执行查询（统一处理，减少重复代码）
 	err = DB.QueryRow(baseQuery, driveid).Scan(
@@ -351,7 +353,7 @@ func Drive_Config__Count(collectorId uint, driveType string, page uint, pageSize
 func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize uint) (configs []Drive_Config_type, err error) {
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT `Id`, `Type`, `Name`, `Config`, `Points_Length`, `Collector_Id`, `Creation_Time` FROM `Drive_Config`"
+	baseQuery := "SELECT `Drive_Config`.`Id`, `Drive_Config`.`Type`, `Drive_Config`.`Name`, `Drive_Config`.`Config`, `Drive_Config`.`Points_Length`, `Drive_Config`.`Collector_Id`, `Drive_Config`.`Creation_Time`, `Collector_Info`.`Name` as `Creation_Name` FROM `Drive_Config` INNER JOIN `Collector_Info` ON `Drive_Config`.`Collector_Id` = `Collector_Info`.`Id` "
 
 	var whereConditions []string // 存储WHERE子句的条件片段
 	var args []interface{}       // 存储SQL参数，防止注入
@@ -401,6 +403,7 @@ func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize
 			&config.Points_Length,
 			&config.Collector_Id,
 			&config.Creation_Time,
+			&config.Collector_Name,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -426,7 +429,7 @@ func Drive_Config__Add(configs ...Drive_Config_Add_type) (err error) {
 	for i, cfg := range configs {
 		// 可选：校验必填字段（Type/Name/Config非空，根据业务需求加）
 		if cfg.Type == "" || cfg.Name == "" || cfg.Config == "" || cfg.Collector_Id == 0 {
-			err = fmt.Errorf("批量新增失败：第%d条配置Type/Name/Config/Collector_Id不能为空", i)
+			err = fmt.Errorf("批量新增失败：第%d条配置Type/Name/Config/Collector_Id不能为空 %v", i, cfg)
 			return
 		}
 	}

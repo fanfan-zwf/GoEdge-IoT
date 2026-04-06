@@ -190,6 +190,7 @@ export interface Drive_Config__table_interface {
     Points_Length: number      // 点位数量
     Collector_Id: number      // 采集器标识
     Creation_Time: string// 创建时间
+    Collector_Name: string // 采集器名称
 }
 
 /**

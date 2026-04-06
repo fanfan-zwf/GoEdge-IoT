@@ -59,12 +59,10 @@ type Config_type struct {
 	} `yaml:"LOG"` // GPIO
 
 	User_Service struct {
-		Url    string `yaml:"url"`
-		ApiKey string `yaml:"apikey"`
-		Secret string `yaml:"secret"`
-
-		Cache_Ttl_Ok  time.Duration `yaml:"cache_ttl_ok"`
-		Cache_Ttl_Err time.Duration `yaml:"cache_ttl_err"`
+		Url     string        `yaml:"url"`
+		ApiKey  string        `yaml:"apikey"`
+		Secret  string        `yaml:"secret"`
+		Timeout time.Duration `yaml:"timeout"`
 	} `yaml:"User_Service"` // 用户服务
 
 }

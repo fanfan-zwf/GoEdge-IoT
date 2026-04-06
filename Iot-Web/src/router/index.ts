@@ -17,14 +17,8 @@ const router = createRouter({
         },
         {
             path: '/drive',
-            // redirect: "/drive/info/0",
-            children: [
-                {
-                    path: ':type/:id',
-                    name: 'drive_config',
-                    component: import('@/views/config/drive.vue'),
-                },
-            ]
+            name: 'drive_config',
+            component: import('@/views/config/drive.vue'),
         },
         {
             path: '/user',

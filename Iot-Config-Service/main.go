@@ -1,6 +1,7 @@
 package main
 
 import (
+	"main/app/user_service"
 	"main/db/mysql"
 	"main/db/redis"
 	"main/web"
@@ -23,6 +24,9 @@ func app() (err error) {
 	if err != nil {
 		log.Panic(err.Error())
 	}
+
+	go user_service.New()
+
 	time.Sleep(200 * time.Millisecond)
 
 	return

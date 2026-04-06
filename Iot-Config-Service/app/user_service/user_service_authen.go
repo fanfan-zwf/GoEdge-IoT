@@ -7,348 +7,365 @@
 package user_service
 
 import (
-	"main/Init"
-	r "main/db/redis"
+	p_config "main/Init"
+	p_redis "main/db/redis"
 
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
-
-	"github.com/redis/go-redis/v9"
 )
 
-// Go 1.21+ 推荐方案：用 sync.Mutex.TryLock + 循环重试（更优雅）
-func TryLockWithTimeout(mu *sync.Mutex, timeout time.Duration) bool {
-	deadline := time.Now().Add(timeout)
-	// 循环尝试加锁，直到超时
-	for time.Now().Before(deadline) {
-		if mu.TryLock() { // TryLock 非阻塞，成功返回 true，失败返回 false
-			return true
-		}
-		// 短暂休眠，避免CPU空转
-		time.Sleep(10 * time.Millisecond)
-	}
-	return false
-}
-
+// 业务通用响应（可自行修改）
 type Body_Standard struct {
 	Code      int
 	Msg       string
 	Timestamp time.Time
 }
 
-func api_post(url string, json_payload string) (statusCode int, body string, err error) {
+// APIClient 封装双Token客户端
+type APIClient_struct struct {
+	Url    string
+	ApiKey string
+	Secret string
+	mu     sync.Mutex // 防止并发重复刷新Token
 
-	payload := strings.NewReader(json_payload)
-
-	client := &http.Client{}
-
-	var req *http.Request
-	req, err = http.NewRequest("POST", url, payload)
-
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	req.Header.Add("Content-Type", "application/json")
-
-	// URL不包含登录相关路径，跳过登录鉴权
-	if !strings.Contains(url, "login") {
-		var access_token string
-		access_token, err = Access_Token_Value()
-		if err != nil {
-			log.Println("ERROR ", err)
-			return
-		}
-		req.Header.Add("F_Api_Access_Token", access_token)
-	}
-
-	var res *http.Response
-	res, err = client.Do(req)
-	if err != nil {
-		log.Println("ERROR ", err)
-		return
-	}
-	defer res.Body.Close()
-
-	statusCode = res.StatusCode
-	if res.StatusCode != http.StatusOK {
-		err = fmt.Errorf("ERROR API请求失败，状态码: %d", res.StatusCode)
-		log.Print(err)
-		return
-	}
-
-	var body_byte []byte
-	body_byte, err = ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Println("ERROR ", err)
-		return
-	}
-
-	body = string(body_byte)
-	return
+	client *http.Client
 }
 
-// IsWithin 判断目标时间是否在最近10秒内
-// targetTime: 要判断的时间, short: 判断时间间隔
-// 返回值: true=在10秒内，false=超出10秒
-func IsWithin(targetTime time.Time, short time.Duration) bool {
-	// 1. 获取当前时间
-	now := time.Now()
+/* 定义接口 */
+type APIClient_interfaces interface {
+	// 刷新令牌请求
+	Refresh_RefreshToken() (err error)
+	// 存储刷新令牌
+	Store_RefreshToken(data Authentication_Refresh_Token_type) (err error)
+	// 获取刷新令牌
+	Get_RefreshToken() (r Authentication_Refresh_Token_type, err error)
 
-	// 2. 计算时间差（当前时间 - 目标时间）
-	duration := now.Sub(targetTime)
+	// 请求令牌请求
+	Refresh_AccessToken() (err error)
+	// 存储访问令牌
+	Store_AccessToken(data Authentication_Access_Token_Response_type) (err error)
+	// 获取访问令牌
+	Get_AccessToken() (r Authentication_Access_Token_Response_type, err error)
 
-	// 3. 判断差值是否≤10秒（注意：如果targetTime是未来时间，duration为负，也返回false）
-	// 10秒的常量写法：10 * time.Second
-	return duration <= short && duration >= -short
+	// 发送请求，自动处理Token过期
+	Request(endpoint string, header map[string]string, body []byte) (response http.Response, err error)
 }
 
-// 用户服务接口鉴权
-type Refresh_Token_Get_type struct {
+// 创建APIClient
+func NewAPIClient(
+	Url string,
+	ApiKey string,
+	Secret string,
+	Timeout time.Duration,
+) *APIClient_struct {
+	return &APIClient_struct{
+		Url:    Url,
+		ApiKey: ApiKey,
+		Secret: Secret,
+		mu:     sync.Mutex{},
+		client: &http.Client{Timeout: Timeout},
+	}
+}
+
+// 发送刷新令牌请求
+
+// Access_Token 请求体
+type Authentication_Refresh_Token_Request_type struct {
 	ApiKey string
 	Secret string
 }
 
-type Refresh_Token_type struct {
+// Access_Token 返回内容
+type Authentication_Refresh_Token_type struct {
 	Api_Id              uint
 	F_Api_Refresh_Token string
 	F_Api_Expires_in    time.Time
 }
 
-type Refresh_Token_Body_type struct {
+// 刷新令牌响应体
+type Authentication_Refresh_Token_Response_type struct {
 	Body_Standard
-	Data Refresh_Token_type
+	Data Authentication_Refresh_Token_type
+}
+
+func (c *APIClient_struct) Refresh_RefreshToken() (data Authentication_Refresh_Token_Response_type, err error) {
+	// 构造刷新请求体（你要求的 4 个字段）
+
+	reqBody := Authentication_Refresh_Token_Request_type{
+		ApiKey: c.ApiKey,
+		Secret: c.Secret,
+	}
+
+	var jsonData []byte
+	jsonData, err = json.Marshal(reqBody)
+	if err != nil {
+		err = fmt.Errorf("ERROR JSON编码错误: %v", err)
+		log.Print(err)
+		return
+	}
+	path := "/api/v1.0/login/refresh_token"
+
+	var (
+		code      int
+		data_type []byte
+	)
+	code, data_type, err = c.DoRequest("POST", path, jsonData, map[string]string{"Content-Type": "application/json"})
+	if err != nil {
+		err = fmt.Errorf("ERROR 刷新Token请求失败: %v", err)
+		log.Print(err)
+		return
+	}
+
+	err = json.Unmarshal(data_type, &data)
+	if err != nil {
+		log.Println("ERROR JSON解析失败：", err)
+		return
+	}
+
+	if code != 200 || data.Code != 200 {
+		err = fmt.Errorf("ERROR 刷新Token失败, 消息: %s", data.Msg)
+		log.Print(err)
+		return
+	}
+
+	err = c.Store_RefreshToken(data.Data)
+	if err != nil {
+		err = fmt.Errorf("ERROR 存储刷新Token失败: %v", err)
+		log.Print(err)
+	}
+
+	return
+}
+
+// 存储刷新令牌
+func (c *APIClient_struct) Store_RefreshToken(data Authentication_Refresh_Token_type) (err error) {
+	var jsonData []byte
+	jsonData, err = json.Marshal(data)
+	if err != nil {
+		err = fmt.Errorf("ERROR JSON编码错误: %v", err)
+		log.Print(err)
+		return
+	}
+
+	err = p_redis.Write_Key_list(p_redis.KeyValue{
+		Key:   "F_Api_Refresh_Token",
+		Value: string(jsonData),
+		TTL:   time.Until(data.F_Api_Expires_in),
+	})
+	if err != nil {
+		err = fmt.Errorf("ERROR Redis写入失败：%v", err)
+		log.Print(err)
+	}
+	return
+
 }
 
 // 获取刷新令牌
-func Api__Get_Login_Refresh_Token(reqData Refresh_Token_Get_type) (refresh Refresh_Token_type, err error) {
-	// 2. 将结构体序列化为JSON字节数组（核心步骤）
-	jsonBytes, err := json.Marshal(reqData)
-	if err != nil {
-		log.Println("ERROR JSON序列化失败：", err)
-		return
-	}
-
-	url := fmt.Sprintf("%s/api/v1.0/login/refresh_token", Init.Config.User_Service.Url)
-	var (
-		code int
-		body string
-	)
-	code, body, err = api_post(url, string(jsonBytes))
-	if err != nil {
-		log.Println("ERROR API请求失败：", err)
-		return
-	}
-
-	// 3. 解析响应数据
-	var response Refresh_Token_Body_type
-	err = json.Unmarshal([]byte(body), &response)
-	if err != nil {
-		log.Println("ERROR JSON解析失败：", err)
-		return
-	}
-
-	if code != 200 || response.Code != 200 {
-		err = fmt.Errorf("ERROR API请求失败，状态码: %d, 消息: %s", code, response.Msg)
-		log.Print(err)
-		return
-	}
-
-	if IsWithin(response.Timestamp, 10*time.Second) {
-		err = fmt.Errorf("ERROR API请求失败，请求超时，Expires_in: %s", response.Timestamp.Format(time.RFC3339Nano))
-		log.Print(err)
-		return
-	}
-
-	var refresh_jsonBytes []byte
-	refresh_jsonBytes, err = json.Marshal(refresh)
-	if err != nil {
-		log.Println("ERROR JSON序列化失败：", err)
-		return
-	}
-
-	err = r.Write_Key_list(r.KeyValue{
-		Key:   "user_service_refresh_token",
-		Value: string(refresh_jsonBytes),
-		TTL:   time.Until(refresh.F_Api_Expires_in),
-	})
-	if err != nil {
-		log.Println("ERROR Redis写入失败：", err)
-		return
-	}
-
-	refresh = response.Data
-	return
-}
-
-// 获取刷新令牌信息
-func Refresh_Token_Redis() (refresh Refresh_Token_type, err error) {
-	Info, err := r.Read_Key("user_service_refresh_token")
-
-	if err == redis.Nil || Info == "" {
-		log.Print("warning Redis读取失败：没有找到访问令牌")
-		refresh, err = Api__Get_Login_Refresh_Token(Refresh_Token_Get_type{
-			ApiKey: Init.Config.User_Service.ApiKey,
-			Secret: Init.Config.User_Service.Secret,
-		})
-		if err != nil {
-			log.Println("ERROR 获取刷新令牌失败：", err)
-			return
-		}
+func (c *APIClient_struct) Get_RefreshToken() (r Authentication_Refresh_Token_type, err error) {
+	var value string
+	value, err = p_redis.Read_Key("F_Api_Refresh_Token")
+	if err == p_redis.Nil {
+		var refresh Authentication_Refresh_Token_Response_type
+		refresh, err = c.Refresh_RefreshToken()
+		r = refresh.Data
 		return
 	} else if err != nil {
-		log.Println("ERROR Redis读取失败：", err)
+		err = fmt.Errorf("ERROR Redis读取失败：%v", err)
+		log.Print(err)
 		return
 	}
-	err = json.Unmarshal([]byte(Info), &refresh)
+	err = json.Unmarshal([]byte(value), &r)
 	if err != nil {
-		log.Println("ERROR JSON解析失败：", err)
+		err = fmt.Errorf("ERROR JSON解析失败：%v", err)
+		log.Print(err)
 		return
 	}
-
 	return
 }
 
-// 用户服务接口鉴权
-type Access_Token_Get_type struct {
+// 获取访问令牌
+type Authentication_Access_Request_type struct {
 	Api_Id              uint
 	F_Api_Refresh_Token string
 }
 
-type Access_Token__BodyData_type struct {
-	Api_Id             int
+// 访问令牌返回内容
+type Authentication_Access_Token_type struct {
 	F_Api_Access_Token string
 	F_Api_Expires_in   time.Time
 }
 
-type Access_Token_Body_type struct {
+// 访问令牌响应体
+type Authentication_Access_Token_Response_type struct {
 	Body_Standard
-	Data Access_Token__BodyData_type
+	Data Authentication_Access_Token_type
 }
 
-// 获取刷新令牌
-func Api__Get_Access_Token(reqData Access_Token_Get_type) (access Access_Token__BodyData_type, err error) {
-	// 2. 将结构体序列化为JSON字节数组（核心步骤）
-	jsonBytes, err := json.Marshal(reqData)
+func (c *APIClient_struct) Refresh_AccessToken() (data Authentication_Access_Token_Response_type, err error) {
+	var Refresh Authentication_Refresh_Token_type
+	Refresh, err = c.Get_RefreshToken()
 	if err != nil {
-		log.Println("ERROR JSON序列化失败：", err)
+		log.Print(err)
 		return
 	}
 
-	url := fmt.Sprintf("%s/api/v1.0/login/access_token", Init.Config.User_Service.Url)
+	reqBody := Authentication_Access_Request_type{
+		Api_Id:              Refresh.Api_Id,
+		F_Api_Refresh_Token: Refresh.F_Api_Refresh_Token,
+	}
+
+	var jsonData []byte
+	jsonData, err = json.Marshal(reqBody)
+	if err != nil {
+		err = fmt.Errorf("ERROR JSON编码错误: %v", err)
+		log.Print(err)
+		return
+	}
+
+	path := "/api/v1.0/login/access_token"
+
 	var (
-		code int
-		body string
+		code      int
+		data_type []byte
 	)
-	code, body, err = api_post(url, string(jsonBytes))
+
+	code, data_type, err = c.DoRequest("POST", path, jsonData, map[string]string{"Content-Type": "application/json"})
 	if err != nil {
-		log.Println("ERROR API请求失败：", err)
+		err = fmt.Errorf("ERROR 刷新Token请求失败: %v", err)
+		log.Print(err)
 		return
 	}
 
-	// 3. 解析响应数据
-	var response Access_Token_Body_type
-	err = json.Unmarshal([]byte(body), &response)
+	err = json.Unmarshal(data_type, &data)
 	if err != nil {
 		log.Println("ERROR JSON解析失败：", err)
 		return
 	}
 
-	if code != 200 && response.Code != 200 {
-		err = fmt.Errorf("ERROR API请求失败，状态码: %d, 消息: %s", code, response.Msg)
+	if code != 200 || data.Code != 200 {
+		err = fmt.Errorf("ERROR 刷新Token失败, 消息: %s", data.Msg)
 		log.Print(err)
 		return
 	}
 
-	//10秒的常量写法：10 * time.Second
-	if IsWithin(response.Timestamp, time.Second*10) {
-		err = fmt.Errorf("ERROR API请求失败，请求超时，Expires_in: %s", response.Timestamp.Format(time.RFC3339Nano))
-		log.Print(err)
-		return
-	}
-
-	var access_jsonBytes []byte
-	access_jsonBytes, err = json.Marshal(access)
+	err = c.Store_AccessToken(data.Data)
 	if err != nil {
-		log.Println("ERROR JSON序列化失败：", err)
+		err = fmt.Errorf("ERROR 存储刷新Token失败: %v", err)
+		log.Print(err)
+	}
+
+	return
+}
+
+func (c *APIClient_struct) Store_AccessToken(data Authentication_Access_Token_type) (err error) {
+	var jsonData []byte
+	jsonData, err = json.Marshal(data)
+	if err != nil {
+		err = fmt.Errorf("ERROR JSON编码错误: %v", err)
+		log.Print(err)
 		return
 	}
 
-	err = r.Write_Key_list(r.KeyValue{
-		Key:   "user_service_access_token",
-		Value: string(access_jsonBytes),
-		TTL:   time.Until(access.F_Api_Expires_in),
+	err = p_redis.Write_Key_list(p_redis.KeyValue{
+		Key:   "F_Api_Access_Token",
+		Value: string(jsonData),
+		TTL:   time.Until(data.F_Api_Expires_in),
 	})
 	if err != nil {
-		log.Println("ERROR Redis写入失败：", err)
-		return
+		err = fmt.Errorf("ERROR Redis写入失败：%v", err)
+		log.Print(err)
 	}
-
-	access = response.Data
-
 	return
 }
 
-var Access_Token_Info_Mu sync.Mutex
-
-// 获取访问令牌信息
-func Access_Token_Info() (access Access_Token__BodyData_type, err error) {
-
-	if !TryLockWithTimeout(&Access_Token_Info_Mu, 10*time.Second) {
-		err = fmt.Errorf("ERROR 尝试 10 秒超时获取锁")
-		return
-	} else {
-		defer Access_Token_Info_Mu.Unlock()
-	}
-
-	Info, err := r.Read_Key("user_service_access_token")
-
-	if err == redis.Nil || Info == "" {
-		log.Print("warning Redis读取失败：没有找到访问令牌")
-		var refresh Refresh_Token_type
-		refresh, err = Refresh_Token_Redis()
-		if err != nil {
-			log.Println("ERROR 获取刷新令牌失败：", err)
-			return
-		}
-
-		access, err = Api__Get_Access_Token(Access_Token_Get_type{
-			Api_Id:              refresh.Api_Id,
-			F_Api_Refresh_Token: refresh.F_Api_Refresh_Token,
-		})
-		if err != nil {
-			log.Println("ERROR 获取访问令牌失败：", err)
-			return
-		}
+func (c *APIClient_struct) Get_AccessToken() (r Authentication_Access_Token_type, err error) {
+	var value string
+	value, err = p_redis.Read_Key("F_Api_Access_Token")
+	if err == p_redis.Nil {
+		var access Authentication_Access_Token_Response_type
+		access, err = c.Refresh_AccessToken()
+		r = access.Data
 		return
 	} else if err != nil {
-		log.Println("ERROR Redis读取失败：", err)
+		err = fmt.Errorf("ERROR Redis读取失败：%v", err)
+		log.Print(err)
 		return
 	}
-	err = json.Unmarshal([]byte(Info), &access)
+	err = json.Unmarshal([]byte(value), &r)
 	if err != nil {
-		log.Println("ERROR JSON解析失败：", err)
+		err = fmt.Errorf("ERROR JSON解析失败：%v", err)
+		log.Print(err)
+		return
+	}
+	return
+}
+func (c *APIClient_struct) DoRequest(method string, path string, body []byte, header map[string]string) (code int, data []byte, err error) {
+
+	var req *http.Request
+	url := fmt.Sprintf("%s%s", c.Url, path)
+
+	req, err = http.NewRequest(method, url, bytes.NewBuffer(body))
+	if err != nil {
+		err = fmt.Errorf("ERROR 创建请求失败: %v", err)
+		log.Print(err)
+		return
+	}
+
+	for k, v := range header {
+		req.Header.Add(k, v)
+	}
+
+	var res *http.Response
+	res, err = c.client.Do(req)
+	if err != nil {
+		// 修复: 当 err != nil 时，res 可能为 nil，直接访问 res.StatusCode 会导致 panic
+		err = fmt.Errorf("ERROR API请求失败，Url: %s, 错误: %v", url, err)
+		fmt.Print(c.Url, path, "=========\n")
+		log.Print(err)
+		return
+	}
+	defer res.Body.Close()
+
+	code = res.StatusCode
+	data, err = ioutil.ReadAll(res.Body)
+	if err != nil {
+		err = fmt.Errorf("ERROR 读取响应失败, path:%s, err:%v", path, err)
+		log.Print(err)
 		return
 	}
 
 	return
 }
+func (c *APIClient_struct) Request(path string, body []byte) (code int, data []byte, err error) {
 
-// 获取访问令牌值
-func Access_Token_Value() (access_token string, err error) {
-	var access Access_Token__BodyData_type
-	access, err = Access_Token_Info()
+	var r Authentication_Access_Token_type
+	r, err = c.Get_AccessToken()
+
+	code, data, err = c.DoRequest("POST", path, body, map[string]string{
+		"Content-Type":       "application/json",
+		"F_Api_Access_Token": r.F_Api_Access_Token,
+	})
 	if err != nil {
-		log.Println("ERROR 获取访问令牌失败：", err)
+		err = fmt.Errorf("ERROR API请求失败, path:%s, err:%v", path, err)
+		log.Print(err)
 		return
 	}
-	access_token = access.F_Api_Access_Token
-
 	return
+}
+
+var client *APIClient_struct
+
+func New() {
+	client = NewAPIClient(
+		p_config.Config.User_Service.Url,
+		p_config.Config.User_Service.ApiKey,
+		p_config.Config.User_Service.Secret,
+		p_config.Config.User_Service.Timeout,
+	)
 }
