@@ -20,23 +20,32 @@ import { config_service_url } from '@/api/index'
 export interface Collector_Info__Add_interface {
     Label: string // 标识
     Uuid: string // Uuid
+    Name: string // 设备名称
     User_Id: number   // 用户 id
 }
 
 /**
+ * 采集配置配置更新表接口
+ */
+export interface Collector_Info__Update_interface {
+    Id: number // 采集 Id 
+    Name: string // 设备名称 
+}
+/**
  * 采集配置配置表接口
  */
 export interface Collector_Info__table_interface {
-    Id: number //  ID
-    Device_Id: string // 设备 ID
-    Label: string // 标识
-    Creation_Time: number   // 创建时间
-    Uuid: boolean    // Uuid
-    Sn: string  // 序列号
-    User_Id: string  // 用户 id  
-    Version: number    // 版本号 
-    Last_Activity_Time: number    // 最后活动时间
-    Name: number    // 刷新令牌过期时间（s）
+    Id: number      // 采集 Id
+    Label: string    // 标识
+    Creation_Time: string// 创建时间
+    Uuid: string    // Uuid (修正为 string)
+    Sn: string    // 设备 sn
+    User_Id: number        // 创建用户 id
+    User_Name: string        // 创建用户名
+    Version: string    // 版本
+    Last_Activity_Time: string // 最后活动时间
+    Equipment_Id: number        // 设备 id
+    Name: string    // 设备名称
 }
 
 
@@ -44,12 +53,14 @@ export interface Collector_Info__table_interface {
  * 采集 -》查询数量
  * 传递：page 页码，pageSize 每页数量 返回：Count 数量
  */
-export async function Collector_Info__Count(Page: number = 0, Page_Size: number = 0): Promise<number> {
+export async function Collector_Info__Count(params?: {
+    Page?: number; Page_Size?: number;
+}): Promise<number> {
     try {
         // 修改：直接 await axios.post，移除多余的二次 await
         const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/count', {
-            Page: Page,
-            Page_Size: Page_Size,
+            Page: params?.Page,
+            Page_Size: params?.Page_Size,
         })
 
         if (response.status == 200) {
@@ -73,12 +84,14 @@ export async function Collector_Info__Count(Page: number = 0, Page_Size: number 
  * 采集 -》查询配置 
  * 传递：传递：page 页码，pageSize 每页数量 返回：configs 配置列表
  */
-export async function Collector_Info__Query(Page: number = 0, Page_Size: number = 0): Promise<Collector_Info__table_interface[]> {
+export async function Collector_Info__Query(params?: {
+    Page?: number; Page_Size?: number;
+}): Promise<Collector_Info__table_interface[]> {
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/query', {
-            Page: Page,
-            Page_Size: Page_Size,
+            Page: params?.Page,
+            Page_Size: params?.Page_Size,
         })
 
         if (response.status == 200) {
@@ -105,6 +118,31 @@ export async function Collector_Info__Add(add: Collector_Info__Add_interface): P
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/add', add)
+
+        if (response.status == 200) {
+            return
+        }
+        throw response.data.Msg || '未知错误';
+    } catch (error: unknown) {
+        const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
+        if (axiosError.code == "ERR_NETWORK") {
+            ElMessage({ message: '请求超时', type: 'error' })
+            throw '请求超时'
+        }
+        // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
+        throw axiosError.response?.data?.Msg || '请求失败';
+    }
+
+}
+
+/**
+ * 采集 -》增加配置
+ * 传递：config 配置数组形式
+ */
+export async function Collector_Info__Update(add: Collector_Info__Update_interface): Promise<void> {
+    try {
+        // 修改：直接 await axios.post
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/update', add)
 
         if (response.status == 200) {
             return

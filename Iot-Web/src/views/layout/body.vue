@@ -26,13 +26,22 @@
                                 <span>点位配置</span>
                             </template>
                             <router-link active-class="active" :to="{ name: 'drive_config' }">
+                                 <router-link active-class="active" :to="{ name: 'collector_config' }">
                                 <el-menu-item index="2-1">
+                                    <el-icon>
+                                        <img src="@/assets/icons/服务器.svg" alt="驱动配置" />
+                                    </el-icon>
+                                    <template #title>采集配置</template>
+                                </el-menu-item>
+                            </router-link>
+                                <el-menu-item index="2-2">
                                     <el-icon>
                                         <img src="@/assets/icons/PLC.svg" alt="驱动配置" />
                                     </el-icon>
                                     <template #title>驱动配置</template>
                                 </el-menu-item>
                             </router-link>
+                            
                         </el-sub-menu>
                         <el-sub-menu index="1" v-if="User_info.Permissions == 0">
                             <template #title>

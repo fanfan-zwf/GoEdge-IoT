@@ -83,6 +83,24 @@ func Collector_Info__Add(ctx *gin.Context) {
 	ctx.Set("Response", []any{200, "ok"})
 }
 
+// 采集-》更新配置 传递：config 配置数组形式 返回：err 错误
+func Collector_Info__Update(ctx *gin.Context) {
+	var jsondata db_mysql.Collector_Info_Update_type
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	err = db_mysql.Collector_Info__Update(jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
+
 // 采集-》增加删除 传递: Id 需要删除的id 返回: err 错误
 func Collector_Info__Del(ctx *gin.Context) {
 	var jsondata struct {
@@ -329,6 +347,7 @@ func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/collector_info/count", Collector_Info__Count)
 	r.POST("/api/gui/v1.0/collector_info/query", Collector_Info__Query)
 	r.POST("/api/gui/v1.0/collector_info/add", Collector_Info__Add)
+	r.POST("/api/gui/v1.0/collector_info/update", Collector_Info__Update)
 	r.POST("/api/gui/v1.0/collector_info/del", Collector_Info__Del)
 
 	r.POST("/api/gui/v1.0/config/drive/count", Drive_Config__Count)

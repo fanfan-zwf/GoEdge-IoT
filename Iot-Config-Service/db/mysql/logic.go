@@ -21,20 +21,27 @@ import (
 type Collector_Info_Add_type struct {
 	Label   string // 标识
 	Uuid    string // Uuid
+	Name    string // 设备名称
 	User_Id uint   // 用户id
+}
+
+type Collector_Info_Update_type struct {
+	Id   uint   // 采集 Id
+	Name string // 设备名称
 }
 
 // 采集配置结构体
 type Collector_Info_type struct {
 	Id                 uint      // 采集 Id
-	Device_Id          uint      // 设备 Id
 	Label              string    // 标识
 	Creation_Time      time.Time // 创建时间
 	Uuid               string    // Uuid (修正为 string)
 	Sn                 string    // 设备 sn
-	User_Id            uint      // 用户 id
+	User_Id            uint      // 创建用户 id
 	Version            string    // 版本
 	Last_Activity_Time time.Time // 最后活动时间
+	Equipment_Id       uint      // 设备 id
+	Name               string    // 设备名称
 }
 
 // 采集-》查询数量
@@ -84,7 +91,7 @@ func Collector_Info__Count(page uint, pageSize uint) (count uint, err error) {
 func Collector_Info__Query(page uint, pageSize uint) (configs []Collector_Info_type, err error) {
 
 	// 1. 初始化 SQL
-	baseQuery := "SELECT `Id`, `Equipment_Id`, `Label`, `Creation_Time`, `Uuid`, `Sn`, `User_Id`, `Version`, `Last_Activity_Time` FROM `Collector_Info`"
+	baseQuery := "SELECT `Id`, `Equipment_Id`, `Label`, `Creation_Time`, `Uuid`, `Sn`, `User_Id`, `Version`, `Last_Activity_Time`, `Name` FROM `Collector_Info`"
 
 	var whereConditions []string
 	var args []interface{}
@@ -111,23 +118,34 @@ func Collector_Info__Query(page uint, pageSize uint) (configs []Collector_Info_t
 	// 修复：仅在 err == nil 时 defer close，避免 panic
 	defer rows.Close()
 
+	var (
+		Sn                 sql.NullString
+		Last_Activity_Time sql.NullTime
+		Name               sql.NullString
+	)
 	for rows.Next() {
 		var Config Collector_Info_type
 		err = rows.Scan(
 			&Config.Id,
-			&Config.Device_Id,
+			&Config.Equipment_Id,
 			&Config.Label,
 			&Config.Creation_Time,
 			&Config.Uuid,
-			&Config.Sn,
+			&Sn,
 			&Config.User_Id,
 			&Config.Version,
-			&Config.Last_Activity_Time,
+			&Last_Activity_Time,
+			&Name,
 		)
 		if err != nil {
 			log.Print(err.Error())
 			return nil, err
 		}
+
+		Config.Sn = Sn.String
+		Config.Last_Activity_Time = Last_Activity_Time.Time
+		Config.Name = Name.String
+
 		configs = append(configs, Config)
 	}
 
@@ -159,14 +177,17 @@ func Collector_Info__Add(configs ...Collector_Info_Add_type) (err error) {
 	}
 
 	// 3. 拼接批量INSERT的SQL和参数
-	baseQuery := "INSERT INTO `Collector_Info`(`Label`, `Uuid`, `User_Id`, `Creation_Time`) VALUES "
+	baseQuery := "INSERT INTO `Collector_Info`(`Label`, `Uuid`, `User_Id`, `Creation_Time`, `Name` ,`Version`) VALUES "
 	var args []interface{}         // 存储所有参数
-	var valuePlaceholders []string // 存储每个值组的占位符 (?, ?, ?)
+	var valuePlaceholders []string // 存储每个值组的占位符 (?, ?, ?, ?)
 
 	// 遍历配置列表，拼接占位符和参数
 	for _, cfg := range configs {
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?)")
-		args = append(args, cfg.Label, cfg.Uuid, cfg.User_Id, time.Now())
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?)")
+		args = append(args, cfg.Label, cfg.Uuid, cfg.User_Id, time.Now(), sql.NullString{
+			String: cfg.Name,
+			Valid:  cfg.Name != "",
+		}, "V1.0")
 	}
 
 	// 拼接完整SQL
@@ -176,6 +197,61 @@ func Collector_Info__Add(configs ...Collector_Info_Add_type) (err error) {
 	_, err = DB.Exec(query, args...)
 	if err != nil {
 		err = fmt.Errorf("批量新增驱动配置失败, SQL:%s, 参数数:%d, 错误:%v", query, len(args), err)
+	}
+	return
+}
+
+// 采集-》更新配置
+// 传递：config 配置数组形式
+// 返回：err 错误
+func Collector_Info__Update(configs ...Collector_Info_Update_type) (err error) {
+	// 1. 空列表校验
+	if len(configs) == 0 {
+		err = fmt.Errorf("ERROR 待更新配置列表为空")
+		return
+	}
+
+	// 2. 遍历逐个更新
+	for idx, config := range configs {
+		// 2.1 必传参数校验：ID不能为空
+		if config.Id == 0 {
+			err = fmt.Errorf("ERROR 第%d条配置ID(Id)不能为空", idx+1)
+			return
+		}
+
+		// 2.2 动态拼接SET子句：非空字段才加入更新
+		var setClauses []string
+		var args []interface{}
+
+		// Name非空则更新Name字段
+		if config.Name != "" {
+			setClauses = append(setClauses, "`Name` = ?")
+			args = append(args, config.Name)
+		}
+
+		// 2.3 校验：至少有一个更新字段（Name/Config二选一）
+		if len(setClauses) == 0 {
+			err = fmt.Errorf("ERROR 第%d条配置未指定任何更新字段 Name至少传一个非空值", idx+1)
+			return
+		}
+
+		// 2.4 拼接SQL：WHERE条件指定ID
+		query := fmt.Sprintf("UPDATE `Collector_Info` SET %s WHERE `Id` = ?", strings.Join(setClauses, ", "))
+		args = append(args, config.Id) // 最后追加ID参数
+
+		// 2.5 执行更新并捕获错误
+		result, errExec := DB.Exec(query, args...)
+		if errExec != nil {
+			err = fmt.Errorf("ERROR 第%d条配置更新失败, ID:%d, 错误:%v, SQL:%s, 参数:%v",
+				idx+1, config.Id, errExec, query, args)
+			return
+		}
+
+		// 可选：校验更新行数（确保有数据被更新）
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			log.Printf("WARNING 第%d条配置更新无生效行, ID:%d（可能ID不存在）", idx+1, config.Id)
+		}
 	}
 	return
 }
@@ -353,7 +429,7 @@ func Drive_Config__Count(collectorId uint, driveType string, page uint, pageSize
 func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize uint) (configs []Drive_Config_type, err error) {
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT `Drive_Config`.`Id`, `Drive_Config`.`Type`, `Drive_Config`.`Name`, `Drive_Config`.`Config`, `Drive_Config`.`Points_Length`, `Drive_Config`.`Collector_Id`, `Drive_Config`.`Creation_Time`, `Collector_Info`.`Name` as `Creation_Name` FROM `Drive_Config` INNER JOIN `Collector_Info` ON `Drive_Config`.`Collector_Id` = `Collector_Info`.`Id` "
+	baseQuery := "SELECT `Drive_Config`.`Id`, `Drive_Config`.`Type`, `Drive_Config`.`Name`, `Drive_Config`.`Config`, `Drive_Config`.`Points_Length`, IFNULL(`Drive_Config`.`Collector_Id`, 0) AS `Collector_Id`, `Drive_Config`.`Creation_Time`, IFNULL(`Collector_Info`.`Name`, '?') AS `Creation_Name` FROM `Drive_Config` LEFT JOIN `Collector_Info` ON `Drive_Config`.`Collector_Id` = `Collector_Info`.`Id`"
 
 	var whereConditions []string // 存储WHERE子句的条件片段
 	var args []interface{}       // 存储SQL参数，防止注入

@@ -16,9 +16,18 @@ const router = createRouter({
             component: import('@/views/layout/login.vue'),
         },
         {
-            path: '/drive',
-            name: 'drive_config',
-            component: import('@/views/config/drive.vue'),
+            path: '/config',
+            children: [
+                {
+                    path: 'collector',
+                    name: 'collector_config',
+                    component: import('@/views/config/collector/collector.vue'),
+                }, {
+                    path: 'drive',
+                    name: 'drive_config',
+                    component: import('@/views/config/drive/drive.vue'),
+                }
+            ],
         },
         {
             path: '/user',

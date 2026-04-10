@@ -3,12 +3,13 @@
         <div class="user-info-card">
             <el-table :data="config_data" style="width: 100%" max-height="800px">
                 <el-table-column fixed prop="Id" label="Id" width="60" align="center" />
-                <el-table-column prop="Collector_Name" label="采集器名称" min-width="120" show-overflow-tooltip />
                 <el-table-column prop="Name" label="名称" min-width="120" show-overflow-tooltip />
-                <el-table-column prop="Config" label="配置" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="Type" label="类型" width="160" align="center" />
-                <el-table-column prop="Points_Length" label="点位数量" width="100" align="center" />
-                <el-table-column prop="Creation_Time" label="创建时间" width="230" align="center" />
+                <el-table-column prop="Label" label="标识" min-width="120" show-overflow-tooltip />
+                <el-table-column prop="Sn" label="Sn" width="160" align="center" />
+                <el-table-column prop="User_Id" label="创建用户Id" width="100" align="center" />
+                <el-table-column prop="Version" label="版本" width="230" align="center" />
+                <el-table-column prop="Creation_Time" label="创建时间" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="Last_Activity_Time" label="最后活动时间" width="230" align="center" />
                 <el-table-column label="操作" width="180" fixed="right">
                     <template #default="scope">
                         <el-button size="small" @click="editRow(scope)">编辑</el-button>
@@ -30,43 +31,24 @@
             </div>
         </div>
         <!-- 新增/编辑数据对话框 -->
-        <el-dialog v-model="showUpdateDialog" :title="UpdateItem.Id ? '编辑驱动' : '新增驱动'" :close-on-click-modal="false" destroy-on-close>
+        <el-dialog v-model="showUpdateDialog" :title="UpdateItem.Id ? '编辑驱动' : '新增驱动'" :close-on-click-modal="false"
+            destroy-on-close>
             <!-- 动态宽度控制 -->
             <template #default>
                 <div style="width: 100%; max-width: 95%; margin: 0 auto;">
                     <el-form :model="UpdateItem" label-width="100px" ref="addFormRef" :rules="newItemRules">
-                        <el-form-item prop="Id" label="驱动 id">
-                            <el-input v-model.number="UpdateItem.Id" placeholder="驱动 id" size="large" clearable readonly
-                                disabled />
+                        <el-form-item prop="Label" label="标识" v-if="UpdateItem.Id === 0">
+                            <el-input v-model="UpdateItem.Label" placeholder="请输入采集器标识" size="large" />
                         </el-form-item>
 
-                        <el-form-item prop="Collector_Id" label="采集器标识">
-                            <el-input v-model.number="UpdateItem.Collector_Id" type="number" placeholder="请输入采集器标识"
-                                size="large" :readonly="!!UpdateItem.Id" :disabled="!!UpdateItem.Id" />
+                        <el-form-item prop="Uuid" label="Uuid" v-if="UpdateItem.Id === 0">
+                            <el-input v-model="UpdateItem.Uuid" placeholder="请输入采集器Uuid" size="large" />
                         </el-form-item>
 
-                        <el-form-item prop="Type" label="驱动类型">
-                            <el-select v-model="UpdateItem.Type" placeholder="请选择驱动类型" :readonly="!!UpdateItem.Id"
-                                :disabled="!!UpdateItem.Id">
-                                <el-option label="Modbus_Tcp" value="Modbus_Tcp" />
-                                <el-option label="Modbus_Rtu" value="Modbus_Rtu" />
-                                <el-option label="西门子s7" value="Siemens_S7Comm" />
-                            </el-select>
+                        <el-form-item prop="Name" label="名称">
+                            <el-input v-model="UpdateItem.Name" placeholder="请输入采集器名称" size="large" />
                         </el-form-item>
 
-                        <el-form-item prop="Name" label="驱动名称">
-                            <el-input v-model="UpdateItem.Name" type="text" placeholder="请输入驱动名称" size="large"
-                                clearable />
-                        </el-form-item>
-
-                        <el-form-item prop="Config" label="配置">
-                            <el-input v-model="UpdateItem.Config" placeholder="请输入设备连接参数" size="large"
-                                autocomplete="off" @input="UpdateItem.Config = filterInput(UpdateItem.Config)"
-                                clearable />
-                            <div class="input-tip" v-if="tipText">
-                                {{ tipText }}
-                            </div>
-                        </el-form-item>
                     </el-form>
                 </div>
             </template>
@@ -85,11 +67,21 @@ import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance } from 'element-plus' // 引入 FormInstance 类型
 // 修复点3: 移除未使用的 naive-ui 导入
 // import { c } from 'naive-ui' 
-import { Drive_Config__Count, Drive_Config__Query, Drive_Config__Add, Drive_Config__Update, Drive_Config__Del, type Drive_Config__table_interface } from '@/api/config_service'
+import {
+    Collector_Info__Count,
+    Collector_Info__Query,
+    Collector_Info__Add,
+    Collector_Info__Del,
+    Collector_Info__Update,
+    type Collector_Info__table_interface,
+    type Collector_Info__Add_interface,
+} from '@/api/config_service'
+import { useUserStore } from '@/stores/user'
 
+const UserStore = useUserStore() // 获取用户信息
 const router = useRouter()
 
-const config_data: Drive_Config__table_interface[] = reactive([])
+const config_data: Collector_Info__table_interface[] = reactive([])
 const pagination = reactive({
     Page_length: 10, // 每页数量
     total_length: 0, // 总数量
@@ -97,7 +89,7 @@ const pagination = reactive({
 
 // 分页查询 Page 页码
 const Query = (Page: number) => {
-    Drive_Config__Query({
+    Collector_Info__Query({
         Page: Page,
         Page_Size: pagination.Page_length
     }).then((config_info) => {
@@ -108,7 +100,7 @@ const Query = (Page: number) => {
 
 // 查询总条目
 const Count = () => {
-    Drive_Config__Count().then((Count) => {
+    Collector_Info__Count().then((Count) => {
         pagination.total_length = Count
         Query(1)
     })
@@ -142,7 +134,7 @@ const deleteRow = (scope: any) => {
         ElMessage.error('无效的ID')
         return
     }
-    Drive_Config__Del(id).then(() => {
+    Collector_Info__Del(id).then(() => {
         ElMessage.success('删除成功')
         Count()
     }).catch((error) => {
@@ -158,15 +150,18 @@ const showUpdateDialog = ref(false)
 const addFormRef = ref<FormInstance>()
 
 // 新项目数据
-const UpdateItem: Drive_Config__table_interface = reactive({
-    Id: 0,
-    Name: '',
-    Config: '',
-    Type: '',
-    Points_Length: 0,
-    Collector_Id: 0,
-    Creation_Time: '',
-    Collector_Name: '',
+const UpdateItem: Collector_Info__table_interface = reactive({
+    Id: 0,      // 采集 Id
+    Label: '',    // 标识
+    Creation_Time: '',// 创建时间
+    Uuid: '',    // Uuid (修正为 string)
+    Sn: '',    // 设备 sn
+    User_Id: 0,        // 用户 id
+    User_Name: '',        // 用户 id
+    Version: '',    // 版本
+    Last_Activity_Time: '', // 最后活动时间
+    Equipment_Id: 0,        // 设备 id
+    Name: ''    // 设备名称
 })
 
 const addNewRow = () => {
@@ -174,13 +169,9 @@ const addNewRow = () => {
     addFormRef.value?.clearValidate()
 
     Object.assign(UpdateItem, {
-        Id: 0,
-        Name: '',
-        Config: '',
-        Type: '',
-        Points_Length: 0,
-        Collector_Id: 0,
-        Creation_Time: '',
+        Label: '', // 标识
+        Uuid: '', // Uuid
+        User_Id: UserStore.Id,  // 用户 id
     })
     showUpdateDialog.value = true
 }
@@ -197,7 +188,7 @@ const UpdateNewRow = () => {
         }
 
         if (UpdateItem.Id === 0) {
-            Drive_Config__Add(UpdateItem).then(() => {
+            Collector_Info__Add(UpdateItem).then(() => {
                 ElMessage.success('添加成功')
                 showUpdateDialog.value = false
                 Count()
@@ -206,7 +197,7 @@ const UpdateNewRow = () => {
                 ElMessage.error('添加失败')
             })
         } else {
-            Drive_Config__Update(UpdateItem).then(() => {
+            Collector_Info__Update(UpdateItem).then(() => {
                 ElMessage.success('修改成功')
                 showUpdateDialog.value = false
                 Count()
@@ -220,52 +211,52 @@ const UpdateNewRow = () => {
 
 // 验证规则
 const newItemRules = {
-    Collector_Id: [
-        { required: true, message: '请输入采集器标识', trigger: 'blur' },
+    Label: [
+        { required: true, message: '请输入标识', trigger: 'blur' },
         {
-            pattern: /^[1-9]\d*$/,
-            message: '请输入正确的标识格式: 1-999999',
+            pattern: /^.{1,37}$/, // 修改为至少1个字符
+            message: '长度应在1-37个字符之间',
             trigger: 'blur',
         },
     ],
     Name: [
-        { required: true, message: '请输入驱动名称', trigger: 'blur' },
+        { required: true, message: '请输入名称', trigger: 'blur' },
         {
             pattern: /^.{1,23}$/, // 修改为至少1个字符
             message: '长度应在1-23个字符之间',
             trigger: 'blur',
         },
     ],
-    Config: [
-        { required: true, message: '请输入设备连接参数', trigger: 'blur' },
+    Uuid: [
+        { required: true, message: '请输入采集器Uuid', trigger: 'blur' },
         {
-            pattern: /^[0-9a-zA-Z.:]*$/,
-            message: '请输入正确的配置格式: ip:port:其他配置参数',
+            pattern: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/,
+            message: 'Uuid格式不正确',
             trigger: 'blur',
         },
     ],
-    Type: [
-        { required: true, message: '请选择驱动类型', trigger: 'change' }, // 下拉框建议用 change
-    ],
+
 }
+
+
 
 const filterInput = (val: string) => {
     return val.replace(/[^0-9a-zA-Z.:]/g, '')
 }
 
-const tipText = computed(() => {
-    const type = UpdateItem.Type
-    if (type === "Modbus_Tcp") {
-        return '格式：IP:端口:连接超时:响应超时:间隔时间:字节长度，例如 192.168.1.1:502:3s:200ms:1s:8'
-    }
-    if (type === "Modbus_Rtu") {
-        return '格式：串口号:连接超时:响应超时:间隔时间:字节长度，例如 com1:3s:200ms:1s:8'
-    }
-    if (type === "Siemens_S7Comm") {
-        return '格式：IP:端口:连接类型<PG OP[默认] Basic>:机架号:槽号:超时时间:重试时间:轮询时间 192.168.1.1:502:OP:0:1:3s:10s:100ms'
-    }
-    return ''
-})
+// const tipText = computed(() => {
+//     const type = UpdateItem.Type
+//     if (type === "Modbus_Tcp") {
+//         return '格式：IP:端口:连接超时:响应超时:间隔时间:字节长度，例如 192.168.1.1:502:3s:200ms:1s:8'
+//     }
+//     if (type === "Modbus_Rtu") {
+//         return '格式：串口号:连接超时:响应超时:间隔时间:字节长度，例如 com1:3s:200ms:1s:8'
+//     }
+//     if (type === "Siemens_S7Comm") {
+//         return '格式：IP:端口:连接类型<PG OP[默认] Basic>:机架号:槽号:超时时间:重试时间:轮询时间 192.168.1.1:502:OP:0:1:3s:10s:100ms'
+//     }
+//     return ''
+// })
 </script>
 
 <style scoped>
@@ -401,6 +392,6 @@ const tipText = computed(() => {
 
     :deep(.el-form-item__label) {
         font-size: 13px;
-    } 
+    }
 }
 </style>

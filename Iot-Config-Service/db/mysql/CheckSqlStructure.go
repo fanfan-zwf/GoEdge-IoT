@@ -50,7 +50,7 @@ var expectTableRules = []TableRule{
 			{ColumnName: "Label", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true, IsUnique: true},
 			{ColumnName: "Uuid", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
 			{ColumnName: "Sn", ColumnType: "varchar(100)", IsIndex: true},
-			{ColumnName: "User_Id", ColumnType: "int unsigned", DefaultValue: "0", IsIndex: true},
+			{ColumnName: "User_Id", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0", IsIndex: true},
 			{ColumnName: "Version", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
 			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
 			{ColumnName: "Last_Activity_Time", ColumnType: "datetime", IsIndex: true},
@@ -62,7 +62,7 @@ var expectTableRules = []TableRule{
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true},
 			{ColumnName: "Type", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
-			{ColumnName: "Name", ColumnType: "varchar(100)"},
+			{ColumnName: "Name", ColumnType: "varchar(100)", IsRequired: true},
 			{ColumnName: "Config", ColumnType: "varchar(200)"},
 			{ColumnName: "Points_Length", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0"},
 			{ColumnName: "Collector_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
