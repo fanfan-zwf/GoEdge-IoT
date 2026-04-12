@@ -655,7 +655,7 @@ func checkTableExists(tableName string) (bool, error) {
 func CheckSqlStructure() {
 	// 遍历所有表规则，执行校验+修复
 	for _, tableRule := range expectTableRules {
-		log.Printf("\n========== 开始处理表：%s ==========", tableRule.TableName)
+		// log.Printf("\n========== 开始处理表：%s ==========", tableRule.TableName)
 		CheckAndFixTableStructure(tableRule)
 	}
 }

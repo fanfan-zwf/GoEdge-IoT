@@ -157,6 +157,73 @@ func Collector_Info__Query(page uint, pageSize uint) (configs []Collector_Info_t
 	return configs, nil
 }
 
+// 采集-》搜索
+// 传递：field quantity 数量，vague 模糊搜索字符串
+// 返回：configs 配置，err 错误
+func Collector_Info__Search_Name(field string, quantity uint, vague string) (configs []Collector_Info_type, err error) {
+	if field != "Name" {
+		err = fmt.Errorf("ERROR field参数错误 field:%s", field)
+		return
+	} else if field == "" {
+		field = "Name"
+	}
+
+	if vague == "" {
+		return nil, fmt.Errorf("参数错误")
+	}
+
+	// 1. 初始化 SQL
+	baseQuery := "SELECT `Id`, `Equipment_Id`, `Label`, `Creation_Time`, `Uuid`, `Sn`, `User_Id`, `Version`, `Last_Activity_Time`, `Name` FROM `Collector_Info` WHERE ? LIKE ? LIMIT ?"
+
+	// 4. 执行查询
+	rows, err := DB.Query(baseQuery, field, vague, quantity)
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询采集配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, []interface{}{vague, quantity})
+		log.Print(err)
+		return nil, err
+	}
+	// 修复：仅在 err == nil 时 defer close，避免 panic
+	defer rows.Close()
+
+	var (
+		Sn                 sql.NullString
+		Last_Activity_Time sql.NullTime
+		Name               sql.NullString
+	)
+	for rows.Next() {
+		var Config Collector_Info_type
+		err = rows.Scan(
+			&Config.Id,
+			&Config.Equipment_Id,
+			&Config.Label,
+			&Config.Creation_Time,
+			&Config.Uuid,
+			&Sn,
+			&Config.User_Id,
+			&Config.Version,
+			&Last_Activity_Time,
+			&Name,
+		)
+		if err != nil {
+			log.Print(err.Error())
+			return nil, err
+		}
+
+		Config.Sn = Sn.String
+		Config.Last_Activity_Time = Last_Activity_Time.Time
+		Config.Name = Name.String
+
+		configs = append(configs, Config)
+	}
+
+	// 检查遍历过程中的错误
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return configs, nil
+}
+
 // 采集-》增加配置
 // 传递：config 配置数组形式
 // 返回：err 错误

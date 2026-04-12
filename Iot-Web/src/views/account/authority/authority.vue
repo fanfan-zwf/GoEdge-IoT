@@ -42,11 +42,7 @@
                         </div>
                         <div v-else>
                             <el-button size="small" @click="editRow(scope)">编辑</el-button>
-                            <el-popconfirm title="确认删除这个权限吗？" @confirm="function () { deleteRow(scope) }">
-                                <template #reference>
-                                    <el-button size="small" type="danger">删除</el-button>
-                                </template>
-                            </el-popconfirm>
+                            <el-button size="small" type="danger" @click="deleteRow(scope)">删除</el-button>
                         </div>
                     </template>
                 </el-table-column>
@@ -70,7 +66,7 @@
 <script setup lang="ts">
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Authority__Count, Authority__Query, Authority__Add, Authority__Update, Authority__Del, type Authority__table_interface } from '@/api/api'
 
 
@@ -174,13 +170,28 @@ const deleteRow = (scope: any) => {
         ElMessage.error('找不到下标')
         return
     }
-    // 调用接口删除
-    Authority__Del(id).then(() => {
-        // 删除成功重新加载
-        authority_data.splice(scope.$index, 1)
-        pagination.total_length = -1
-        // Count()
+
+    ElMessageBox.prompt(`确定要删除 <span style="color:#ff0000; font-size:14px">${scope.row.Name ?? ''}</span> 权限吗？ 输入权限名称以确认删除。`,
+        '警告', {
+        confirmButtonText: '确定',
+        confirmButtonType: 'danger',
+        cancelButtonText: '取消',
+        inputPattern: new RegExp(`^${scope.row.Name ?? '未知'}'$`),
+        inputErrorMessage: '输入内容不正确',
+        dangerouslyUseHTMLString: true,
     })
+        .then(({ }) => {
+            // 调用接口删除
+            Authority__Del(id).then(() => {
+                // 删除成功重新加载
+                authority_data.splice(scope.$index, 1)
+                pagination.total_length = -1
+                // Count()
+            })
+        })
+        .catch(() => {
+            ElMessage.info('已取消输入')
+        })
 }
 
 // 新增行

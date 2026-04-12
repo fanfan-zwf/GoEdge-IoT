@@ -18,11 +18,7 @@
                 <el-table-column prop="Authority.Theme" label="权限主题" min-width="120" max-width="170" />
                 <el-table-column label="操作" width="170">
                     <template #default="scope">
-                        <el-popconfirm title="确认删除这个用户权限吗？" @confirm="function () { deleteRow(scope) }">
-                            <template #reference>
-                                <el-button size="small" type="danger">删除</el-button>
-                            </template>
-                        </el-popconfirm>
+                        <el-button size="small" type="danger" @click="deleteRow(scope)">删除</el-button> 
                     </template>
                 </el-table-column>
             </el-table>
@@ -76,7 +72,7 @@
 <script setup lang="ts">
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
     Authority_User__All_Count, Authority_User__All_Query, Authority_User__Del,
     Authority_User__Add, User__Get_Info_Array,
@@ -176,14 +172,27 @@ const handleCurrentChange = (value: number) => {
 
 // 删除行
 const deleteRow = (scope: any) => {
-    // 调用接口删除
-    console.log(scope.row.Id)
-    Authority_User__Del(scope.row.Id).then(() => {
-        // 删除成功重新加载
-        authority_data.splice(scope.$index, 1)
-        pagination.total_length -= 1
-        // Count()
+
+    ElMessageBox.prompt(`确定要删除 <span style="color:#ff0000; font-size:14px">${scope.row.User.Name ?? ''}</span> 用户的 <span style="color:#ff0000; font-size:14px">${scope.row.Authority.Name ?? ''}</span> 权限吗？ 输入权限名称以确认删除。`,
+        '警告', {
+        confirmButtonText: '确定',
+        confirmButtonType: 'danger',
+        cancelButtonText: '取消',
+        inputPattern: new RegExp(`^${scope.row.Authority.Name ?? '未知'}$`),
+        inputErrorMessage: '输入内容不正确',
+        dangerouslyUseHTMLString: true,
     })
+        .then(({ }) => {
+            Authority_User__Del(scope.row.Id).then(() => {
+                // 删除成功重新加载
+                authority_data.splice(scope.$index, 1)
+                pagination.total_length -= 1
+                // Count()
+            })
+        })
+        .catch(() => {
+            ElMessage.info('已取消输入')
+        })
 }
 
 // 使能

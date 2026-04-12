@@ -64,7 +64,7 @@
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { reactive, onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance } from 'element-plus' // 引入 FormInstance 类型
+import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus' // 引入 FormInstance 类型
 // 修复点3: 移除未使用的 naive-ui 导入
 // import { c } from 'naive-ui' 
 import {
@@ -134,13 +134,28 @@ const deleteRow = (scope: any) => {
         ElMessage.error('无效的ID')
         return
     }
-    Collector_Info__Del(id).then(() => {
-        ElMessage.success('删除成功')
-        Count()
-    }).catch((error) => {
-        console.error('删除失败:', error)
-        ElMessage.error('删除失败')
+
+    ElMessageBox.prompt(`确定要删除 <span style="color:#ff0000; font-size:14px">${scope.row.Name ?? ''}</span> 采集服务吗？ 输入采集服务名称以确认删除。`,
+        '警告', {
+        confirmButtonText: '确定',
+        confirmButtonType: 'danger',
+        cancelButtonText: '取消',
+        inputPattern: new RegExp(`^${scope.row.Name}$`),
+        inputErrorMessage: '输入内容不正确',
+        dangerouslyUseHTMLString: true,
     })
+        .then(({ }) => {
+            Collector_Info__Del(id).then(() => {
+                ElMessage.success('删除成功')
+                Count()
+            }).catch((error) => {
+                console.error('删除失败:', error)
+                ElMessage.error('删除失败')
+            })
+        })
+        .catch(() => {
+            ElMessage.info('已取消输入')
+        })
 }
 
 // 响应式数据 

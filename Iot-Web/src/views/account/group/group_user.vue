@@ -57,7 +57,7 @@
 <script setup lang="ts">
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import {
     Group_User__Count, Group_User__Query, Group_User__Add, Group_User__Del, Group_User__Administrator,
@@ -142,13 +142,27 @@ const handleCurrentChange = (value: number) => {
 
 // 删除行
 const deleteRow = (scope: any) => {
-    // 调用接口删除 
-    Group_User__Del(scope.row.Id).then(() => {
-        // 删除成功重新加载
-        Group_User_data.splice(scope.$index, 1)
-        pagination.total_length -= 1
-        // Count()
+    ElMessageBox.prompt(`确定要删除 <span style="color:#ff0000; font-size:14px">${scope.row.Name ?? ''}</span> 组中的 <span style="color:#ff0000; font-size:14px">${scope.row.User.Name ?? ''}</span> 用户吗？ 输入用户名称以确认删除。`,
+        '警告', {
+        confirmButtonText: '确定',
+        confirmButtonType: 'danger',
+        cancelButtonText: '取消',
+        inputPattern: new RegExp(`^${scope.row.User.Name ?? '未知'}$`),
+        inputErrorMessage: '输入内容不正确',
+        dangerouslyUseHTMLString: true,
     })
+        .then(({ }) => {
+            Group_User__Del(scope.row.Id).then(() => {
+                // 删除成功重新加载
+                Group_User_data.splice(scope.$index, 1)
+                pagination.total_length -= 1
+                // Count()
+            })
+        })
+        .catch(() => {
+            ElMessage.info('已取消输入')
+        })
+
 }
 
 const click_switch = (scope: any) => {

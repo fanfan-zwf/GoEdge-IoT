@@ -59,14 +59,14 @@
                     <el-input v-model="newItem.Email" type="Email" placeholder="请输入邮箱" size="large"
                         :prefix-icon="Message" show-Message />
                 </el-form-item>
-  
+
                 <el-form-item prop="Discontinued" label="停用">
                     <el-switch v-model="newItem.Discontinued" />
                 </el-form-item>
             </el-form>
             <template #footer>
                 <el-button @click="showAddDialog = false">取消</el-button>
-                <el-button type="primary" @click="addNewRow">确定添加</el-button>
+                <el-button type="primary" @click="addNew">确定添加</el-button>
             </template>
         </el-dialog>
     </el-config-provider>
@@ -77,8 +77,8 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { User, Lock, Key, Phone, Message } from '@element-plus/icons-vue'
 import { reactive, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { User__All_Count, User__All_Query, User__Set_Del, type User__all_table_type, type User__table_interface } from '@/api/api'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { User__All_Count, User__All_Query, User__Set_Del, User_Set_Add, type User__all_table_type, type User__table_interface } from '@/api/api'
 
 const router = useRouter()
 
@@ -137,7 +137,27 @@ const editRow = (scope: any) => {
 // 删除行
 const deleteRow = (scope: any) => {
     const id: number = scope.row.Id ?? 0
-    User__Set_Del(id)
+    if (id === 0) {
+        ElMessage.error('无效的ID')
+        return
+    }
+
+    ElMessageBox.prompt(`确定要删除 <span style="color:#ff0000; font-size:14px">${scope.row.Name ?? ''}</span> 用户吗？ 输入用户名以确认删除。`,
+        '警告', {
+        confirmButtonText: '确定',
+        confirmButtonType: 'danger',
+        cancelButtonText: '取消',
+        inputPattern: new RegExp(`^${scope.row.Name ?? '未知'}$`),
+        inputErrorMessage: '输入内容不正确',
+        dangerouslyUseHTMLString: true,
+    })
+        .then(({ }) => {
+            User__Set_Del(id)
+        })
+        .catch(() => {
+            ElMessage.info('已取消输入')
+        })
+
 }
 
 
@@ -164,25 +184,33 @@ const newItem: User__all_table_type = reactive({
     Passwd: '' // 密码
 })
 
-// 新增用户
+// 新增用户弹窗显示
 const addNewRow = () => {
     showAddDialog.value = true
 }
+
+const addNew = () => {
+    User_Set_Add(newItem).then(() => {
+        showAddDialog.value = false
+        Count()
+    })
+}
+
 // 验证规则
 const newItemRules = {
     Name: [
         { required: true, message: '请输入用户名', trigger: 'blur' },
         {
-            pattern: /^.{0,23}$/,
-            message: '太长了',
+            pattern: /^.{3,23}$/,
+            message: '用户名必须在3到23个字符之间',
             trigger: 'blur'
         }
     ],
     Passwd: [
         { required: true, message: '请输入密码', trigger: 'blur' },
         {
-            pattern: /^(?=.*\d)(?=.*[!@#$%&])[A-Za-z\d!@#$%&]{8}$/,
-            message: '请输入大于8位,包含大小写、数字和 ! @ # $ % & 特殊符号',
+            pattern: /^(?=.*\d)(?=.*[!@#$%&])[A-Za-z\d!@#$%&]{8,20}$/,
+            message: '请输入8～20位的密码,包含大小写、数字和 ! @ # $ % & 特殊符号',
             trigger: 'blur'
         }
     ],

@@ -4,9 +4,9 @@
             <el-table :data="config_data" style="width: 100%" max-height="800px">
                 <el-table-column fixed prop="Id" label="Id" width="60" align="center" />
                 <el-table-column prop="Collector_Name" label="采集器名称" min-width="120" show-overflow-tooltip />
-                <el-table-column prop="Name" label="名称" min-width="120" show-overflow-tooltip />
+                <el-table-column prop="Name" label="名称" max-width="120" show-overflow-tooltip />
+                <el-table-column prop="Type" label="类型" min-width="60" align="center" />
                 <el-table-column prop="Config" label="配置" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="Type" label="类型" width="160" align="center" />
                 <el-table-column prop="Points_Length" label="点位数量" width="100" align="center" />
                 <el-table-column prop="Creation_Time" label="创建时间" width="230" align="center" />
                 <el-table-column label="操作" width="180" fixed="right">
@@ -31,44 +31,44 @@
         </div>
         <!-- 新增/编辑数据对话框 -->
         <el-dialog v-model="showUpdateDialog" :title="UpdateItem.Id ? '编辑驱动' : '新增驱动'" :close-on-click-modal="false"
-            destroy-on-close>
+            destroy-on-close width="">
             <!-- 动态宽度控制 -->
             <template #default>
-                <div style="width: 100%; max-width: 95%; margin: 0 auto;">
-                    <el-form :model="UpdateItem" label-width="100px" ref="addFormRef" :rules="newItemRules">
-                        <el-form-item prop="Id" label="驱动 id">
-                            <el-input v-model.number="UpdateItem.Id" placeholder="驱动 id" size="large" clearable readonly
-                                disabled />
-                        </el-form-item>
+                <el-form :model="UpdateItem" ref="addFormRef" :rules="newItemRules">
+                    <el-form-item prop="Id" label="驱动 id" v-if="UpdateItem.Id !== 0">
+                        <el-input v-model.number="UpdateItem.Id" placeholder="驱动 id" size="large" clearable readonly
+                            disabled />
+                    </el-form-item>
 
-                        <el-form-item prop="Collector_Id" label="采集器标识" v-if="UpdateItem.Id === 0">
+                    <el-form-item prop="Collector_Name" label="搜索采集器" v-if="UpdateItem.Id === 0">
+                        <Search_Collector :result="(value) => { UpdateItem.Collector_Id = value.Id; }" />
+                    </el-form-item>
+
+                    <!-- <el-form-item prop="Collector_Id" label="采集器标识" v-if="UpdateItem.Id === 0">
                             <el-input v-model.number="UpdateItem.Collector_Id" type="number" placeholder="请输入采集器标识"
                                 size="large" />
-                        </el-form-item>
+                        </el-form-item> -->
 
-                        <el-form-item prop="Type" label="驱动类型" v-if="UpdateItem.Id === 0">
-                            <el-select v-model="UpdateItem.Type" placeholder="请选择驱动类型">
-                                <el-option label="Modbus_Tcp" value="Modbus_Tcp" />
-                                <el-option label="Modbus_Rtu" value="Modbus_Rtu" />
-                                <el-option label="西门子s7" value="Siemens_S7Comm" />
-                            </el-select>
-                        </el-form-item>
+                    <el-form-item prop="Type" label="驱动类型" v-if="UpdateItem.Id === 0">
+                        <el-select v-model="UpdateItem.Type" placeholder="请选择驱动类型">
+                            <el-option label="Modbus_Tcp" value="Modbus_Tcp" />
+                            <el-option label="Modbus_Rtu" value="Modbus_Rtu" />
+                            <el-option label="西门子s7" value="Siemens_S7Comm" />
+                        </el-select>
+                    </el-form-item>
 
-                        <el-form-item prop="Name" label="驱动名称">
-                            <el-input v-model="UpdateItem.Name" type="text" placeholder="请输入驱动名称" size="large"
-                                clearable />
-                        </el-form-item>
+                    <el-form-item prop="Name" label="驱动名称">
+                        <el-input v-model="UpdateItem.Name" type="text" placeholder="请输入驱动名称" size="large" clearable />
+                    </el-form-item>
 
-                        <el-form-item prop="Config" label="配置">
-                            <el-input v-model="UpdateItem.Config" placeholder="请输入设备连接参数" size="large"
-                                autocomplete="off" @input="UpdateItem.Config = filterInput(UpdateItem.Config)"
-                                clearable />
-                            <div class="input-tip" v-if="tipText">
-                                {{ tipText }}
-                            </div>
-                        </el-form-item>
-                    </el-form>
-                </div>
+                    <el-form-item prop="Config" label="配置">
+                        <el-input v-model="UpdateItem.Config" placeholder="请输入设备连接参数" size="large" autocomplete="off"
+                            @input="UpdateItem.Config = filterInput(UpdateItem.Config)" clearable />
+                        <div class="input-tip" v-if="tipText">
+                            {{ tipText }}
+                        </div>
+                    </el-form-item>
+                </el-form>
             </template>
             <template #footer>
                 <el-button @click="showUpdateDialog = false">取消</el-button>
@@ -82,12 +82,13 @@
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { reactive, onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance } from 'element-plus' // 引入 FormInstance 类型
+import { ElMessage, type FormInstance, ElMessageBox } from 'element-plus' // 引入 FormInstance 类型
 // 修复点3: 移除未使用的 naive-ui 导入
 // import { c } from 'naive-ui' 
 import { Drive_Config__Count, Drive_Config__Query, Drive_Config__Add, Drive_Config__Update, Drive_Config__Del, type Drive_Config__table_interface } from '@/api/config_service'
+import Search_Collector from '@/components/Search_Collector.vue'
 
-const router = useRouter()
+// const router = useRouter()
 
 const config_data: Drive_Config__table_interface[] = reactive([])
 const pagination = reactive({
@@ -142,13 +143,29 @@ const deleteRow = (scope: any) => {
         ElMessage.error('无效的ID')
         return
     }
-    Drive_Config__Del(id).then(() => {
-        ElMessage.success('删除成功')
-        Count()
-    }).catch((error) => {
-        console.error('删除失败:', error)
-        ElMessage.error('删除失败')
+
+    ElMessageBox.prompt(`确定要删除 <span style="color:#ff0000; font-size:14px">${scope.row.Name ?? ''}</span> 驱动吗？ 输入驱动名称以确认删除。`,
+        '警告', {
+        confirmButtonText: '确定',
+        confirmButtonType: 'danger',
+        cancelButtonText: '取消',
+        inputPattern: new RegExp(`^${scope.row.Name}$`),
+        inputErrorMessage: '输入内容不正确',
+        dangerouslyUseHTMLString: true,
     })
+        .then(({ }) => {
+            Drive_Config__Del(id).then(() => {
+                ElMessage.success('删除成功')
+                Count()
+            }).catch((error) => {
+                console.error('删除失败:', error)
+                ElMessage.error('删除失败')
+            })
+        })
+        .catch(() => {
+            ElMessage.info('已取消输入')
+        })
+
 }
 
 // 响应式数据 
@@ -367,6 +384,17 @@ const tipText = computed(() => {
     :deep(.el-textarea__inner) {
         font-size: 14px;
         padding: 8px 12px;
+    }
+}
+
+/* 新增：屏幕宽度小于700px时，调整.el-dialog宽度为90% */
+@media (max-width: 700px) {
+    :deep(.el-dialog) {
+        width: 90% !important;
+        max-width: 90% !important;
+        margin-top: 5vh !important;
+        /* 覆盖 Element Plus 默认的 CSS 变量宽度限制 */
+        --el-dialog-width: 90% !important;
     }
 }
 

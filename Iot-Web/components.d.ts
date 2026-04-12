@@ -66,6 +66,9 @@ declare module 'vue' {
     ElTransfer: typeof import('element-plus/es')['ElTransfer']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    Search_Collector: typeof import('./src/components/Search_Collector.vue')['default']
+    SearchCollector: typeof import('./src/components/SearchCollector.vue')['default']
+    User_Menu: typeof import('./src/components/User_Menu.vue')['default']
     UserMenu: typeof import('./src/components/UserMenu.vue')['default']
   }
 }

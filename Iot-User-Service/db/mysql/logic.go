@@ -531,55 +531,79 @@ func User__Avatar_Update(User_Id uint, Avatar string) (err error) {
 
 // 增加用户
 func User__Add(value User__all_table_type) (Id uint, err error) {
-	if value.Id == 0 {
-		err = fmt.Errorf("Id不能对于0")
+	// 1. 基础校验：必须字段
+	if value.Id != 0 {
+		err = fmt.Errorf("ERROR Id 不能不为0")
+		return
+	}
+
+	if value.Discontinued {
+		err = fmt.Errorf("ERROR 暂时不支持传建用户并且停用")
 		return
 	}
 
 	if len(value.Name) == 0 || len(value.Passwd) == 0 {
-		err = fmt.Errorf("User_Name长度是0 或 User_Passwd长度是0")
+		err = fmt.Errorf("ERROR User_Name 或 User_Passwd 不能为空")
 		log.Print(err.Error())
 		return
 	}
 
-	query := `
-	INSERT
-		INTO
-		User(Name, Passwd, Permissions, Discontinued, Phone, Email, Refresh_Token_bits, Access_Token_bits, Refresh_Token_TTL, Access_Token_TTL) 
-		VALUES(?,?,?,?,?,?,?)
-	`
-	// 修改数据库
-	var result sql.Result
-	result, err = DB.Exec(query,
-		value.Name,
-		value.Passwd,
-		value.Permissions,
-		value.Discontinued,
-		sql.NullString{
-			String: value.Phone,       // 空字符串
-			Valid:  value.Phone != "", // 表示是 NULL
-		},
-		sql.NullString{
-			String: value.Email,       // 空字符串
-			Valid:  value.Email != "", // 表示是 NULL
-		},
-		value.Refresh_Token_bits,
-		value.Access_Token_bits,
-		value.Refresh_Token_TTL,
-		value.Access_Token_TTL,
-	)
+	// 2. 动态收集【非默认值】的字段和参数
+	var fields []string
+	var args []interface{}
+
+	// 必传字段（必须插入）
+	fields = append(fields, "Name", "Passwd")
+	args = append(args, value.Name, value.Passwd)
+
+	// 非默认值才加入
+	if value.Permissions != 0 {
+		fields = append(fields, "Permissions")
+		args = append(args, value.Permissions)
+	}
+	// if value.Discontinued { // bool 只有 true 才是非默认
+	fields = append(fields, "Discontinued")
+	args = append(args, 0)
+	// }
+	if value.Phone != "" {
+		fields = append(fields, "Phone")
+		args = append(args, sql.NullString{String: value.Phone, Valid: true})
+	}
+	if value.Email != "" {
+		fields = append(fields, "Email")
+		args = append(args, sql.NullString{String: value.Email, Valid: true})
+	}
+	if value.Refresh_Token_bits != 0 {
+		fields = append(fields, "Refresh_Token_bits")
+		args = append(args, value.Refresh_Token_bits)
+	}
+	if value.Access_Token_bits != 0 {
+		fields = append(fields, "Access_Token_bits")
+		args = append(args, value.Access_Token_bits)
+	}
+	if value.Refresh_Token_TTL != 0 {
+		fields = append(fields, "Refresh_Token_TTL")
+		args = append(args, value.Refresh_Token_TTL)
+	}
+	if value.Access_Token_TTL != 0 {
+		fields = append(fields, "Access_Token_TTL")
+		args = append(args, value.Access_Token_TTL)
+	}
+
+	// 3. 拼接动态 SQL
+	fieldStr := strings.Join(fields, ", ")
+	placeholders := strings.Repeat(",?", len(fields))[1:] // 生成 ?,?,?...
+	query := fmt.Sprintf(`
+		INSERT INTO User(%s) 
+		VALUES(%s)
+	`, fieldStr, placeholders)
+
+	// 4. 执行插入
+	_, err = DB.Exec(query, args...)
 	if err != nil {
 		log.Print(err.Error())
 		return
 	}
-
-	// 影响的id
-	var LastInsertId int64
-	LastInsertId, err = result.LastInsertId()
-	if err != nil {
-		log.Print(err.Error())
-	}
-	Id = uint(LastInsertId)
 
 	return
 }
