@@ -26,6 +26,10 @@ const router = createRouter({
                     path: 'drive',
                     name: 'drive_config',
                     component: import('@/views/config/drive/drive.vue'),
+                },{
+                    path: 'point',
+                    name: 'point_config',
+                    component: import('@/views/config/point/point.vue'),
                 }
             ],
         },

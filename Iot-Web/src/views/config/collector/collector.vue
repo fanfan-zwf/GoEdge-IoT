@@ -32,7 +32,7 @@
         </div>
         <!-- 新增/编辑数据对话框 -->
         <el-dialog v-model="showUpdateDialog" :title="UpdateItem.Id ? '编辑驱动' : '新增驱动'" :close-on-click-modal="false"
-            destroy-on-close>
+            destroy-on-close label-width="120px">
             <!-- 动态宽度控制 -->
             <template #default>
                 <div style="width: 100%; max-width: 95%; margin: 0 auto;">
@@ -149,8 +149,7 @@ const deleteRow = (scope: any) => {
                 ElMessage.success('删除成功')
                 Count()
             }).catch((error) => {
-                console.error('删除失败:', error)
-                ElMessage.error('删除失败')
+                ElMessage.error(error)
             })
         })
         .catch(() => {

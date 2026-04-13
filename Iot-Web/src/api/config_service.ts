@@ -197,7 +197,7 @@ export async function Collector_Info__Del(Id: number): Promise<void> {
  */
 export async function Collector_Info__Search_Name(params?: {
     Field: string; Quantity: number; Vague: string;
-}): Promise<Collector_Info__table_interface[]> { 
+}): Promise<Collector_Info__table_interface[]> {
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/search', {
@@ -420,20 +420,40 @@ export async function Drive_Config__Del(Id: number): Promise<void> {
 }
 
 /**
+ * 采集-》搜索
+ * 传递：field quantity 数量，vague 模糊搜索字符串 返回：configs 配置，err 错误
+ */
+export async function Drive_Config__Search_Name(params?: {
+    Field: string; Quantity: number; Vague: string;
+}): Promise< Drive_Config__table_interface[]> {
+    try {
+        // 修改：直接 await axios.post
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/drive/search', {
+            Field: params?.Field,
+            Quantity: params?.Quantity,
+            Vague: params?.Vague
+        })
+
+        if (response.status == 200) {
+            return response.data.Data as Drive_Config__table_interface[]
+        }
+        throw response.data.Msg || '未知错误';
+    } catch (error: unknown) {
+        const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
+        if (axiosError.code == "ERR_NETWORK") {
+            ElMessage({ message: '请求超时', type: 'error' })
+            throw '请求超时'
+        }
+        // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
+        throw axiosError.response?.data?.Msg || '请求失败';
+    }
+
+}
+
+/**
 *******************点位*******************
 */
 
-/**
- * 点位配置增加表接口
- */
-export interface Points_Config__add_interface {
-    Drive_Id: number   // 点位 id 唯一标识符
-    Tag: string // 点位标识
-    Description: string // 点位描述
-    RW_Cancel: string // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
-    Value_Type: string // 输出类型
-    Config: string
-}
 
 /**
  * 点位配置更新表接口
@@ -447,12 +467,20 @@ export interface Points_Config__Update_interface {
     Config: string
 }
 
+/**
+ * 点位配置增加表接口
+ */
+export interface Points_Config__add_interface extends Points_Config__Update_interface {
+    Drive_Id: number   // 点位 id 唯一标识符 
+    Drive_Type: string // 驱动类型
+}
 
 /**
  * 点位配置配置表接口
  */
 export interface Points_Config__table_interface extends Points_Config__Update_interface {
-    Creation_Time: string // 创建时间
+    Creation_Time: string // 创建时间  
+    Drive_Type: string // 驱动类型 
 }
 
 
@@ -461,7 +489,7 @@ export interface Points_Config__table_interface extends Points_Config__Update_in
  * 传递：Page 页码，Page_Size 每页数量，Drive_Id 驱动 id 返回：Count 数量
  */
 
-export async function Points_Config__count(params?: {
+export async function Points_Config__Count(params?: {
     Page?: number; Page_Size?: number; Drive_Id?: number;
 }): Promise<number> {
     // 默认值

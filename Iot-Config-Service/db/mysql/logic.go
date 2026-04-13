@@ -558,6 +558,56 @@ func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize
 	return
 }
 
+// 驱动-》搜索
+// 传递：field quantity 数量，vague 模糊搜索字符串
+// 返回：configs 配置，err 错误
+func Drive_Config__Search_Name(field string, quantity uint, vague string) (configs []Drive_Config_type, err error) {
+	if field != "Name" {
+		err = fmt.Errorf("ERROR field参数错误 field:%s", field)
+		return
+	} else if field == "" {
+		field = "Name"
+	}
+
+	if vague == "" {
+		return nil, fmt.Errorf("参数错误")
+	}
+
+	// 1. 初始化 SQL
+	baseQuery := "SELECT `Drive_Config`.`Id`, `Drive_Config`.`Type`, `Drive_Config`.`Name`, `Drive_Config`.`Config`, `Drive_Config`.`Points_Length`, IFNULL(`Drive_Config`.`Collector_Id`, 0) AS `Collector_Id`, `Drive_Config`.`Creation_Time`, IFNULL(`Collector_Info`.`Name`, '?') AS `Creation_Name` FROM `Drive_Config` LEFT JOIN `Collector_Info` ON `Drive_Config`.`Collector_Id` = `Collector_Info`.`Id` WHERE ? LIKE ? LIMIT ?"
+
+	// 4. 执行查询
+	rows, err := DB.Query(baseQuery, field, vague, quantity)
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询采集配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, []interface{}{vague, quantity})
+		log.Print(err)
+		return nil, err
+	}
+	// 修复：仅在 err == nil 时 defer close，避免 panic
+	defer rows.Close()
+
+	for rows.Next() {
+		var config Drive_Config_type
+		err = rows.Scan(
+			&config.Id,
+			&config.Type,
+			&config.Name,
+			&config.Config,
+			&config.Points_Length,
+			&config.Collector_Id,
+			&config.Creation_Time,
+			&config.Collector_Name,
+		)
+		if err != nil {
+			log.Print(err.Error())
+			return
+		}
+
+		configs = append(configs, config)
+	}
+	return
+}
+
 // 驱动-》增加配置
 // 传递：config 配置数组形式
 // 返回：err 错误
@@ -712,6 +762,8 @@ type Points_Config_Update_type struct {
 // 点位配置结构体
 type Points_Config_type struct {
 	Points_Config_Update_type
+	Drive_Id      uint      // 驱动id唯一标识符
+	Drive_Type    string    // 驱动类型
 	Creation_Time time.Time // 创建时间
 }
 
@@ -778,7 +830,9 @@ func Points_Config__Query(driveid uint, page uint, pageSize uint) (configs []Poi
 			Points_Config.Config,
 			Points_Config.RW_Cancel,
 			Points_Config.Value_Type,
-			Points_Config.Creation_Time
+			Points_Config.Creation_Time,
+			Drive_Config.Id AS Drive_Id,
+			Drive_Config.Type AS Drive_Type
 		FROM Points_Config
 		INNER JOIN Drive_Config ON Points_Config.Drive_Id = Drive_Config.Id	
 	`
@@ -821,6 +875,8 @@ func Points_Config__Query(driveid uint, page uint, pageSize uint) (configs []Poi
 			&Config.RW_Cancel,
 			&Config.Value_Type,
 			&Config.Creation_Time,
+			&Config.Drive_Id,
+			&Config.Drive_Type,
 		)
 		if err != nil {
 			log.Print(err.Error())

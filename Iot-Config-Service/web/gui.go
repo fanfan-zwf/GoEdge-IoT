@@ -259,6 +259,30 @@ func Drive_Config__Del(ctx *gin.Context) {
 
 }
 
+func Drive_Config__Search_Name(ctx *gin.Context) {
+	var jsondata struct {
+		Field    string
+		Quantity uint
+		Vague    string
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	config_list, err := db_mysql.Drive_Config__Search_Name(jsondata.Field, jsondata.Quantity, jsondata.Vague)
+	if err == sql.ErrNoRows || len(config_list) == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
+	} else if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok", config_list})
+}
+
 /*
 ***************点位配置接口***************
  */
@@ -374,7 +398,6 @@ func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/collector_info/add", Collector_Info__Add)
 	r.POST("/api/gui/v1.0/collector_info/update", Collector_Info__Update)
 	r.POST("/api/gui/v1.0/collector_info/del", Collector_Info__Del)
-
 	r.POST("/api/gui/v1.0/collector_info/search", Collector_Info__Search_Name)
 
 	r.POST("/api/gui/v1.0/config/drive/count", Drive_Config__Count)
@@ -382,6 +405,7 @@ func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/config/drive/add", Drive_Config__Add)
 	r.POST("/api/gui/v1.0/config/drive/update", Drive_Config__Update)
 	r.POST("/api/gui/v1.0/config/drive/del", Drive_Config__Del)
+	r.POST("/api/gui/v1.0/drive/search", Drive_Config__Search_Name)
 
 	r.POST("/api/gui/v1.0/config/points/count", Points_Config__Count)
 	r.POST("/api/gui/v1.0/config/points/query", Points_Config__Query)

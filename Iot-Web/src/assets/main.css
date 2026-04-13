@@ -102,3 +102,228 @@ img {
 .user-info .el-icon {
     margin-right: 8px;
 }
+
+ 
+
+/* 统一移动端适配：屏幕宽度小于 768px 时 */
+@media (max-width: 768px) {
+    /* 修改：移除 .responsive-dialog 类限制，使所有 el-dialog 在移动端都适配 */
+    .el-dialog {
+        /* 默认桌面端宽度在全局非媒体查询中设置，此处仅处理移动端 */
+        /* 注意：由于 main.css 是全局引入，我们需要在非媒体查询部分设置默认值，或者在这里覆盖 */
+        /* 为了保持结构清晰，我们在下面的非媒体查询部分设置默认值，这里只处理响应式变化 */
+        
+        /* 重置 transform，使用 margin 居中 */
+        transform: none !important; 
+        margin: 5vh auto !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        bottom: auto !important;
+        /* 新增：限制最大高度，防止超出视口 */
+        max-height: 85vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .el-dialog__body {
+        padding: 15px 10px;
+        /* 新增：允许 body 区域滚动 */
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    /* 关键修改：移动端改为垂直布局，防止溢出 */
+    .el-dialog .el-form-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+
+    .el-dialog .el-form-item__label {
+        width: 100% !important;
+        text-align: left;
+        padding-bottom: 4px;
+        line-height: 1.5;
+        font-size: 14px;
+        height: auto !important;
+    }
+
+    .el-dialog .el-form-item__content {
+        margin-left: 0 !important;
+        width: 100%;
+    }
+
+    /* 优化输入框和选择框大小 */
+    .el-dialog .el-input,
+    .el-dialog .el-select {
+        width: 100%;
+    }
+    
+    /* 修改：移动端强制统一 Select 高度，覆盖之前的 auto 设置 */
+    .el-dialog .el-select .el-input__inner,
+    .el-dialog .el-select__wrapper {
+        min-height: 40px !important;
+        height: 40px !important;
+        line-height: 40px !important;
+        font-size: 14px;
+        padding-left: 12px;
+        padding-right: 30px;
+    }
+
+    /* 针对 el-select 的特殊处理，确保下拉箭头垂直居中 */
+    /* 优化底部按钮 */
+    .el-dialog__footer {
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .el-dialog .el-button {
+        padding: 8px 15px;
+        font-size: 14px;
+        flex: 1;
+        margin: 0 5px;
+    }
+
+    /* 提示文字适配 */
+    .input-tip {
+        font-size: 11px;
+        line-height: 1.4;
+        word-break: break-all;
+    }
+}
+
+/* 全局统一输入框和选择框高度样式 (适用于所有端) */
+.el-input__inner,
+.el-textarea__inner {
+    font-size: 14px;
+    /* 统一内边距，确保高度一致且视觉舒适 */
+    padding: 8px 12px; 
+    /* 设置统一的最小高度 */
+    min-height: 36px;   
+    line-height: 1.5;   
+    box-sizing: border-box;
+}
+
+/* 针对 el-select 的特殊处理，确保整体容器和内部输入区域高度匹配 */
+/* 修改：增加 !important 并明确 height，防止被组件默认样式覆盖 */
+.el-select__wrapper,
+.el-select .el-input__inner {
+    font-size: 14px;
+    min-height: 36px;
+    height: 36px !important; /* 强制固定高度 */
+    line-height: 36px;       /* 行高与高度一致，确保文字垂直居中 */
+    box-sizing: border-box;
+    padding-top: 0;          /* 重置 padding，由 line-height 控制垂直居中 */
+    padding-bottom: 0;
+    padding-left: 12px;
+    padding-right: 30px;     /* 预留箭头位置 */
+}
+
+/* 如果使用了 size="large"，Element Plus 默认会更大，这里强制覆盖以统一高度 */
+.el-input--large .el-input__inner,
+.el-select--large .el-select__wrapper,
+.el-select--large .el-input__inner {
+    min-height: 36px;
+    height: 36px !important;
+    line-height: 36px;
+    font-size: 14px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* 更小的手机 < 480px */
+@media (max-width: 480px) {
+    .el-dialog {
+        margin: 2vh auto !important;
+        /* 根据 search_drive.vue 的需求，小屏下宽度为 460px，但为了防止超出屏幕，建议配合 max-width */
+        width: 460px !important; 
+        max-width: 95% !important; /* 安全兜底，防止 460px 超出极小屏幕 */
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        border-radius: 4px;
+    }
+
+    .el-dialog__header {
+        padding: 15px;
+        margin-right: 0;
+        border-bottom: 1px solid #ebeef5;
+    }
+
+    .el-dialog__body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
+    }
+
+    .el-dialog__footer {
+        border-top: 1px solid #ebeef5;
+        padding: 15px;
+    }
+
+    .el-dialog .el-form-item__label {
+        font-size: 13px;
+    }
+}
+
+/* 新增：全局默认 el-dialog 样式，确保与 search_drive.vue 的 popover 宽度一致 (1000px) */
+.el-dialog {
+    width: 1000px !important;
+    max-width: 100% !important; /* 防止在小屏幕上溢出，虽然媒体查询会覆盖，但作为兜底 */
+    margin: 5vh auto !important; /* 垂直居中偏移，水平居中 */
+    left: 0 !important; /* 强制重置 left，配合 margin auto 实现水平居中 */
+    right: 0 !important; /* 强制重置 right */
+    inset: auto !important; /* 清除可能的 inset 设置 */
+}
+
+/* 新增：中等屏幕适配 (对应 search_drive.vue 的 < 800px 逻辑) */
+@media (max-width: 800px) {
+    .el-dialog {
+        width: 90% !important;
+        max-width: 90% !important;
+    }
+}
+
+
+
+
+@media (min-width: 1200px) {
+    .el-popover{
+        margin-left: -60px;
+    }
+}
+
+
+
+@media (max-width: 1200px)  and (min-width: 800px) {
+    .custom-search-popover{
+      width: 90% !important;
+    }
+
+    .el-popover{
+        max-width: 700px
+    }
+}
+
+/* 屏幕宽度小于800px时，调整.el-popover宽度为90% */
+@media (max-width: 800px) {
+    .el-popper.custom-search-popover {
+        width: 90vw !important;
+        min-width: 90vw !important;
+        max-width: 90vw !important;
+        left: 5vw !important; /* 尝试强制居中偏移，但这可能与 JS 定位冲突 */
+        transform: translateX(0) !important; /* 移除 JS 的居中变换，改用 left */
+    }
+}
+
+/* 更小的手机 < 480px，固定宽度 460px */
+@media (max-width: 480px) {
+    .el-popper.custom-search-popover {
+        width: 460px !important;
+        min-width: 460px !important;
+        max-width: 95vw !important;
+    }
+}
