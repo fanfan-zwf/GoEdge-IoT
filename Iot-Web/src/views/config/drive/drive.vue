@@ -64,9 +64,7 @@
                     <el-form-item prop="Config" label="连接配置">
                         <el-input v-model="UpdateItem.Config" placeholder="请输入设备连接参数" size="large" autocomplete="off"
                             @input="UpdateItem.Config = filterInput(UpdateItem.Config)" clearable />
-                        <div class="input-tip" v-if="tipText">
-                            {{ tipText }}
-                        </div>
+                        <div class="input-tip" v-html="typeOptions[UpdateItem.Type] || ''"></div>
                     </el-form-item>
                 </el-form>
             </template>
@@ -268,19 +266,13 @@ const filterInput = (val: string) => {
     return val.replace(/[^0-9a-zA-Z.:]/g, '')
 }
 
-const tipText = computed(() => {
-    const type = UpdateItem.Type
-    if (type === "Modbus_Tcp") {
-        return '格式：IP:端口:连接超时:响应超时:间隔时间:字节长度，例如 192.168.1.1:502:3s:200ms:1s:8'
-    }
-    if (type === "Modbus_Rtu") {
-        return '格式：串口号:连接超时:响应超时:间隔时间:字节长度，例如 com1:3s:200ms:1s:8'
-    }
-    if (type === "Siemens_S7Comm") {
-        return '格式：IP:端口:连接类型<PG OP[默认] Basic>:机架号:槽号:超时时间:重试时间:轮询时间 192.168.1.1:502:OP:0:1:3s:10s:100ms'
-    }
-    return ''
-})
+// 定义提示文本
+const typeOptions: { [key: string]: string } = {
+    "Modbus_Tcp": '格式：IP:端口:连接超时:响应超时:间隔时间:字节长度，例如 192.168.1.1:502:3s:200ms:1s:8',
+    "Modbus_Rtu": '格式：串口号:连接超时:响应超时:间隔时间:字节长度，例如 com1:3s:200ms:1s:8',
+    "Siemens_S7": '格式：IP:端口:连接类型<PG OP[默认] Basic>:机架号:槽号:超时时间:重试时间:轮询时间 192.168.1.1:502:OP:0:1:3s:10s:100ms'
+}
+
 </script>
 
 <style scoped>
@@ -292,4 +284,4 @@ const tipText = computed(() => {
 </style>
 
 <!-- 非 scoped 样式，用于处理 Teleport 到 body 的 el-dialog -->
-<style> </style>
+<style></style>

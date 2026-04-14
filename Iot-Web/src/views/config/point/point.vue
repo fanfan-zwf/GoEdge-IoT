@@ -52,7 +52,7 @@
                     <el-form-item prop="Config" label="点位参数">
                         <el-input v-model="UpdateItem.Config" placeholder="请输入点位参数" size="large" autocomplete="off"
                             @input="UpdateItem.Config = filterInput(UpdateItem.Config)" clearable />
-                        <div class="input-tip" v-if="tipText" v-html="tipText"></div>
+                        <div class="input-tip" v-html="typeOptions[UpdateItem.Drive_Type] || ''"></div>
                     </el-form-item>
 
                     <el-form-item prop="RW_Cancel" label="读写方式" v-if="UpdateItem.Id === 0">
@@ -301,19 +301,13 @@ const filterInput = (val: string) => {
     return val.replace(/[^0-9a-zA-Z.:]/g, '')
 }
 
-const tipText = computed(() => {
-    const type = UpdateItem.Drive_Type
-    if (type === "Modbus_Tcp") {
-        return '格式：从机地址:功能码&lt;01 02 03 04&gt;:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：1:03:1.1:bool<br>示例：1:03:2:int16<br>示例：1:03:3:uint32<br>示例：1:01:1:bool'
-    }
-    if (type === "Modbus_Rtu") {
-        return '格式：从机地址:功能码&lt;01 02 03 04&gt;:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：1:03:1.1:bool<br>示例：1:03:2:int16<br>示例：1:03:3:uint32<br>示例：1:01:1:bool'
-    }
-    if (type === "Siemens_S7Comm") {
-        return '格式：寄存器类型:DB1[其他类型为0]:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：I:0:0.1:bool <br>示例：M:0:0.1:bool <br>示例：DB:1:1.0:bool <br>示例：DB:1:2:int8 <br>示例：DB:1:3:int16<br> 示例：DB:1:5:float32'
-    }
-    return ''
-})
+// 定义提示文本
+const typeOptions: { [key: string]: string } = {
+    "Modbus_Tcp": '格式：从机地址:功能码&lt;01 02 03 04&gt;:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：1:03:1.1:bool<br>示例：1:03:2:int16<br>示例：1:03:3:uint32<br>示例：1:01:1:bool',
+    "Modbus_Rtu": '格式：从机地址:功能码&lt;01 02 03 04&gt;:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：1:03:1.1:bool<br>示例：1:03:2:int16<br>示例：1:03:3:uint32<br>示例：1:01:1:bool',
+    "Siemens_S7": '格式：寄存器类型:DB1[其他类型为0]:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：I:0:0.1:bool <br>示例：M:0:0.1:bool <br>示例：DB:1:1.0:bool <br>示例：DB:1:2:int8 <br>示例：DB:1:3:int16<br> 示例：DB:1:5:float32',
+}
+
 </script>
 
 <style scoped>
