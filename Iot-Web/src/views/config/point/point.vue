@@ -3,12 +3,12 @@
         <div class="user-info-card">
             <el-table :data="config_data" style="width: 100%" max-height="800px">
                 <el-table-column fixed prop="Id" label="Id" width="60" align="center" />
-                <el-table-column prop="Collector_Name" label="采集器名称" min-width="120" show-overflow-tooltip />
-                <el-table-column prop="Name" label="名称" max-width="120" show-overflow-tooltip />
-                <el-table-column prop="Type" label="类型" min-width="60" align="center" />
-                <el-table-column prop="Config" label="配置" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="Points_Length" label="点位数量" width="100" align="center" />
+                <el-table-column prop="Tag" label="点位标签" min-width="200" max-width="300" show-overflow-tooltip />
+                <el-table-column prop="Config" label="配置" min-width="200" max-width="300" show-overflow-tooltip />
+                <el-table-column prop="Drive_Type" label="驱动类型" width="130" align="center" show-overflow-tooltip />
                 <el-table-column prop="Creation_Time" label="创建时间" width="230" align="center" />
+                <el-table-column prop="Drive_Name" label="驱动名称" min-width="120" show-overflow-tooltip />
+                <el-table-column prop="Collector_Name" label="采集器名称" min-width="120" show-overflow-tooltip />
                 <el-table-column label="操作" width="180" fixed="right">
                     <template #default="scope">
                         <el-button size="small" @click="editRow(scope)">编辑</el-button>
@@ -42,20 +42,20 @@
 
                     <el-form-item prop="Collector_Id" label="驱动" v-if="UpdateItem.Id === 0">
                         <search_drive
-                            :result="(value: { Id: number, Type: string }) => { UpdateItem.Drive_Id = value.Id; UpdateItem.Drive_Type = value.Type; }" />
+                            :result="(value: Drive_Config__table_interface) => { UpdateItem.Drive_Id = value.Id; UpdateItem.Drive_Type = value.Type; UpdateItem.Collector_Uuid = value.Collector_Uuid; }" />
                     </el-form-item>
 
-                    <el-form-item prop="Name" label="标识符">
+                    <el-form-item prop="Tag" label="标识符">
                         <el-input v-model="UpdateItem.Tag" type="text" placeholder="请输入标识符" size="large" />
                     </el-form-item>
 
                     <el-form-item prop="Config" label="点位参数">
                         <el-input v-model="UpdateItem.Config" placeholder="请输入点位参数" size="large" autocomplete="off"
-                            @input="UpdateItem.Config = filterInput(UpdateItem.Config)" clearable />
+                            clearable />
                         <div class="input-tip" v-html="typeOptions[UpdateItem.Drive_Type] || ''"></div>
                     </el-form-item>
 
-                    <el-form-item prop="RW_Cancel" label="读写方式" v-if="UpdateItem.Id === 0">
+                    <el-form-item prop="RW_Cancel" label="读写方式">
                         <el-select v-model="UpdateItem.RW_Cancel" placeholder="请选择驱动类型" style="width: 100%">
                             <!-- <el-option label="禁用" value="N" /> -->
                             <el-option label="只读" value="R" />
@@ -65,7 +65,8 @@
                     </el-form-item>
 
                     <el-form-item prop="Description" label="描述">
-                        <el-input v-model="UpdateItem.Description" type="textarea" />
+                        <el-input v-model="UpdateItem.Description" type="textarea" clearable
+                            @clear="handleCustomClear" />
                     </el-form-item>
                 </el-form>
             </template>
@@ -79,12 +80,12 @@
 
 <script setup lang="ts">
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
-import { reactive, onMounted, ref, computed, watch } from 'vue'
+import { reactive, onMounted, ref, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, ElMessageBox } from 'element-plus' // 引入 FormInstance 类型
 // 修复点3: 移除未使用的 naive-ui 导入
 // import { c } from 'naive-ui' 
-import { Points_Config__Count, Points_Config__Query, Points_Config__Add, Points_Config__Update, Points_Config__Del, type Points_Config__table_interface } from '@/api/config_service'
+import { Points_Config__Count, Points_Config__Query, Points_Config__Add, Points_Config__Update, Points_Config__Del, type Points_Config__table_interface, type Drive_Config__table_interface } from '@/api/config_service'
 import search_drive from '@/views/config/drive/search_drive.vue'
 
 // const router = useRouter()
@@ -130,11 +131,12 @@ const handleCurrentChange = (value: number) => {
 
 // 编辑行
 const editRow = (scope: any) => {
-    // 注意：Object.assign 是浅拷贝，如果 Config 是对象可能需要深拷贝，这里假设是字符串
-    Object.assign(UpdateItem, scope.row)
-    showUpdateDialog.value = true
-}
-
+    Object.assign(UpdateItem, scope.row);
+    nextTick(() => {
+        addFormRef.value?.clearValidate(); // ✅ 编辑时清除旧校验
+    });
+    showUpdateDialog.value = true;
+};
 // 删除行
 const deleteRow = (scope: any) => {
     const id: number = scope.row.Id ?? 0
@@ -177,12 +179,17 @@ const UpdateItem: Points_Config__table_interface & { Drive_Id: number } = reacti
     Id: 0,   // 点位 id
     Tag: '', // 点位标识
     Description: '', // 点位描述
-    RW_Cancel: '', // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
+    RW_Cancel: 'R', // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
     Value_Type: '', // 输出类型
     Config: '',
     Creation_Time: '', // 创建时间
     Drive_Id: 0, // 驱动 id 唯一标识符
     Drive_Type: '', // 驱动类型
+    Drive_Name: '', // 驱动名称 
+    Collector_Uuid: '', // 采集器名称 
+    Collector_Name: '', // 采集器名称
+    Collector_Id: 0, // 采集器id
+
 })
 
 watch(() => UpdateItem.Config, (newValue, _) => {
@@ -214,26 +221,23 @@ watch(() => UpdateItem.Config, (newValue, _) => {
 
 })
 const addNewRow = () => {
-    // 重置表单验证状态
-    addFormRef.value?.clearValidate()
-
+    addFormRef.value?.clearValidate();
     Object.assign(UpdateItem, {
         Id: 0,
-        Drive_Id: 0,
-        Drive_Type: '',
-        Name: '',
-        Config: '',
-        Type: '',
-        Points_Length: 0,
-        Collector_Id: 0,
-        Creation_Time: '',
         Tag: '',
         Description: '',
-        RW_Cancel: '',
+        RW_Cancel: 'R',
         Value_Type: '',
-    })
-    showUpdateDialog.value = true
-}
+        Config: '',
+        Creation_Time: '',
+        Drive_Id: 0,
+        Drive_Type: '',
+        Collector_Id: 0,
+        Collector_Uuid: '',
+        Collector_Name: '',
+    });
+    showUpdateDialog.value = true;
+};
 
 // 新增或修改数据
 const UpdateNewRow = () => {
@@ -266,48 +270,50 @@ const UpdateNewRow = () => {
     })
 }
 
+// 自定义清空逻辑
+const handleCustomClear = () => {
+    UpdateItem.Description = "null"
+}
+
 // 验证规则
-const newItemRules = {
-    Collector_Id: [
-        { required: true, message: '请输入采集器标识', trigger: 'blur' },
+// 优化后：无BUG、稳定、适配你真实业务
+const newItemRules = reactive({
+    Drive_Id: [
+        { required: true, message: '请选择驱动', trigger: 'blur' },
         {
             pattern: /^[1-9]\d*$/,
-            message: '请选择采集服务',
-            trigger: 'blur',
+            message: '请选择有效的驱动',
+            trigger: 'blur'
         },
     ],
-    Name: [
-        { required: true, message: '请输入驱动名称', trigger: 'blur' },
+    Tag: [
+        { required: true, message: '请输入标识符', trigger: 'blur' },
         {
-            pattern: /^.{1,23}$/, // 修改为至少1个字符
-            message: '长度应在1-23个字符之间',
-            trigger: 'blur',
+            pattern: /^\/\/[a-zA-Z0-9\u4e00-\u9fa5_-]+\/\/[a-zA-Z0-9\u4e00-\u9fa5_-]+(\/[a-zA-Z0-9\u4e00-\u9fa5_-]+)*$/,
+            message: '格式不正确',
+            trigger: 'blur'
         },
     ],
     Config: [
-        { required: true, message: '请输入设备连接参数', trigger: 'blur' },
+        { required: true, message: '请输入点位参数', trigger: 'blur' },
         {
-            pattern: /^[0-9a-zA-Z.:]*$/,
-            message: '请输入正确的配置格式: ip:port:其他配置参数',
-            trigger: 'blur',
+            pattern: /^[0-9a-zA-Z_:./]*$/,
+            message: '格式不正确',
+            trigger: 'blur'
         },
     ],
-    Type: [
-        { required: true, message: '请选择驱动类型', trigger: 'change' }, // 下拉框建议用 change
+    RW_Cancel: [
+        { required: true, message: '请选择读写方式', trigger: 'change' },
     ],
-}
+});
 
-const filterInput = (val: string) => {
-    return val.replace(/[^0-9a-zA-Z.:]/g, '')
-}
 
 // 定义提示文本
 const typeOptions: { [key: string]: string } = {
-    "Modbus_Tcp": '格式：从机地址:功能码&lt;01 02 03 04&gt;:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：1:03:1.1:bool<br>示例：1:03:2:int16<br>示例：1:03:3:uint32<br>示例：1:01:1:bool',
+    "Modbus_Tcp": '格式：从机地址:功能码&lt;01 02 03 04&gt;:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32&gt; <br>示例：1:03:1.1:bool<br>示例：1:03:2:int16<br>示例：1:03:3:uint32<br>示例：1:01:1:bool',
     "Modbus_Rtu": '格式：从机地址:功能码&lt;01 02 03 04&gt;:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：1:03:1.1:bool<br>示例：1:03:2:int16<br>示例：1:03:3:uint32<br>示例：1:01:1:bool',
-    "Siemens_S7": '格式：寄存器类型:DB1[其他类型为0]:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：I:0:0.1:bool <br>示例：M:0:0.1:bool <br>示例：DB:1:1.0:bool <br>示例：DB:1:2:int8 <br>示例：DB:1:3:int16<br> 示例：DB:1:5:float32',
+    "Siemens_S7": '格式：寄存器类型&lt;I Q M DB&gt;:DB编号[其他寄存器类型为0]:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32&gt; <br>示例：I:0:0.1:bool <br>示例：M:0:0.1:bool <br>示例：DB:1:1.0:bool <br>示例：DB:1:2:int8 <br>示例：DB:1:3:int16<br> 示例：DB:1:5:float32',
 }
-
 </script>
 
 <style scoped>

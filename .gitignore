@@ -12,6 +12,7 @@ config.js
 logs/
 logs/*
 .vscode/*
+.VSCodeCounter/*
 
 # 4. 忽略临时日志、带日期的日志（通配符匹配）
 # 比如 ignore 2024-03-10.log、app-2024.log 这类

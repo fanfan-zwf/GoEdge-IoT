@@ -30,14 +30,16 @@ func Collector_Info__Count(ctx *gin.Context) {
 	}
 
 	count, err := db_mysql.Collector_Info__Count(jsondata.Page, jsondata.Page_Size)
-	if err == sql.ErrNoRows || count == 0 {
-		ctx.Set("Response", []any{404, "无数据"})
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{404, "查询不到"})
 		return
 	} else if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
+	} else if count == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
 	}
-
 	ctx.Set("Response", []any{200, "ok", count})
 }
 
@@ -54,14 +56,16 @@ func Collector_Info__Query(ctx *gin.Context) {
 	}
 
 	config_list, err := db_mysql.Collector_Info__Query(jsondata.Page, jsondata.Page_Size)
-	if err == sql.ErrNoRows || len(config_list) == 0 {
-		ctx.Set("Response", []any{404, "无数据"})
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{404, "查询不到"})
 		return
 	} else if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
+	} else if len(config_list) == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
 	}
-
 	ctx.Set("Response", []any{200, "ok", config_list})
 }
 
@@ -135,14 +139,16 @@ func Collector_Info__Search_Name(ctx *gin.Context) {
 	}
 
 	config_list, err := db_mysql.Collector_Info__Search_Name(jsondata.Field, jsondata.Quantity, jsondata.Vague)
-	if err == sql.ErrNoRows || len(config_list) == 0 {
-		ctx.Set("Response", []any{404, "无数据"})
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{404, "查询不到"})
 		return
 	} else if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
+	} else if len(config_list) == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
 	}
-
 	ctx.Set("Response", []any{200, "ok", config_list})
 }
 
@@ -165,14 +171,16 @@ func Drive_Config__Count(ctx *gin.Context) {
 	}
 
 	count, err := db_mysql.Drive_Config__Count(jsondata.Collector_Id, jsondata.Drive_Type, jsondata.Page, jsondata.Page_Size)
-	if err == sql.ErrNoRows || count == 0 {
-		ctx.Set("Response", []any{404, "无数据"})
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{404, "查询不到"})
 		return
 	} else if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
+	} else if count == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
 	}
-
 	ctx.Set("Response", []any{200, "ok", count})
 }
 
@@ -191,14 +199,16 @@ func Drive_Config__Query(ctx *gin.Context) {
 	}
 
 	config_list, err := db_mysql.Drive_Config__Query(jsondata.Collector_Id, jsondata.Drive_Type, jsondata.Page, jsondata.Page_Size)
-	if err == sql.ErrNoRows || len(config_list) == 0 {
-		ctx.Set("Response", []any{404, "无数据"})
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{404, "查询不到"})
 		return
 	} else if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
+	} else if len(config_list) == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
 	}
-
 	ctx.Set("Response", []any{200, "ok", config_list})
 }
 
@@ -272,14 +282,16 @@ func Drive_Config__Search_Name(ctx *gin.Context) {
 	}
 
 	config_list, err := db_mysql.Drive_Config__Search_Name(jsondata.Field, jsondata.Quantity, jsondata.Vague)
-	if err == sql.ErrNoRows || len(config_list) == 0 {
-		ctx.Set("Response", []any{404, "无数据"})
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{404, "查询不到"})
 		return
 	} else if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
+	} else if len(config_list) == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
 	}
-
 	ctx.Set("Response", []any{200, "ok", config_list})
 }
 
@@ -300,14 +312,16 @@ func Points_Config__Count(ctx *gin.Context) {
 	}
 
 	count, err := db_mysql.Points_Config__Count(jsondata.Drive_Id, jsondata.Page, jsondata.Page_Size)
-	if err == sql.ErrNoRows || count == 0 {
-		ctx.Set("Response", []any{404, "无数据"})
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{404, "查询不到"})
 		return
 	} else if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
+	} else if count == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
 	}
-
 	ctx.Set("Response", []any{200, "ok", count})
 }
 
@@ -325,14 +339,16 @@ func Points_Config__Query(ctx *gin.Context) {
 	}
 
 	config_list, err := db_mysql.Points_Config__Query(jsondata.Drive_Id, jsondata.Page, jsondata.Page_Size)
-	if err == sql.ErrNoRows || len(config_list) == 0 {
-		ctx.Set("Response", []any{404, "无数据"})
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{404, "查询不到"})
 		return
 	} else if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})
 		return
+	} else if len(config_list) == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
 	}
-
 	ctx.Set("Response", []any{200, "ok", config_list})
 }
 

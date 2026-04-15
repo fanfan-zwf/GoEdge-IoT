@@ -12,8 +12,16 @@ import { config_service_url } from '@/api/index'
 
 
 /**
-*******************用户*******************
+*******************采集服务*******************
 */
+
+export interface Collector__Carry_interface {
+    Collector_Id: number   // 采集器标识
+    Collector_Name: string // 采集器名称
+    Collector_Uuid: string // 采集器uuid
+}
+
+
 /**
  * 采集配置配置增加表接口
  */
@@ -226,6 +234,11 @@ export async function Collector_Info__Search_Name(params?: {
 *******************驱动*******************
 */
 
+export interface Drive__Carry_interface {
+    Drive_Id: number     // 驱动id唯一标识符
+    Drive_Type: string // 驱动类型
+    Drive_Name: string // 驱动名称
+}
 /**
  * 驱动配置增加表接口
  */
@@ -249,15 +262,13 @@ export interface Drive_Config__Update_interface {
 /**
  * 驱动配置配置表接口
  */
-export interface Drive_Config__table_interface {
+export interface Drive_Config__table_interface extends Collector__Carry_interface {
     Id: number   // 驱动 id
     Name: string // 驱动名称
     Config: string // json 配置参数
     Type: string    // 驱动类型
-    Points_Length: number      // 点位数量
-    Collector_Id: number      // 采集器标识
-    Creation_Time: string// 创建时间
-    Collector_Name: string // 采集器名称
+    Points_Length: number      // 点位数量 
+    Creation_Time: string// 创建时间 
 }
 
 /**
@@ -425,7 +436,7 @@ export async function Drive_Config__Del(Id: number): Promise<void> {
  */
 export async function Drive_Config__Search_Name(params?: {
     Field: string; Quantity: number; Vague: string;
-}): Promise< Drive_Config__table_interface[]> {
+}): Promise<Drive_Config__table_interface[]> {
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/drive/search', {
@@ -478,9 +489,8 @@ export interface Points_Config__add_interface extends Points_Config__Update_inte
 /**
  * 点位配置配置表接口
  */
-export interface Points_Config__table_interface extends Points_Config__Update_interface {
-    Creation_Time: string // 创建时间  
-    Drive_Type: string // 驱动类型 
+export interface Points_Config__table_interface extends Points_Config__Update_interface, Collector__Carry_interface, Drive__Carry_interface {
+    Creation_Time: string // 创建时间    
 }
 
 

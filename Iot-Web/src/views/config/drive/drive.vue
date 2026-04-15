@@ -63,7 +63,7 @@
 
                     <el-form-item prop="Config" label="连接配置">
                         <el-input v-model="UpdateItem.Config" placeholder="请输入设备连接参数" size="large" autocomplete="off"
-                            @input="UpdateItem.Config = filterInput(UpdateItem.Config)" clearable />
+                            clearable />
                         <div class="input-tip" v-html="typeOptions[UpdateItem.Type] || ''"></div>
                     </el-form-item>
                 </el-form>
@@ -182,6 +182,7 @@ const UpdateItem: Drive_Config__table_interface = reactive({
     Collector_Id: 0,
     Creation_Time: '',
     Collector_Name: '',
+    Collector_Uuid: '',
 })
 
 const addNewRow = () => {
@@ -261,11 +262,6 @@ const newItemRules = {
         { required: true, message: '请选择驱动类型', trigger: 'change' }, // 下拉框建议用 change
     ],
 }
-
-const filterInput = (val: string) => {
-    return val.replace(/[^0-9a-zA-Z.:]/g, '')
-}
-
 // 定义提示文本
 const typeOptions: { [key: string]: string } = {
     "Modbus_Tcp": '格式：IP:端口:连接超时:响应超时:间隔时间:字节长度，例如 192.168.1.1:502:3s:200ms:1s:8',

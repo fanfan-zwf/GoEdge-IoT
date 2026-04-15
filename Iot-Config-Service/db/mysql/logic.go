@@ -17,6 +17,13 @@ import (
 /*
 ***************采集配置结构体***************
  */
+
+type Collector__Carry_type struct {
+	Collector_Id   uint   // 采集器标识
+	Collector_Name string // 采集器名称
+	Collector_Uuid string // 采集器uuid
+}
+
 // 采集配置增加结构体
 type Collector_Info_Add_type struct {
 	Label   string // 标识
@@ -349,6 +356,13 @@ func Collector_Info__Del(ids ...uint) (err error) {
 /*
 ***************驱动配置结构体***************
  */
+
+type Drive__Carry_type struct {
+	Drive_Id   uint   // 驱动id唯一标识符
+	Drive_Type string // 驱动类型
+	Drive_Name string // 驱动名称
+}
+
 type Drive_Config_Add_type struct {
 	Name         string // 驱动名称
 	Config       string // json配置参数
@@ -361,12 +375,12 @@ type Drive_Config_Update_type struct {
 	Config string // json配置参数
 }
 type Drive_Config_type struct {
+	Collector__Carry_type
+
 	Drive_Config_Update_type
-	Type           string    // 驱动类型
-	Points_Length  uint      // 点位数量
-	Collector_Id   uint      // 采集器标识
-	Collector_Name string    // 采集器名称
-	Creation_Time  time.Time // 创建时间
+	Type          string    // 驱动类型
+	Points_Length uint      // 点位数量
+	Creation_Time time.Time // 创建时间
 }
 
 // 点位-》查询配置
@@ -375,7 +389,24 @@ type Drive_Config_type struct {
 func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_type, err error) {
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT `Drive_Config`.`Id`, `Drive_Config`.`Type`, `Drive_Config`.`Name`, `Drive_Config`.`Config`, `Drive_Config`.`Points_Length`, `Drive_Config`.`Collector_Id`, `Drive_Config`.`Creation_Time`, `Collector_Info`.`Name` as `Creation_Name` FROM `Drive_Config` INNER JOIN `Collector_Info` ON `Drive_Config`.`Collector_Id` = `Collector_Info`.`Id` WHERE `Type` = ?"
+	baseQuery := `
+		SELECT
+			Drive_Config.Id,
+			Drive_Config.Type,
+			Drive_Config.Name,
+			Drive_Config.Config,
+			Drive_Config.Points_Length,
+			Drive_Config.Collector_Id,
+			Drive_Config.Creation_Time,
+			Collector_Info.Name as Creation_Name,
+			Collector_Info.Uuid as Collector_Uuid
+		FROM
+			Drive_Config
+		INNER JOIN Collector_Info ON
+			Drive_Config.Collector_Id = Collector_Info.Id
+		WHERE
+			Drive_Config.Type = ?
+	`
 	// 4. 执行查询（统一处理，减少重复代码）
 	rows, err := DB.Query(baseQuery, drive_type)
 
@@ -408,6 +439,7 @@ func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_ty
 			&config.Collector_Id,
 			&config.Creation_Time,
 			&config.Collector_Name,
+			&config.Collector_Uuid,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -425,7 +457,24 @@ func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_ty
 func Drive_Config__Query_DriveId(driveid uint) (config Drive_Config_type, err error) {
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT `Drive_Config`.`Id`, `Drive_Config`.`Type`, `Drive_Config`.`Name`, `Drive_Config`.`Config`, `Drive_Config`.`Points_Length`, `Drive_Config`.`Collector_Id`, `Drive_Config`.`Creation_Time`, `Collector_Info`.`Name` as `Creation_Name` FROM `Drive_Config` INNER JOIN `Collector_Info` ON `Drive_Config`.`Collector_Id` = `Collector_Info`.`Id` WHERE `Id` = ?"
+	baseQuery := `
+		SELECT
+			Drive_Config.Id,
+			Drive_Config.Type,
+			Drive_Config.Name,
+			Drive_Config.Config,
+			Drive_Config.Points_Length,
+			IFNULL(Drive_Config.Collector_Id, 0) AS Collector_Id,
+			Drive_Config.Creation_Time,
+			IFNULL(Collector_Info.Name, '') AS Creation_Name,
+			IFNULL(Collector_Info.Uuid, '') AS Creation_Uuid
+		FROM
+			Drive_Config
+		INNER JOIN Collector_Info ON
+			Drive_Config.Collector_Id = Collector_Info.Id
+		WHERE
+			Drive_Config.Id = ?
+	`
 
 	// 2. 执行查询（统一处理，减少重复代码）
 	err = DB.QueryRow(baseQuery, driveid).Scan(
@@ -496,7 +545,22 @@ func Drive_Config__Count(collectorId uint, driveType string, page uint, pageSize
 func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize uint) (configs []Drive_Config_type, err error) {
 
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT `Drive_Config`.`Id`, `Drive_Config`.`Type`, `Drive_Config`.`Name`, `Drive_Config`.`Config`, `Drive_Config`.`Points_Length`, IFNULL(`Drive_Config`.`Collector_Id`, 0) AS `Collector_Id`, `Drive_Config`.`Creation_Time`, IFNULL(`Collector_Info`.`Name`, '?') AS `Creation_Name` FROM `Drive_Config` LEFT JOIN `Collector_Info` ON `Drive_Config`.`Collector_Id` = `Collector_Info`.`Id`"
+	baseQuery := `
+		SELECT
+			Drive_Config.Id,
+			Drive_Config.Type,
+			Drive_Config.Name,
+			Drive_Config.Config,
+			Drive_Config.Points_Length,
+			IFNULL(Drive_Config.Collector_Id, 0) AS Collector_Id,
+			Drive_Config.Creation_Time,
+			IFNULL(Collector_Info.Name, '') AS Creation_Name,
+			IFNULL(Collector_Info.Uuid, '') AS Creation_Uuid
+		FROM
+			Drive_Config
+		LEFT JOIN Collector_Info ON
+			Drive_Config.Collector_Id = Collector_Info.Id
+	`
 
 	var whereConditions []string // 存储WHERE子句的条件片段
 	var args []interface{}       // 存储SQL参数，防止注入
@@ -547,6 +611,7 @@ func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize
 			&config.Collector_Id,
 			&config.Creation_Time,
 			&config.Collector_Name,
+			&config.Collector_Uuid,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -574,7 +639,25 @@ func Drive_Config__Search_Name(field string, quantity uint, vague string) (confi
 	}
 
 	// 1. 初始化 SQL
-	baseQuery := "SELECT `Drive_Config`.`Id`, `Drive_Config`.`Type`, `Drive_Config`.`Name`, `Drive_Config`.`Config`, `Drive_Config`.`Points_Length`, IFNULL(`Drive_Config`.`Collector_Id`, 0) AS `Collector_Id`, `Drive_Config`.`Creation_Time`, IFNULL(`Collector_Info`.`Name`, '?') AS `Creation_Name` FROM `Drive_Config` LEFT JOIN `Collector_Info` ON `Drive_Config`.`Collector_Id` = `Collector_Info`.`Id` WHERE ? LIKE ? LIMIT ?"
+	baseQuery := `
+		SELECT
+			Drive_Config.Id,
+			Drive_Config.Type,
+			Drive_Config.Name,
+			Drive_Config.Config,
+			Drive_Config.Points_Length,
+			IFNULL(Drive_Config.Collector_Id, 0) AS Collector_Id,
+			Drive_Config.Creation_Time,
+			IFNULL(Collector_Info.Name, '') AS Creation_Name,
+			IFNULL(Collector_Info.Uuid, '') AS Creation_Uuid
+		FROM
+			Drive_Config
+		LEFT JOIN Collector_Info ON
+			Drive_Config.Collector_Id = Collector_Info.Id
+		WHERE
+			? LIKE ?
+		LIMIT ?
+	`
 
 	// 4. 执行查询
 	rows, err := DB.Query(baseQuery, field, vague, quantity)
@@ -597,6 +680,7 @@ func Drive_Config__Search_Name(field string, quantity uint, vague string) (confi
 			&config.Collector_Id,
 			&config.Creation_Time,
 			&config.Collector_Name,
+			&config.Collector_Uuid,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -736,6 +820,26 @@ func Drive_Config__Del(ids ...uint) (err error) {
 	return
 }
 
+// 驱动-》点位数量记录
+// 传递：id 驱动ID, quantity 点位数量
+// 返回：err 错误
+func Drive_Config__Points_Length(id uint, quantity int) (err error) {
+	query := `
+		UPDATE
+			Drive_Config
+		SET
+			Points_Length = Points_Length + CAST( ? AS SIGNED )
+		WHERE
+			Id = ?
+	`
+	_, err = DB.Exec(query, quantity, id)
+	if err != nil {
+		err = fmt.Errorf("ERROR 修改点位数量错误 %s", err)
+		log.Print(err)
+	}
+	return
+}
+
 /*
 ***************点位配置结构体***************
  */
@@ -761,21 +865,21 @@ type Points_Config_Update_type struct {
 
 // 点位配置结构体
 type Points_Config_type struct {
+	Collector__Carry_type
+	Drive__Carry_type
+
 	Points_Config_Update_type
 	Drive_Id      uint      // 驱动id唯一标识符
 	Drive_Type    string    // 驱动类型
+	Drive_Name    string    // 驱动名称
 	Creation_Time time.Time // 创建时间
+
 }
 
 // 点位-》查询数量
 // 传递：driveid 设备id，page 页码，pageSize 每页数量
 // 返回：Count 数量，err 错误
 func Points_Config__Count(driveid uint, page uint, pageSize uint) (Count uint, err error) {
-	if driveid == 0 {
-		err = fmt.Errorf("ERROR driveid传递参数错误")
-		return
-	}
-
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
 	baseQuery := `
 		SELECT
@@ -803,12 +907,14 @@ func Points_Config__Count(driveid uint, page uint, pageSize uint) (Count uint, e
 
 	// 区分无数据和查询错误，日志补充上下文便于排查
 	if err == sql.ErrNoRows {
-		// log.Printf("查询驱动配置无数据，驱动类型：%s, 分页%d/%d", driveType, page, pageSize)
+		log.Printf("查询驱动配置无数据，分页%d/%d", page, pageSize)
 		return
 	} else if err != nil {
 		err = fmt.Errorf("ERROR 查询驱动配置失败，错误：%v, SQL:%s, 参数:%v", err, baseQuery, args)
+		log.Print(err)
 		return
 	}
+	log.Printf("查询成功 %d", Count)
 	return
 }
 
@@ -816,11 +922,6 @@ func Points_Config__Count(driveid uint, page uint, pageSize uint) (Count uint, e
 // 传递：driveid 设备 id, page 页码，pageSize 每页数量
 // 返回：configs 配置，err 错误
 func Points_Config__Query(driveid uint, page uint, pageSize uint) (configs []Points_Config_type, err error) {
-	if driveid == 0 {
-		err = fmt.Errorf("ERROR 配置 driveid(Id) 不能为空")
-		return nil, err
-	}
-
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
 	baseQuery := `
 		SELECT 
@@ -832,9 +933,14 @@ func Points_Config__Query(driveid uint, page uint, pageSize uint) (configs []Poi
 			Points_Config.Value_Type,
 			Points_Config.Creation_Time,
 			Drive_Config.Id AS Drive_Id,
-			Drive_Config.Type AS Drive_Type
+			Drive_Config.Type AS Drive_Type,
+			Drive_Config.Name AS Drive_Name,
+			IFNULL(Drive_Config.Collector_Id, 0) AS Collector_Id,
+			IFNULL(Collector_Info.Name, '') AS Creation_Name,
+	        IFNULL(Collector_Info.Uuid, '') AS Creation_Uuid
 		FROM Points_Config
-		INNER JOIN Drive_Config ON Points_Config.Drive_Id = Drive_Config.Id	
+		INNER JOIN Drive_Config ON Points_Config.Drive_Id = Drive_Config.Id
+		INNER JOIN Collector_Info ON Drive_Config.Collector_Id = Collector_Info.Id	
 	`
 	var args []interface{} // 存储SQL参数，防止SQL注入
 
@@ -864,27 +970,31 @@ func Points_Config__Query(driveid uint, page uint, pageSize uint) (configs []Poi
 
 	for rows.Next() {
 		var (
-			Config      Points_Config_type
+			config      Points_Config_type
 			Description sql.NullString
 		)
 		err = rows.Scan(
-			&Config.Id,
-			&Config.Tag,
+			&config.Id,
+			&config.Tag,
 			&Description,
-			&Config.Config,
-			&Config.RW_Cancel,
-			&Config.Value_Type,
-			&Config.Creation_Time,
-			&Config.Drive_Id,
-			&Config.Drive_Type,
+			&config.Config,
+			&config.RW_Cancel,
+			&config.Value_Type,
+			&config.Creation_Time,
+			&config.Drive_Id,
+			&config.Drive_Type,
+			&config.Drive_Name,
+			&config.Collector_Id,
+			&config.Collector_Name,
+			&config.Collector_Uuid,
 		)
 		if err != nil {
 			log.Print(err.Error())
 			return nil, err
 		}
 
-		Config.Description = Description.String
-		configs = append(configs, Config)
+		config.Description = Description.String
+		configs = append(configs, config)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -894,75 +1004,95 @@ func Points_Config__Query(driveid uint, page uint, pageSize uint) (configs []Poi
 	return configs, nil
 }
 
+// 点位-》查询设备id
+// 传递：Id 点位id
+// 返回：drive_id 设备id err 错误
+func Points_Config__DriveId(id uint) (drive_id uint, err error) {
+	query := `
+			SELECT
+				Drive_Id
+			FROM
+				Points_Config
+			WHERE
+				Id = ?
+		`
+	err = DB.QueryRow(query, id).Scan(&drive_id)
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询设备id错误", err)
+		log.Print(err.Error())
+	}
+	return
+}
+
 // 点位-》增加配置
 // 传递：config 配置数组形式
 // 返回：err 错误
 func Points_Config__Add(configs ...Points_Config_Add_type) (err error) {
 	// 1. 基础校验：空列表直接返回
 	if len(configs) == 0 {
-		err = fmt.Errorf("批量新增失败：待新增配置列表为空")
-		return
+		return fmt.Errorf("批量新增失败：待新增配置列表为空")
 	}
 
-	// 2. 遍历校验每个配置的参数合法性
-	for i, cfg := range configs {
-		// 可选：校验必填字段（Type/Name/Config非空，根据业务需求加）
-
-		if cfg.Drive_Id == 0 || // 驱动id唯一标识符
-			cfg.Tag == "" || // 点位标识
-			cfg.Description == "" || // 点位描述
-			cfg.RW_Cancel == "" || // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
-			cfg.Value_Type == "" || // 输出类型
-			cfg.Config == "" {
-			err = fmt.Errorf("批量新增失败：第%d条配置不能为空", i)
-			return
-		}
-	}
-
-	// 3. 拼接批量INSERT的SQL和参数
-	// baseQuery := "INSERT INTO `Drive_Config`(`Type`, `Name`, `Config`) VALUES "
+	// 2. 批量插入 SQL（字段顺序严格对齐）
 	baseQuery := `
-		INSERT
-			INTO
-				Points_Config
-			( 
-				Tag,
-				Description,
-				RW_Cancel,
-				Value_Type,
-				Config,
-				Creation_Time
-			)
-		VALUES
+		INSERT INTO Points_Config (
+			Drive_Id,
+			Tag,
+			Description,
+			RW_Cancel,
+			Value_Type,
+			Config,
+			Creation_Time
+		) VALUES
 	`
 
-	var args []interface{}         // 存储所有参数
-	var valuePlaceholders []string // 存储每个值组的占位符 (?, ?, ?)
+	var args []interface{}
+	var valuePlaceholders []string
 
-	// 遍历配置列表，拼接占位符和参数
-	for _, cfg := range configs {
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?)")
-		args = append(
-			args,
-			cfg.Tag,
-			sql.NullString{
-				String: cfg.Description,
-				Valid:  cfg.Description != "",
-			},
-			cfg.Config,
-			cfg.RW_Cancel,
-			cfg.Value_Type,
-			time.Now(),
+	// 3. 遍历构建参数
+	for i, cfg := range configs {
+		// ========== 必传字段校验（修复版）==========
+		if cfg.Drive_Id == 0 {
+			return fmt.Errorf("批量新增失败：第%d条数据 Drive_Id 等于0", i)
+		}
+		if cfg.Tag == "" {
+			return fmt.Errorf("批量新增失败：第%d条数据 Tag 不能为空", i+1)
+		}
+		if cfg.Config == "" {
+			return fmt.Errorf("批量新增失败：第%d条数据 Config 不能为空", i+1)
+		}
+		// RW_Cancel 是 int 类型，不能判断 == ""
+		// Value_Type 按需校验
+
+		// 占位符
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?)")
+
+		// ========== 字段顺序 必须和 INSERT 一致 ==========
+		args = append(args,
+			cfg.Drive_Id, // 1
+			cfg.Tag,      // 2
+			sql.NullString{String: cfg.Description, Valid: cfg.Description != ""}, // 3
+			cfg.RW_Cancel,  // 4 int
+			cfg.Value_Type, // 5 int
+			cfg.Config,     // 6
+			time.Now(),     // 7
 		)
 	}
 
-	// 拼接完整SQL
+	// 4. 拼接最终 SQL
 	query := baseQuery + strings.Join(valuePlaceholders, ", ")
 
-	// 4. 执行批量插入
+	// 5. 执行
 	_, err = DB.Exec(query, args...)
 	if err != nil {
-		err = fmt.Errorf("批量新增驱动配置失败, SQL:%s, 参数数:%d, 错误:%v", query, len(args), err)
+		return fmt.Errorf("批量插入 Points_Config 失败: %w", err)
+	}
+
+	for _, cfg := range configs {
+		err = Drive_Config__Points_Length(cfg.Drive_Id, 1)
+		if err != nil {
+			return
+		}
 	}
 	return
 }
@@ -983,12 +1113,7 @@ func Points_Config__Update(configs ...Points_Config_Update_type) (err error) {
 
 		// 可选：校验必填字段（Type/Name/Config非空，根据业务需求加）
 
-		if cfg.Id == 0 || // 点位id
-			cfg.Tag == "" || // 点位标识
-			cfg.Description == "" || // 点位描述
-			cfg.RW_Cancel == "" || // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
-			cfg.Value_Type == "" || // 输出类型
-			cfg.Config == "" {
+		if cfg.Id == 0 {
 			err = fmt.Errorf("批量新增失败：第%d条配置不能为空", i)
 			return
 		}
@@ -1002,7 +1127,10 @@ func Points_Config__Update(configs ...Points_Config_Update_type) (err error) {
 		}
 		if cfg.Description != "" {
 			setClauses = append(setClauses, "`Description` = ?")
-			args = append(args, cfg.Description)
+			args = append(args, sql.NullString{
+				String: cfg.Description,
+				Valid:  cfg.Description != "null",
+			})
 		}
 		if cfg.RW_Cancel != "" {
 			setClauses = append(setClauses, "`RW_Cancel` = ?")
@@ -1047,9 +1175,15 @@ func Points_Config__Update(configs ...Points_Config_Update_type) (err error) {
 func Points_Config__Del(ids ...uint) (err error) {
 	// 1. 遍历逐个
 	for idx, id := range ids {
-		// 1.1 单条配置参数校验
+
 		if id == 0 {
 			err = fmt.Errorf("ERROR 第%d条配置ID(Id)不能为空", idx)
+			return
+		}
+
+		var drive_id uint
+		drive_id, err = Points_Config__DriveId(id)
+		if err != nil {
 			return
 		}
 
@@ -1058,6 +1192,11 @@ func Points_Config__Del(ids ...uint) (err error) {
 		_, err = DB.Exec(query, id)
 		if err != nil {
 			err = fmt.Errorf("ERROR 第%d条配置更新失败, ID:%d, 错误:%v, SQL:%s", idx, id, err, query)
+			return
+		}
+
+		err = Drive_Config__Points_Length(drive_id, -1)
+		if err != nil {
 			return
 		}
 	}

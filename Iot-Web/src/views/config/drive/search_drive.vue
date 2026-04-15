@@ -5,6 +5,7 @@
         <div @mouseleave="handleMouseLeave">
             <el-table :data="search.result" style="" max-height="400px">
                 <el-table-column fixed prop="Id" label="Id" width="60" align="center" />
+                 <el-table-column prop="Collector_Name" label="采集名称" min-width="90" align="center" />
                 <el-table-column prop="Name" label="名称" min-width="100" show-overflow-tooltip />
                 <el-table-column prop="Type" label="驱动类型" min-width="90" align="center" />
                 <el-table-column label="选择" width="80" align="center">
