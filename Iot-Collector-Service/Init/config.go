@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"time"
 
 	"github.com/go-yaml/yaml"
 	"github.com/google/uuid"
@@ -32,15 +31,6 @@ type Config_type struct {
 		AesPasswd string `yaml:"aes_passwd"`
 	} `yaml:"APP"` // 程序主要参数
 
-	API struct {
-		Ip     string `yaml:"ip"`
-		Post   uint16 `yaml:"post"`
-		Header []struct {
-			Key   string `yaml:"key"`
-			Value string `yaml:"value"`
-		} `yaml:"header"` // 请求头
-	} `yaml:"API"` // 接口服务
-
 	MYSQL struct {
 		Dsn string `yaml:"dsn"`
 	} `yaml:"MYSQL"` // 数据库
@@ -52,18 +42,24 @@ type Config_type struct {
 		Database int    `yaml:"database"`
 	} `yaml:"REDIS"` // 数据库
 
+	Influxdb struct {
+		Url    string `yaml:"url"`
+		Token  string `yaml:"token"`
+		Org    string `yaml:"org"`
+		Bucket string `yaml:"bucket"`
+	} `yaml:"Influxdb"` // 时序数据库
+
 	LOG struct {
-		Enable   bool          `yaml:"enable"`
-		Path     string        `yaml:"path"`
-		CacheTTL time.Duration `yaml:"cacheTTL"`
-		Flags    string        `yaml:"flags"`
-	} `yaml:"LOG"` // GPIO
+		Enable   bool   `yaml:"enable"`
+		Path     string `yaml:"path"`
+		CacheTTL uint   `yaml:"cacheTTL"`
+		Flags    string `yaml:"flags"`
+	} `yaml:"LOG"`
 
 	User_Service struct {
-		Url     string        `yaml:"url"`
-		ApiKey  string        `yaml:"apikey"`
-		Secret  string        `yaml:"secret"`
-		Timeout time.Duration `yaml:"timeout"`
+		Url    string `yaml:"url"`
+		ApiKey string `yaml:"apikey"`
+		Secret string `yaml:"secret"`
 	} `yaml:"User_Service"` // 用户服务
 
 	Mqtt_Rpc struct {
@@ -72,9 +68,9 @@ type Config_type struct {
 		Password string `yaml:"password"`
 		ClientID string `yaml:"client_id"`
 
-		ListenTopic string `yaml:"listen_topic"`
+		ListenTopic        string `yaml:"listen_topic"`
+		ConfigServiceTopic string `yaml:"config_service_topic"`
 	} `yaml:"Mqtt_Rpc"` // mqtt版的rpc通信
-
 }
 
 var Config Config_type

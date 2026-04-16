@@ -3,7 +3,7 @@
         <div class="user-info-card">
             <el-table :data="config_data" style="width: 100%" max-height="800px">
                 <el-table-column fixed prop="Id" label="Id" width="60" align="center" />
-                <el-table-column prop="Collector_Name" label="采集器名称" min-width="120" show-overflow-tooltip />
+                <el-table-column prop="Collector.Name" label="采集器名称" min-width="120" show-overflow-tooltip />
                 <el-table-column prop="Name" label="名称" max-width="120" show-overflow-tooltip />
                 <el-table-column prop="Type" label="类型" min-width="60" align="center" />
                 <el-table-column prop="Config" label="配置" min-width="200" show-overflow-tooltip />
@@ -41,7 +41,7 @@
                     </el-form-item>
 
                     <el-form-item prop="Collector_Id" label="采集服务" v-if="UpdateItem.Id === 0">
-                        <Search_Collector :result="(value) => { UpdateItem.Collector_Id = value.Id; }" />
+                        <Search_Collector :result="(value) => { UpdateItem.Collector.Id = value.Id; }" />
                     </el-form-item>
 
                     <!-- <el-form-item prop="Collector_Id" label="采集器标识" v-if="UpdateItem.Id === 0">
@@ -83,7 +83,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, ElMessageBox } from 'element-plus' // 引入 FormInstance 类型
 // 修复点3: 移除未使用的 naive-ui 导入
 // import { c } from 'naive-ui' 
-import { Drive_Config__Count, Drive_Config__Query, Drive_Config__Add, Drive_Config__Update, Drive_Config__Del, type Drive_Config__table_interface } from '@/api/config_service'
+import { Drive_Config__Count, Drive_Config__Query, Drive_Config__Add, Drive_Config__Update, Drive_Config__Del, type Drive_Config__table_interface ,type Drive_Config__add_interface} from '@/api/config_service'
 import Search_Collector from '@/views/config/collector/search_collector.vue'
 
 // const router = useRouter()
@@ -179,10 +179,12 @@ const UpdateItem: Drive_Config__table_interface = reactive({
     Config: '',
     Type: '',
     Points_Length: 0,
-    Collector_Id: 0,
     Creation_Time: '',
-    Collector_Name: '',
-    Collector_Uuid: '',
+    Collector: {
+        Id: 0,
+        Name: '',
+        Uuid: '',
+    }
 })
 
 const addNewRow = () => {
@@ -195,8 +197,12 @@ const addNewRow = () => {
         Config: '',
         Type: '',
         Points_Length: 0,
-        Collector_Id: 0,
         Creation_Time: '',
+        Collector: {
+            Id: 0,
+            Name: '',
+            Uuid: '',
+        }
     })
     showUpdateDialog.value = true
 }
@@ -213,7 +219,16 @@ const UpdateNewRow = () => {
         }
 
         if (UpdateItem.Id === 0) {
-            Drive_Config__Add(UpdateItem).then(() => {
+            // 构造符合 API 要求的对象
+            // 假设 Drive_Config__add_interface 需要 Collector_Id
+            const payload: Drive_Config__add_interface = {
+                Name: UpdateItem.Name,
+                Config: UpdateItem.Config,
+                Type: UpdateItem.Type,
+                Collector_Id: UpdateItem.Collector.Id || 0,
+                // 如果有其他必填字段，请在此补充
+            } as any // 如果字段不完全匹配，可能需要临时使用 any 或补全字段
+            Drive_Config__Add(payload).then(() => {
                 ElMessage.success('添加成功')
                 showUpdateDialog.value = false
                 Count()
@@ -253,8 +268,8 @@ const newItemRules = {
     Config: [
         { required: true, message: '请输入设备连接参数', trigger: 'blur' },
         {
-            pattern: /^[0-9a-zA-Z.:]*$/,
-            message: '请输入正确的配置格式: ip:port:其他配置参数',
+            pattern: /^[0-9a-zA-Z.;]*$/,
+            message: '请输入正确的配置格式: ip;port;其他配置参数',
             trigger: 'blur',
         },
     ],
@@ -264,9 +279,9 @@ const newItemRules = {
 }
 // 定义提示文本
 const typeOptions: { [key: string]: string } = {
-    "Modbus_Tcp": '格式：IP:端口:连接超时:响应超时:间隔时间:字节长度，例如 192.168.1.1:502:3s:200ms:1s:8',
-    "Modbus_Rtu": '格式：串口号:连接超时:响应超时:间隔时间:字节长度，例如 com1:3s:200ms:1s:8',
-    "Siemens_S7": '格式：IP:端口:连接类型<PG OP[默认] Basic>:机架号:槽号:超时时间:重试时间:轮询时间 192.168.1.1:502:OP:0:1:3s:10s:100ms'
+    "Modbus_Tcp": '格式：IP;端口;连接超时;响应超时;间隔时间;字节长度，例如 192.168.1.1;502;3s;200ms;1s;8',
+    "Modbus_Rtu": '格式：串口号;连接超时;响应超时;间隔时间;字节长度，例如 com1;3s;200ms;1s;8',
+    "Siemens_S7": '格式：IP;端口;连接类型<PG OP[默认] Basic>;机架号;槽号;超时时间;重试时间;轮询时间 192.168.1.1;502;OP;0;1;3s;10s;100ms'
 }
 
 </script>

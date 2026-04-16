@@ -16,9 +16,9 @@ import { config_service_url } from '@/api/index'
 */
 
 export interface Collector__Carry_interface {
-    Collector_Id: number   // 采集器标识
-    Collector_Name: string // 采集器名称
-    Collector_Uuid: string // 采集器uuid
+    Id: number   // 采集器标识
+    Name: string // 采集器名称
+    Uuid: string // 采集器uuid
 }
 
 
@@ -235,9 +235,9 @@ export async function Collector_Info__Search_Name(params?: {
 */
 
 export interface Drive__Carry_interface {
-    Drive_Id: number     // 驱动id唯一标识符
-    Drive_Type: string // 驱动类型
-    Drive_Name: string // 驱动名称
+    Id: number     // 驱动id唯一标识符
+    Type: string // 驱动类型
+    Name: string // 驱动名称
 }
 /**
  * 驱动配置增加表接口
@@ -262,7 +262,9 @@ export interface Drive_Config__Update_interface {
 /**
  * 驱动配置配置表接口
  */
-export interface Drive_Config__table_interface extends Collector__Carry_interface {
+export interface Drive_Config__table_interface {
+    Collector: Collector__Carry_interface
+
     Id: number   // 驱动 id
     Name: string // 驱动名称
     Config: string // json 配置参数
@@ -489,7 +491,10 @@ export interface Points_Config__add_interface extends Points_Config__Update_inte
 /**
  * 点位配置配置表接口
  */
-export interface Points_Config__table_interface extends Points_Config__Update_interface, Collector__Carry_interface, Drive__Carry_interface {
+export interface Points_Config__table_interface extends Points_Config__Update_interface {
+    Collector: Collector__Carry_interface
+    Drive: Drive__Carry_interface
+
     Creation_Time: string // 创建时间    
 }
 

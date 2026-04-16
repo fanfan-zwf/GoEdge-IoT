@@ -19,9 +19,9 @@ import (
  */
 
 type Collector__Carry_type struct {
-	Collector_Id   uint   // 采集器标识
-	Collector_Name string // 采集器名称
-	Collector_Uuid string // 采集器uuid
+	Id   uint   // 采集器标识
+	Name string // 采集器名称
+	Uuid string // 采集器uuid
 }
 
 // 采集配置增加结构体
@@ -162,6 +162,46 @@ func Collector_Info__Query(page uint, pageSize uint) (configs []Collector_Info_t
 	}
 
 	return configs, nil
+}
+
+// 采集-》查询采集主题
+// 传递：采集服务的uuid
+// 返回：listen_topic 采集服务监听主题，err 错误
+func Collector_Info__Query_Uuid__ListenTopic(uuid string) (listen_topic string, err error) {
+	if uuid == "" {
+		err = fmt.Errorf("参数错误")
+		return
+	}
+
+	baseQuery := "SELECT `Listen_Topic` FROM `Collector_Info` WHERE `Uuid` = ?"
+	err = DB.QueryRow(baseQuery, uuid).Scan(&listen_topic)
+	if err != nil {
+		err = fmt.Errorf("ERROR [Collector_Info__Query_Uuid__ListenTopic] 查询失败 | SQL=%s | args=%v | err=%w",
+			baseQuery, uuid, err)
+		log.Print(err)
+	}
+
+	return
+}
+
+// 采集-》查询采集主题
+// 传递：采集服务的uuid
+// 返回：listen_topic 采集服务监听主题，err 错误
+func Collector_Info__Query_Uuid__DbServiceConfig(uuid string) (db_service_config string, err error) {
+	if uuid == "" {
+		err = fmt.Errorf("参数错误")
+		return
+	}
+
+	baseQuery := "SELECT `Db_Service_Config` FROM `Collector_Info` WHERE `Uuid` = ?"
+	err = DB.QueryRow(baseQuery, uuid).Scan(&db_service_config)
+	if err != nil {
+		err = fmt.Errorf("ERROR [Collector_Info__Query_Uuid__DbServiceConfig] 查询失败 | SQL=%s | args=%v | err=%w",
+			baseQuery, uuid, err)
+		log.Print(err)
+	}
+
+	return
 }
 
 // 采集-》搜索
@@ -353,14 +393,27 @@ func Collector_Info__Del(ids ...uint) (err error) {
 	return
 }
 
+// 采集-》心跳
+// 传递：Uuid 采集器uuid heartbeat 心跳时间
+// 返回：err 错误
+func Collector_Info__Last_Activity_Time(Uuid string, heartbeat time.Time) (err error) {
+	query := "UPDATE `Collector_Info` SET `Last_Activity_Time` = ? WHERE `Uuid` = ? "
+
+	_, err = DB.Exec(query, heartbeat, Uuid)
+	if err != nil {
+		log.Printf("ERROR 心跳写入错误 Uuid:%s %s", Uuid, err)
+	}
+	return
+}
+
 /*
 ***************驱动配置结构体***************
  */
 
 type Drive__Carry_type struct {
-	Drive_Id   uint   // 驱动id唯一标识符
-	Drive_Type string // 驱动类型
-	Drive_Name string // 驱动名称
+	Id   uint   // 驱动id唯一标识符
+	Type string // 驱动类型
+	Name string // 驱动名称
 }
 
 type Drive_Config_Add_type struct {
@@ -375,7 +428,7 @@ type Drive_Config_Update_type struct {
 	Config string // json配置参数
 }
 type Drive_Config_type struct {
-	Collector__Carry_type
+	Collector Collector__Carry_type
 
 	Drive_Config_Update_type
 	Type          string    // 驱动类型
@@ -396,10 +449,10 @@ func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_ty
 			Drive_Config.Name,
 			Drive_Config.Config,
 			Drive_Config.Points_Length,
-			Drive_Config.Collector_Id,
+			IFNULL(Drive_Config.Collector_Id, 0) AS Collector_Id,
 			Drive_Config.Creation_Time,
-			Collector_Info.Name as Creation_Name,
-			Collector_Info.Uuid as Collector_Uuid
+			IFNULL(Collector_Info.Name, '') AS Creation_Name,
+			IFNULL(Collector_Info.Uuid, '') AS Creation_Uuid
 		FROM
 			Drive_Config
 		INNER JOIN Collector_Info ON
@@ -436,10 +489,10 @@ func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_ty
 			&config.Name,
 			&config.Config,
 			&config.Points_Length,
-			&config.Collector_Id,
+			&config.Collector.Id,
 			&config.Creation_Time,
-			&config.Collector_Name,
-			&config.Collector_Uuid,
+			&config.Collector.Name,
+			&config.Collector.Uuid,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -464,8 +517,8 @@ func Drive_Config__Query_DriveId(driveid uint) (config Drive_Config_type, err er
 			Drive_Config.Name,
 			Drive_Config.Config,
 			Drive_Config.Points_Length,
-			IFNULL(Drive_Config.Collector_Id, 0) AS Collector_Id,
 			Drive_Config.Creation_Time,
+			IFNULL(Drive_Config.Collector_Id, 0) AS Collector_Id,
 			IFNULL(Collector_Info.Name, '') AS Creation_Name,
 			IFNULL(Collector_Info.Uuid, '') AS Creation_Uuid
 		FROM
@@ -483,8 +536,10 @@ func Drive_Config__Query_DriveId(driveid uint) (config Drive_Config_type, err er
 		&config.Name,
 		&config.Config,
 		&config.Points_Length,
-		&config.Collector_Id,
+		&config.Collector.Id,
 		&config.Creation_Time,
+		&config.Collector.Name,
+		&config.Collector.Uuid,
 	)
 
 	return
@@ -608,10 +663,10 @@ func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize
 			&config.Name,
 			&config.Config,
 			&config.Points_Length,
-			&config.Collector_Id,
+			&config.Collector.Id,
 			&config.Creation_Time,
-			&config.Collector_Name,
-			&config.Collector_Uuid,
+			&config.Collector.Name,
+			&config.Collector.Uuid,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -677,10 +732,10 @@ func Drive_Config__Search_Name(field string, quantity uint, vague string) (confi
 			&config.Name,
 			&config.Config,
 			&config.Points_Length,
-			&config.Collector_Id,
+			&config.Collector.Id,
 			&config.Creation_Time,
-			&config.Collector_Name,
-			&config.Collector_Uuid,
+			&config.Collector.Name,
+			&config.Collector.Uuid,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -865,13 +920,10 @@ type Points_Config_Update_type struct {
 
 // 点位配置结构体
 type Points_Config_type struct {
-	Collector__Carry_type
-	Drive__Carry_type
+	Collector Collector__Carry_type
+	Drive     Drive__Carry_type
 
 	Points_Config_Update_type
-	Drive_Id      uint      // 驱动id唯一标识符
-	Drive_Type    string    // 驱动类型
-	Drive_Name    string    // 驱动名称
 	Creation_Time time.Time // 创建时间
 
 }
@@ -981,12 +1033,12 @@ func Points_Config__Query(driveid uint, page uint, pageSize uint) (configs []Poi
 			&config.RW_Cancel,
 			&config.Value_Type,
 			&config.Creation_Time,
-			&config.Drive_Id,
-			&config.Drive_Type,
-			&config.Drive_Name,
-			&config.Collector_Id,
-			&config.Collector_Name,
-			&config.Collector_Uuid,
+			&config.Drive.Id,
+			&config.Drive.Type,
+			&config.Drive.Name,
+			&config.Collector.Id,
+			&config.Collector.Name,
+			&config.Collector.Uuid,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -1018,7 +1070,7 @@ func Points_Config__DriveId(id uint) (drive_id uint, err error) {
 		`
 	err = DB.QueryRow(query, id).Scan(&drive_id)
 	if err != nil {
-		err = fmt.Errorf("ERROR 查询设备id错误", err)
+		err = fmt.Errorf("ERROR 查询设备id错误 %s", err)
 		log.Print(err.Error())
 	}
 	return

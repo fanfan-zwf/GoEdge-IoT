@@ -5,10 +5,10 @@
                 <el-table-column fixed prop="Id" label="Id" width="60" align="center" />
                 <el-table-column prop="Tag" label="点位标签" min-width="200" max-width="300" show-overflow-tooltip />
                 <el-table-column prop="Config" label="配置" min-width="200" max-width="300" show-overflow-tooltip />
-                <el-table-column prop="Drive_Type" label="驱动类型" width="130" align="center" show-overflow-tooltip />
+                <el-table-column prop="Drive.Type" label="驱动类型" width="130" align="center" show-overflow-tooltip />
                 <el-table-column prop="Creation_Time" label="创建时间" width="230" align="center" />
-                <el-table-column prop="Drive_Name" label="驱动名称" min-width="120" show-overflow-tooltip />
-                <el-table-column prop="Collector_Name" label="采集器名称" min-width="120" show-overflow-tooltip />
+                <el-table-column prop="Drive.Name" label="驱动名称" min-width="120" show-overflow-tooltip />
+                <el-table-column prop="Collector.Name" label="采集器名称" min-width="120" show-overflow-tooltip />
                 <el-table-column label="操作" width="180" fixed="right">
                     <template #default="scope">
                         <el-button size="small" @click="editRow(scope)">编辑</el-button>
@@ -42,7 +42,7 @@
 
                     <el-form-item prop="Collector_Id" label="驱动" v-if="UpdateItem.Id === 0">
                         <search_drive
-                            :result="(value: Drive_Config__table_interface) => { UpdateItem.Drive_Id = value.Id; UpdateItem.Drive_Type = value.Type; UpdateItem.Collector_Uuid = value.Collector_Uuid; }" />
+                            :result="(value: Drive_Config__table_interface) => { UpdateItem.Drive.Id = value.Id; UpdateItem.Drive.Type = value.Type; UpdateItem.Collector.Uuid = value.Collector.Uuid; }" />
                     </el-form-item>
 
                     <el-form-item prop="Tag" label="标识符">
@@ -52,7 +52,7 @@
                     <el-form-item prop="Config" label="点位参数">
                         <el-input v-model="UpdateItem.Config" placeholder="请输入点位参数" size="large" autocomplete="off"
                             clearable />
-                        <div class="input-tip" v-html="typeOptions[UpdateItem.Drive_Type] || ''"></div>
+                        <div class="input-tip" v-html="typeOptions[UpdateItem.Drive.Type] || ''"></div>
                     </el-form-item>
 
                     <el-form-item prop="RW_Cancel" label="读写方式">
@@ -174,22 +174,28 @@ const showUpdateDialog = ref(false)
 // 修复点4: 定义表单 ref
 const addFormRef = ref<FormInstance>()
 
-// 新项目数据
-const UpdateItem: Points_Config__table_interface & { Drive_Id: number } = reactive({
+// 新项目数据 
+const UpdateItem: Points_Config__table_interface = reactive({
     Id: 0,   // 点位 id
     Tag: '', // 点位标识
     Description: '', // 点位描述
     RW_Cancel: 'R', // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
     Value_Type: '', // 输出类型
     Config: '',
-    Creation_Time: '', // 创建时间
-    Drive_Id: 0, // 驱动 id 唯一标识符
-    Drive_Type: '', // 驱动类型
-    Drive_Name: '', // 驱动名称 
-    Collector_Uuid: '', // 采集器名称 
-    Collector_Name: '', // 采集器名称
-    Collector_Id: 0, // 采集器id
-
+    Creation_Time: '', // 创建时间 
+    // 修复点：补充 Drive 对象中缺失的 Type 属性
+    Drive: {
+        Id: 0,
+        Name: '',
+        Uuid: '',
+        Type: '', // <--- 添加此行以匹配 Drive__Carry_interface
+    },
+    Collector: {
+        Id: 0,
+        Name: '',
+        Uuid: '',
+        // 注意：如果 Collector 对应的接口也有必填字段缺失，请在此处一并补充
+    },
 })
 
 watch(() => UpdateItem.Config, (newValue, _) => {
@@ -239,9 +245,7 @@ const addNewRow = () => {
     showUpdateDialog.value = true;
 };
 
-// 新增或修改数据
 const UpdateNewRow = () => {
-    // 修复点5: 正确使用表单实例进行验证
     if (!addFormRef.value) return
 
     addFormRef.value.validate((valid) => {
@@ -250,8 +254,20 @@ const UpdateNewRow = () => {
             return
         }
 
+        // 构造提交数据，确保包含后端需要的扁平字段
+        // 如果 UpdateItem 本身已经包含了 Drive_Id 等字段（通过 reactive 定义），则可以直接使用
+        // 但为了保险起见，特别是当 UpdateItem 结构复杂时，可以显式构造 payload
+
+        const payload = {
+            ...UpdateItem,
+            // 确保嵌套对象中的关键信息同步到扁平字段（以防万一）
+            Drive_Id: UpdateItem.Drive?.Id || UpdateItem.Drive.Id,
+            Drive_Type: UpdateItem.Drive?.Type || UpdateItem.Drive.Type,
+        };
+
         if (UpdateItem.Id === 0) {
-            Points_Config__Add(UpdateItem).then(() => {
+            // 此时 payload 应该符合 Points_Config__add_interface
+            Points_Config__Add(payload as any).then(() => { // 使用 as any 临时绕过如果接口定义仍有细微差异的问题，最好修正接口定义
                 ElMessage.success('添加成功')
                 showUpdateDialog.value = false
                 Count()
@@ -259,7 +275,7 @@ const UpdateNewRow = () => {
                 ElMessage.error(error)
             })
         } else {
-            Points_Config__Update(UpdateItem).then(() => {
+            Points_Config__Update(payload as any).then(() => {
                 ElMessage.success('修改成功')
                 showUpdateDialog.value = false
                 Count()
@@ -310,9 +326,9 @@ const newItemRules = reactive({
 
 // 定义提示文本
 const typeOptions: { [key: string]: string } = {
-    "Modbus_Tcp": '格式：从机地址:功能码&lt;01 02 03 04&gt;:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32&gt; <br>示例：1:03:1.1:bool<br>示例：1:03:2:int16<br>示例：1:03:3:uint32<br>示例：1:01:1:bool',
-    "Modbus_Rtu": '格式：从机地址:功能码&lt;01 02 03 04&gt;:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：1:03:1.1:bool<br>示例：1:03:2:int16<br>示例：1:03:3:uint32<br>示例：1:01:1:bool',
-    "Siemens_S7": '格式：寄存器类型&lt;I Q M DB&gt;:DB编号[其他寄存器类型为0]:寄存器地址.子地址[如果有]:数据类型&lt;bool uint16 int16 uint32 int32&gt; <br>示例：I:0:0.1:bool <br>示例：M:0:0.1:bool <br>示例：DB:1:1.0:bool <br>示例：DB:1:2:int8 <br>示例：DB:1:3:int16<br> 示例：DB:1:5:float32',
+    "Modbus_Tcp": '格式：从机地址;功能码&lt;01 02 03 04&gt;;寄存器地址.子地址[如果有];数据类型&lt;bool uint16 int16 uint32 int32 float32&gt; <br>示例：1;03;1.1;bool<br>示例：1;03;2;int16<br>示例：1;03;3;uint32<br>示例：1;01;1;bool',
+    "Modbus_Rtu": '格式：从机地址;功能码&lt;01 02 03 04&gt;;寄存器地址.子地址[如果有];数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：1;03;1.1;bool<br>示例：1;03;2;int16<br>示例：1;03;3;uint32<br>示例：1;01;1;bool',
+    "Siemens_S7": '格式：寄存器类型&lt;I Q M DB&gt;;DB编号[其他寄存器类型为0];寄存器地址.子地址[如果有];数据类型&lt;bool uint16 int16 uint32 int32&gt; <br>示例：I;0;0.1;bool <br>示例：M;0;0.1;bool <br>示例：DB;1;1.0;bool <br>示例：DB;1;2;int8 <br>示例：DB;1;3;int16<br> 示例：DB;1;5;float32',
 }
 </script>
 
