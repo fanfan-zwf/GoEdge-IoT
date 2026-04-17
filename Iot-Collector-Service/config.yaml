@@ -1,8 +1,9 @@
 APP:
   version: v1.0
   sn: "0" 
-  uuid: 
- 
+  uuid: 123e4567-e89b-12d3-a456-426614174000
+  aes_passwd: "123456"
+  
 MYSQL:
   dsn: "root:123456@tcp(127.0.0.1:3306)/iot-collector-server?charset=utf8mb4&parseTime=True&loc=Local"
   
@@ -29,3 +30,17 @@ user_Service:
   apikey: "123456"
   secret: "123456"  
  
+Mqtt_Rpc:
+  broker: tcp://emqx.njtxy.zwf.fan:1883
+  username: o7aKZOj53p2PkkFJzKzM
+  password: lpj4VZ4ZYFg5GmINhRat
+  client_id:  123e4567-e89b-12d3-a456-426614174000
+  clean_session: True
+  auto_reconnect: True
+  connect_timeout: 10s
+  write_timeout: 5s
+  keep_alive: 30s
+  
+  business_timeout: 5s 
+  listen_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000
+  config_service_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174001 

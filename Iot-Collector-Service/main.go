@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"main/app/mqtt_rpc"
 	"main/db/db_point"
 	"main/db/influxdb"
 	"main/db/mysql"
@@ -16,6 +17,11 @@ import (
 )
 
 func app() (err error) {
+
+	err = mqtt_rpc.New()
+	if err != nil {
+		log.Panic(err.Error())
+	}
 
 	err = db_point.New()
 	if err != nil {

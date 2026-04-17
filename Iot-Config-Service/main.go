@@ -1,6 +1,7 @@
 package main
 
 import (
+	"main/app/mqtt_rpc"
 	"main/app/user_service"
 	"main/db/mysql"
 	"main/db/redis"
@@ -17,6 +18,11 @@ import (
 )
 
 func app() (err error) {
+
+	err = mqtt_rpc.New()
+	if err != nil {
+		log.Panic(err.Error())
+	}
 
 	// Rinit()
 	// 注入到其他包

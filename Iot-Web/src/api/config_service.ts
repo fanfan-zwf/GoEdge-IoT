@@ -12,6 +12,35 @@ import { config_service_url } from '@/api/index'
 
 
 /**
+ * 点位配置 -》删除配置
+ * 传递：Id 点位 id
+ */
+export async function App_Restart(Uuid: string): Promise<void> {
+    if (Uuid === "") {
+        throw '请选择设备'
+    }
+    try {
+        // 修改：直接 await axios.post
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/app/restart', {
+            Uuid: Uuid
+        })
+
+        if (response.status == 200) {
+            return
+        }
+        throw response.data.Msg || '未知错误';
+    } catch (error: unknown) {
+        const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
+        if (axiosError.code == "ERR_NETWORK") {
+            throw '请求超时'
+        }
+        // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
+        throw axiosError.response?.data?.Msg || '请求失败';
+    }
+
+}
+
+/**
 *******************采集服务*******************
 */
 
@@ -78,7 +107,6 @@ export async function Collector_Info__Count(params?: {
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -109,7 +137,6 @@ export async function Collector_Info__Query(params?: {
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -134,7 +161,6 @@ export async function Collector_Info__Add(add: Collector_Info__Add_interface): P
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -159,7 +185,6 @@ export async function Collector_Info__Update(add: Collector_Info__Update_interfa
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -190,7 +215,6 @@ export async function Collector_Info__Del(Id: number): Promise<void> {
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -221,7 +245,6 @@ export async function Collector_Info__Search_Name(params?: {
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -305,7 +328,6 @@ export async function Drive_Config__Count(params?: {
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -345,7 +367,6 @@ export async function Drive_Config__Query(params?: {
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -371,7 +392,6 @@ export async function Drive_Config__Add(config: Drive_Config__add_interface): Pr
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -396,7 +416,6 @@ export async function Drive_Config__Update(config: Drive_Config__Update_interfac
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -423,7 +442,6 @@ export async function Drive_Config__Del(Id: number): Promise<void> {
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -454,7 +472,6 @@ export async function Drive_Config__Search_Name(params?: {
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -528,7 +545,6 @@ export async function Points_Config__Count(params?: {
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -565,7 +581,6 @@ export async function Points_Config__Query(params?: {
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -591,7 +606,6 @@ export async function Points_Config__Add(config: Points_Config__add_interface): 
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -616,7 +630,6 @@ export async function Points_Config__Update(config: Points_Config__Update_interf
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
@@ -643,7 +656,6 @@ export async function Points_Config__Del(Id: number): Promise<void> {
     } catch (error: unknown) {
         const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
         if (axiosError.code == "ERR_NETWORK") {
-            ElMessage({ message: '请求超时', type: 'error' })
             throw '请求超时'
         }
         // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })

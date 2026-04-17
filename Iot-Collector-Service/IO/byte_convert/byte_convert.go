@@ -38,8 +38,8 @@ const (
 // ==============================
 // bool → 所有
 // ==============================
-func bool_byte(in []bool) []byte { return bool_uint8(in) }
-func bool_uint8(in []bool) []uint8 {
+func Convert_bool_byte(in []bool) []byte { return Convert_bool_uint8(in) }
+func Convert_bool_uint8(in []bool) []uint8 {
 	out := make([]uint8, len(in))
 	for i, v := range in {
 		if v {
@@ -48,7 +48,7 @@ func bool_uint8(in []bool) []uint8 {
 	}
 	return out
 }
-func bool_int8(in []bool) []int8 {
+func Convert_bool_int8(in []bool) []int8 {
 	out := make([]int8, len(in))
 	for i, v := range in {
 		if v {
@@ -57,7 +57,7 @@ func bool_int8(in []bool) []int8 {
 	}
 	return out
 }
-func bool_uint16(in []bool) []uint16 {
+func Convert_bool_uint16(in []bool) []uint16 {
 	out := make([]uint16, len(in))
 	for i, v := range in {
 		if v {
@@ -66,7 +66,7 @@ func bool_uint16(in []bool) []uint16 {
 	}
 	return out
 }
-func bool_int16(in []bool) []int16 {
+func Convert_bool_int16(in []bool) []int16 {
 	out := make([]int16, len(in))
 	for i, v := range in {
 		if v {
@@ -75,7 +75,7 @@ func bool_int16(in []bool) []int16 {
 	}
 	return out
 }
-func bool_uint32(in []bool) []uint32 {
+func Convert_bool_uint32(in []bool) []uint32 {
 	out := make([]uint32, len(in))
 	for i, v := range in {
 		if v {
@@ -84,7 +84,7 @@ func bool_uint32(in []bool) []uint32 {
 	}
 	return out
 }
-func bool_int32(in []bool) []int32 {
+func Convert_bool_int32(in []bool) []int32 {
 	out := make([]int32, len(in))
 	for i, v := range in {
 		if v {
@@ -93,7 +93,7 @@ func bool_int32(in []bool) []int32 {
 	}
 	return out
 }
-func bool_uint64(in []bool) []uint64 {
+func Convert_bool_uint64(in []bool) []uint64 {
 	out := make([]uint64, len(in))
 	for i, v := range in {
 		if v {
@@ -102,7 +102,7 @@ func bool_uint64(in []bool) []uint64 {
 	}
 	return out
 }
-func bool_int64(in []bool) []int64 {
+func Convert_bool_int64(in []bool) []int64 {
 	out := make([]int64, len(in))
 	for i, v := range in {
 		if v {
@@ -111,7 +111,7 @@ func bool_int64(in []bool) []int64 {
 	}
 	return out
 }
-func bool_float32(in []bool) []float32 {
+func Convert_bool_float32(in []bool) []float32 {
 	out := make([]float32, len(in))
 	for i, v := range in {
 		if v {
@@ -120,7 +120,7 @@ func bool_float32(in []bool) []float32 {
 	}
 	return out
 }
-func bool_float64(in []bool) []float64 {
+func Convert_bool_float64(in []bool) []float64 {
 	out := make([]float64, len(in))
 	for i, v := range in {
 		if v {
@@ -133,21 +133,21 @@ func bool_float64(in []bool) []float64 {
 // ==============================
 // uint8 → 所有
 // ==============================
-func uint8_bool(in []uint8) []bool {
+func Convert_uint8_bool(in []uint8) []bool {
 	out := make([]bool, len(in))
 	for i, v := range in {
 		out[i] = v != 0
 	}
 	return out
 }
-func uint8_int8(in []uint8) []int8 {
+func Convert_uint8_int8(in []uint8) []int8 {
 	out := make([]int8, len(in))
 	for i := range in {
 		out[i] = int8(in[i])
 	}
 	return out
 }
-func uint8_uint16(in []uint8, order int) []uint16 {
+func Convert_uint8_uint16(in []uint8, order int) []uint16 {
 	n := len(in) / 2
 	out := make([]uint16, n)
 	for i := 0; i < n; i++ {
@@ -161,15 +161,15 @@ func uint8_uint16(in []uint8, order int) []uint16 {
 	}
 	return out
 }
-func uint8_int16(in []uint8, order int) []int16 {
-	tmp := uint8_uint16(in, order)
+func Convert_uint8_int16(in []uint8, order int) []int16 {
+	tmp := Convert_uint8_uint16(in, order)
 	out := make([]int16, len(tmp))
 	for i := range tmp {
 		out[i] = int16(tmp[i])
 	}
 	return out
 }
-func uint8_uint32(in []uint8, order int) []uint32 {
+func Convert_uint8_uint32(in []uint8, order int) []uint32 {
 	n := len(in) / 4
 	out := make([]uint32, n)
 	for i := 0; i < n; i++ {
@@ -187,15 +187,15 @@ func uint8_uint32(in []uint8, order int) []uint32 {
 	}
 	return out
 }
-func uint8_int32(in []uint8, order int) []int32 {
-	tmp := uint8_uint32(in, order)
+func Convert_uint8_int32(in []uint8, order int) []int32 {
+	tmp := Convert_uint8_uint32(in, order)
 	out := make([]int32, len(tmp))
 	for i := range tmp {
 		out[i] = int32(tmp[i])
 	}
 	return out
 }
-func uint8_uint64(in []uint8, order int) []uint64 {
+func Convert_uint8_uint64(in []uint8, order int) []uint64 {
 	n := len(in) / 8
 	out := make([]uint64, n)
 	for i := 0; i < n; i++ {
@@ -211,24 +211,24 @@ func uint8_uint64(in []uint8, order int) []uint64 {
 	}
 	return out
 }
-func uint8_int64(in []uint8, order int) []int64 {
-	tmp := uint8_uint64(in, order)
+func Convert_uint8_int64(in []uint8, order int) []int64 {
+	tmp := Convert_uint8_uint64(in, order)
 	out := make([]int64, len(tmp))
 	for i := range tmp {
 		out[i] = int64(tmp[i])
 	}
 	return out
 }
-func uint8_float32(in []uint8, order int) []float32 {
-	u := uint8_uint32(in, order)
+func Convert_uint8_float32(in []uint8, order int) []float32 {
+	u := Convert_uint8_uint32(in, order)
 	out := make([]float32, len(u))
 	for i := range u {
 		out[i] = math.Float32frombits(u[i])
 	}
 	return out
 }
-func uint8_float64(in []uint8, order int) []float64 {
-	u := uint8_uint64(in, order)
+func Convert_uint8_float64(in []uint8, order int) []float64 {
+	u := Convert_uint8_uint64(in, order)
 	out := make([]float64, len(u))
 	for i := range u {
 		out[i] = math.Float64frombits(u[i])
@@ -239,31 +239,43 @@ func uint8_float64(in []uint8, order int) []float64 {
 // ==============================
 // int8 → 所有
 // ==============================
-func int8_bool(in []int8) []bool {
+func Convert_int8_bool(in []int8) []bool {
 	out := make([]bool, len(in))
 	for i, v := range in {
 		out[i] = v != 0
 	}
 	return out
 }
-func int8_uint8(in []int8) []uint8 {
+func Convert_int8_uint8(in []int8) []uint8 {
 	out := make([]uint8, len(in))
 	for i := range in {
 		out[i] = uint8(in[i])
 	}
 	return out
 }
-func int8_uint16(in []int8, order int) []uint16 { return uint8_uint16(int8_uint8(in), order) }
-func int8_int16(in []int8, order int) []int16   { return uint8_int16(int8_uint8(in), order) }
-func int8_uint32(in []int8, order int) []uint32 { return uint8_uint32(int8_uint8(in), order) }
-func int8_int32(in []int8, order int) []int32   { return uint8_int32(int8_uint8(in), order) }
-func int8_uint64(in []int8, order int) []uint64 { return uint8_uint64(int8_uint8(in), order) }
-func int8_int64(in []int8, order int) []int64   { return uint8_int64(int8_uint8(in), order) }
+func Convert_int8_uint16(in []int8, order int) []uint16 {
+	return Convert_uint8_uint16(Convert_int8_uint8(in), order)
+}
+func Convert_int8_int16(in []int8, order int) []int16 {
+	return Convert_uint8_int16(Convert_int8_uint8(in), order)
+}
+func Convert_int8_uint32(in []int8, order int) []uint32 {
+	return Convert_uint8_uint32(Convert_int8_uint8(in), order)
+}
+func Convert_int8_int32(in []int8, order int) []int32 {
+	return Convert_uint8_int32(Convert_int8_uint8(in), order)
+}
+func Convert_int8_uint64(in []int8, order int) []uint64 {
+	return Convert_uint8_uint64(Convert_int8_uint8(in), order)
+}
+func Convert_int8_int64(in []int8, order int) []int64 {
+	return Convert_uint8_int64(Convert_int8_uint8(in), order)
+}
 
 // ==============================
 // uint16 → 所有
 // ==============================
-func uint16_uint8(in []uint16, order int) []uint8 {
+func Convert_uint16_uint8(in []uint16, order int) []uint8 {
 	out := make([]uint8, len(in)*2)
 	for i := range in {
 		v := in[i]
@@ -278,8 +290,8 @@ func uint16_uint8(in []uint16, order int) []uint8 {
 	}
 	return out
 }
-func uint16_int8(in []uint16, order int) []int8 {
-	tmp := uint16_uint8(in, order)
+func Convert_uint16_int8(in []uint16, order int) []int8 {
+	tmp := Convert_uint16_uint8(in, order)
 	out := make([]int8, len(tmp))
 	for i := range tmp {
 		out[i] = int8(tmp[i])
@@ -290,15 +302,15 @@ func uint16_int8(in []uint16, order int) []int8 {
 // ==============================
 // int16 → 所有
 // ==============================
-func int16_uint8(in []int16, order int) []uint8 {
+func Convert_int16_uint8(in []int16, order int) []uint8 {
 	tmp := make([]uint16, len(in))
 	for i := range in {
 		tmp[i] = uint16(in[i])
 	}
-	return uint16_uint8(tmp, order)
+	return Convert_uint16_uint8(tmp, order)
 }
-func int16_int8(in []int16, order int) []int8 {
-	tmp := int16_uint8(in, order)
+func Convert_int16_int8(in []int16, order int) []int8 {
+	tmp := Convert_int16_uint8(in, order)
 	out := make([]int8, len(tmp))
 	for i := range tmp {
 		out[i] = int8(tmp[i])
@@ -309,7 +321,7 @@ func int16_int8(in []int16, order int) []int8 {
 // ==============================
 // uint32 → 所有
 // ==============================
-func uint32_uint8(in []uint32, order int) []uint8 {
+func Convert_uint32_uint8(in []uint32, order int) []uint8 {
 	out := make([]uint8, len(in)*4)
 	for i := range in {
 		v := in[i]
@@ -342,18 +354,18 @@ func uint32_uint8(in []uint32, order int) []uint8 {
 // ==============================
 // int32 → 所有
 // ==============================
-func int32_uint8(in []int32, order int) []uint8 {
+func Convert_int32_uint8(in []int32, order int) []uint8 {
 	tmp := make([]uint32, len(in))
 	for i := range in {
 		tmp[i] = uint32(in[i])
 	}
-	return uint32_uint8(tmp, order)
+	return Convert_uint32_uint8(tmp, order)
 }
 
 // ==============================
 // uint64 → 所有
 // ==============================
-func uint64_uint8(in []uint64, order int) []uint8 {
+func Convert_uint64_uint8(in []uint64, order int) []uint8 {
 	out := make([]uint8, len(in)*8)
 	for i := range in {
 		v := in[i]
@@ -384,32 +396,32 @@ func uint64_uint8(in []uint64, order int) []uint8 {
 // ==============================
 // int64 → 所有
 // ==============================
-func int64_uint8(in []int64, order int) []uint8 {
+func Convert_int64_uint8(in []int64, order int) []uint8 {
 	tmp := make([]uint64, len(in))
 	for i := range in {
 		tmp[i] = uint64(in[i])
 	}
-	return uint64_uint8(tmp, order)
+	return Convert_uint64_uint8(tmp, order)
 }
 
 // ==============================
 // float32 → uint8
 // ==============================
-func float32_uint8(in []float32, order int) []uint8 {
+func Convert_float32_uint8(in []float32, order int) []uint8 {
 	u := make([]uint32, len(in))
 	for i := range in {
 		u[i] = math.Float32bits(in[i])
 	}
-	return uint32_uint8(u, order)
+	return Convert_uint32_uint8(u, order)
 }
 
 // ==============================
 // float64 → uint8
 // ==============================
-func float64_uint8(in []float64, order int) []uint8 {
+func Convert_float64_uint8(in []float64, order int) []uint8 {
 	u := make([]uint64, len(in))
 	for i := range in {
 		u[i] = math.Float64bits(in[i])
 	}
-	return uint64_uint8(u, order)
+	return Convert_uint64_uint8(u, order)
 }

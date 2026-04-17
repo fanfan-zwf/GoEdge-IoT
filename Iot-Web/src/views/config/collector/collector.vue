@@ -10,8 +10,9 @@
                 <el-table-column prop="Version" label="版本" width="230" align="center" />
                 <el-table-column prop="Creation_Time" label="创建时间" min-width="200" show-overflow-tooltip />
                 <el-table-column prop="Last_Activity_Time" label="最后活动时间" width="230" align="center" />
-                <el-table-column label="操作" width="180" fixed="right">
+                <el-table-column label="操作" width="200" fixed="right">
                     <template #default="scope">
+                         <el-button size="small" @click="restartRow(scope)">重启</el-button>
                         <el-button size="small" @click="editRow(scope)">编辑</el-button>
                         <el-button size="small" type="danger" @click="deleteRow(scope)">删除</el-button>
                     </template>
@@ -68,6 +69,7 @@ import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus' // 引
 // 修复点3: 移除未使用的 naive-ui 导入
 // import { c } from 'naive-ui' 
 import {
+    App_Restart,
     Collector_Info__Count,
     Collector_Info__Query,
     Collector_Info__Add,
@@ -95,6 +97,8 @@ const Query = (Page: number) => {
     }).then((config_info) => {
         config_data.length = 0
         Object.assign(config_data, config_info)
+    }).catch((error) => {
+        ElMessage.error(error)
     })
 }
 
@@ -103,6 +107,8 @@ const Count = () => {
     Collector_Info__Count().then((Count) => {
         pagination.total_length = Count
         Query(1)
+    }).catch((error) => {
+        ElMessage.error(error)
     })
 }
 
@@ -118,6 +124,19 @@ const handleSizeChange = (value: number) => {
 
 const handleCurrentChange = (value: number) => {
     Query(value)
+}
+
+const restartRow=(scope: any) => {
+    const Uuid: string = scope.row.Uuid ?? ""
+    if (Uuid === "") {
+        ElMessage.error('无效的ID')
+        return
+    }
+    App_Restart(Uuid).then(() => {
+        ElMessage.success('重启成功')
+    }).catch((error) => {
+        ElMessage.error(error)
+    })
 }
 
 // 编辑行

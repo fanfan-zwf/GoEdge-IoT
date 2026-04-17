@@ -67,12 +67,18 @@ type Config_type struct {
 	} `yaml:"User_Service"` // 用户服务
 
 	Mqtt_Rpc struct {
-		Broker   string `yaml:"broker"`
-		Username string `yaml:"username"`
-		Password string `yaml:"password"`
-		ClientID string `yaml:"client_id"`
+		Broker            string        `yaml:"broker"`
+		Username          string        `yaml:"username"`
+		Password          string        `yaml:"password"`
+		ClientID          string        `yaml:"client_id"`
+		SetCleanSession   bool          `yaml:"clean_session"`   // 清洁会话（重启不接收离线消息）
+		SetAutoReconnect  bool          `yaml:"auto_reconnect"`  // 自动重连（必须开）
+		SetConnectTimeout time.Duration `yaml:"connect_timeout"` // 连接超时
+		SetWriteTimeout   time.Duration `yaml:"write_timeout"`   // 写超时
+		SetKeepAlive      time.Duration `yaml:"keep_alive"`      // 心跳保活
 
-		ListenTopic string `yaml:"listen_topic"`
+		BusinessTimeout time.Duration `yaml:"business_timeout"`
+		ListenTopic     string        `yaml:"listen_topic"`
 	} `yaml:"Mqtt_Rpc"` // mqtt版的rpc通信
 
 }

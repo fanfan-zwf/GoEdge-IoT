@@ -6,6 +6,7 @@
 package web
 
 import (
+	"main/app/mqtt_rpc"
 	db_mysql "main/db/mysql"
 
 	"database/sql"
@@ -408,6 +409,23 @@ func Points_Config__Del(ctx *gin.Context) {
 	ctx.Set("Response", []any{200, "ok"})
 }
 
+func App_Restart(ctx *gin.Context) {
+	var jsondata struct {
+		Uuid string
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+	err = mqtt_rpc.App_Restart(jsondata.Uuid)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
 func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/collector_info/count", Collector_Info__Count)
 	r.POST("/api/gui/v1.0/collector_info/query", Collector_Info__Query)
@@ -428,4 +446,6 @@ func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/config/points/add", Points_Config__Add)
 	r.POST("/api/gui/v1.0/config/points/update", Points_Config__Update)
 	r.POST("/api/gui/v1.0/config/points/del", Points_Config__Del)
+
+	r.POST("/api/gui/v1.0/app/restart", App_Restart)
 }

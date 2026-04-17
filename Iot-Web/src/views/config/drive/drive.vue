@@ -102,6 +102,8 @@ const Query = (Page: number) => {
     }).then((config_info) => {
         config_data.length = 0
         Object.assign(config_data, config_info)
+    }).catch((error) => {
+        ElMessage.error(error)
     })
 }
 
@@ -110,6 +112,8 @@ const Count = () => {
     Drive_Config__Count().then((Count) => {
         pagination.total_length = Count
         Query(1)
+    }).catch((error) => {
+        ElMessage.error(error)
     })
 }
 

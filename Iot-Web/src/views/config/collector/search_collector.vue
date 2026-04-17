@@ -94,6 +94,8 @@ const api_Search = () => {
         search.result.length = 0
         Object.assign(search.result, value_array)
         search.visible = true
+    }).catch((error) => {
+        ElMessage.error(error)
     })
 
 }
