@@ -8,7 +8,6 @@ package Modbus_Tcp
 
 import (
 	"main/IO/byte_convert"
-	"main/Init"
 
 	"bytes"
 	"encoding/binary"
@@ -209,34 +208,14 @@ func (c *Connect_struct) Packet() error {
 	return err
 }
 
-// 点位错误，掉线等等
-func (c *Connect_struct) Inform_Err(msg string) (err error) {
-	var value_collection []Realtime_database.IO_Collection_Value_type
-	for _, Point := range c.Points {
-		if !(Point.RW_Cancel == "W/R" || Point.RW_Cancel == "R") {
-			continue
-		}
-		value_collection = append(value_collection, Realtime_database.IO_Collection_Value_type{
-			Points_Id:  Point.Id, // 点位id
-			Tag:        Point.Tag,
-			Msg:        msg,              // 状态
-			Value_Type: Point.Value_Type, // 值类型
-			Time:       time.Now().Format(Init.RFC_FAN),
-		})
-	}
-	return c.CacheUpdate_Publisher(value_collection)
-}
-
 // 初始化连接
 func (c *Connect_struct) NewTCPClient(Ip string, Port uint16) error {
 
 	parsedIP := net.ParseIP(Ip)
 	if parsedIP == nil {
-		c.Inform_Err("IP error")
 		return errors.New("IP error")
 	}
 	if !(strings.Contains(Ip, ".") && parsedIP.To4() != nil) {
-		c.Inform_Err("IP error")
 		return errors.New("IP error")
 	}
 	c.Drive.Config.Ip = Ip
@@ -248,34 +227,33 @@ func (c *Connect_struct) NewTCPClient(Ip string, Port uint16) error {
 func (c *Connect_struct) Connect() error {
 	c.Esc_collection = make(chan bool)
 	c.Receive_Response = 0
+
 	// 连接服务器
 	Host := fmt.Sprintf("%d", c.Drive.Config.Port)
 	address := net.JoinHostPort(c.Drive.Config.Ip, Host)
 
-	for {
-		if c.Drive.Config.Connect_timeout == 0 {
-			c.Drive.Config.Connect_timeout = 3000
-		}
-		c.conn, c.conn_err = net.DialTimeout("tcp", address, time.Duration(c.Drive.Config.Connect_timeout)*time.Millisecond)
-		if c.conn_err != nil {
-			if c.Drive.Config.Retry_timeout == 0 {
-				c.Drive.Config.Retry_timeout = 180000
-			}
-			c.Inform_Err(c.conn_err.Error())
-			log.Printf("INFO modbus_tcp: 驱动id:%d,等待:%dms后重连,连接错误:%v ", c.Drive.Id, c.Drive.Config.Retry_timeout, c.conn_err)
-			time.Sleep(time.Duration(c.Drive.Config.Retry_timeout) * time.Millisecond) // 等待重连
-		} else {
-			break
-		}
+	if c.Drive.Config.Connect_timeout == 0 {
+		c.Drive.Config.Connect_timeout = 3000
 	}
 
-	return c.conn_err
+	// 单次尝试连接，不再内部无限循环，由调用者或keepAlive决定重试
+	conn, err := net.DialTimeout("tcp", address, time.Duration(c.Drive.Config.Connect_timeout)*time.Millisecond)
+	if err != nil {
+		log.Printf("WARN modbus_tcp: 驱动id:%d, 连接失败: %v", c.Drive.Id, err)
+		c.conn_err = err
+		return err
+	}
+
+	c.conn = conn
+	c.conn_err = nil
+	log.Printf("INFO modbus_tcp: 驱动id:%d, 连接成功", c.Drive.Id)
+	return nil
 }
 
 // 关闭连接
 func (c *Connect_struct) Close() error {
 	log.Print("INFO ", c.Drive.Id, "关闭IO")
-	c.Inform_Err("关闭IO")
+	c.conn_err = fmt.Errorf("关闭IO")
 	if c.conn != nil {
 		return c.conn.Close()
 	}
@@ -284,23 +262,45 @@ func (c *Connect_struct) Close() error {
 
 // 掉线重新连接
 func (c *Connect_struct) keepAliveConnect() error {
-	if c.tcp_again_Connect.TryLock() {
-		c.Inform_Err("等待重新连接")
-		if c.conn != nil {
-			c.Close()
-			c.conn = nil
+	// 尝试获取锁，如果获取失败说明其他协程正在重连，直接返回错误避免并发重连
+	if !c.tcp_again_Connect.TryLock() {
+		// 等待一小段时间后再次检查连接状态，如果其他协程重连成功，则直接返回
+		time.Sleep(100 * time.Millisecond)
+		if c.conn != nil && c.conn_err == nil {
+			return nil
 		}
-
-		err := c.Connect()
-
-		c.tcp_again_Connect.Unlock()
-
-		return err
-
-	} else {
 		return errors.New("等待重新连接")
 	}
+	defer c.tcp_again_Connect.Unlock()
 
+	// 双重检查：如果在等待锁的过程中连接已经恢复，则无需重连
+	if c.conn != nil && c.conn_err == nil {
+		// 简单探测连接是否存活，可选
+		return nil
+	}
+
+	log.Printf("INFO modbus_tcp: 驱动id:%d, 开始执行掉线重连...", c.Drive.Id)
+
+	// 安全关闭旧连接
+	if c.conn != nil {
+		_ = c.conn.Close()
+		c.conn = nil
+	}
+
+	// 重置连接错误状态，以便 Connect 尝试新连接
+	c.conn_err = nil
+
+	// 执行重连
+	err := c.Connect()
+	if err != nil {
+		log.Printf("ERROR modbus_tcp: 驱动id:%d, 重连失败: %v", c.Drive.Id, err)
+		// 设置一个标记错误，表明当前处于断开状态
+		c.conn_err = errors.New("重连失败")
+		return err
+	}
+
+	log.Printf("INFO modbus_tcp: 驱动id:%d, 重连成功", c.Drive.Id)
+	return nil
 }
 
 // CheckTransactionID 校验Modbus响应的事务标识符是否匹配
@@ -328,22 +328,20 @@ func (c *Connect_struct) CheckTransactionID(send []byte, receive []byte) error {
 
 // 发送tcp数据
 func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
+	// 检查连接状态，如果已知断开，先尝试重连
+	if c.conn_err != nil || c.conn == nil {
+		if err := c.keepAliveConnect(); err != nil {
+			return []byte{}, err
+		}
+	}
+
 	// 线程锁
 	c.tcp_sync.Lock()
 	defer c.tcp_sync.Unlock()
 
-	// 见鬼我也不知道为什么要这样写
-	// defer func() {
-	// 	if !c.tcp_sync.TryLock() {
-	// 		c.tcp_sync.Unlock()
-	// 	}
-	// }()
-	if c.conn_err != nil {
-		return []byte{}, c.conn_err
-	}
-
+	// 再次检查连接状态，防止在等待锁期间连接断开
 	if c.conn == nil {
-		return []byte{}, errors.New("等待连接")
+		return []byte{}, errors.New("连接未建立")
 	}
 
 	c.transaction_ID++
@@ -362,10 +360,14 @@ func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
 	// 发送数据
 	_, err := c.conn.Write(*send)
 	if err != nil {
-		if c.conn != nil {
-			c.keepAliveConnect()
-		}
-		log.Printf("ERROR %v", err.Error())
+		log.Printf("ERROR modbus_tcp: 发送数据失败: %v", err)
+		// 标记连接错误，触发下次重连
+		c.conn_err = err
+		// 尝试异步重连或在此处处理，通常建议返回错误由上层处理或触发重连
+		// 这里为了保持原有逻辑风格，尝试立即重连可能会因为锁的问题复杂化，
+		// 故仅标记错误并关闭连接，让下一次调用 tcp_data 时触发 keepAliveConnect
+		_ = c.conn.Close()
+		c.conn = nil
 		return []byte{}, err
 	}
 
@@ -379,6 +381,7 @@ func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
 	}
 	err = c.conn.SetReadDeadline(time.Now().Add(time.Duration(c.Drive.Config.Response_timeout) * time.Millisecond))
 	if err != nil {
+		c.conn_err = err
 		return []byte{}, err
 	}
 
@@ -390,12 +393,34 @@ func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
 		// 处理读取头的错误（比如超时、连接断开）
 		c.Receive_Response += 1
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			log.Printf("读取响应头超时：%v", err)
+			log.Printf("WARN modbus_tcp: 读取响应头超时：%v", err)
 		} else {
-			log.Printf("读取响应头失败：%v", err)
+			log.Printf("ERROR modbus_tcp: 读取响应头失败：%v", err)
+			// 非超时错误通常意味着连接断开
+			c.conn_err = err
+			_ = c.conn.Close()
+			c.conn = nil
 		}
+
+		// 连续超时或错误次数过多，主动触发重连
+		// 注意：此处不再异步调用，而是依靠上层或下一次调用时的检查
+		// 如果业务强依赖即时重连，可在此处同步调用，但需注意死锁风险（当前已有tcp_sync锁）
+		// 由于 keepAliveConnect 需要 tcp_again_Connect 锁，而当前持有 tcp_sync (虽然目前看没有)，则会死锁。
+		// 目前 keepAliveConnect 只获取 tcp_again_Connect，所以同步调用是安全的，但会阻塞当前读取。
+		// 鉴于 Modbus 是请求-响应模式，阻塞当前请求直到重连完成或失败是合理的。
 		if c.Receive_Response > 3 {
-			c.keepAliveConnect()
+			log.Printf("WARN modbus_tcp: 连续响应异常，触发重连")
+			// 释放 tcp_sync 锁以避免潜在的死锁或长时间占用
+			c.tcp_sync.Unlock()
+			reconnectErr := c.keepAliveConnect()
+			c.tcp_sync.Lock() // 重新加锁以符合 defer Unlock
+			if reconnectErr != nil {
+				return []byte{}, reconnectErr
+			}
+			// 重连成功后，可能需要重新发送请求，或者由上层重试
+			// 这里简单返回错误，让上层决定是否需要重试
+			return []byte{}, errors.New("触发重连，请重试请求")
+
 		}
 		return []byte{}, err
 	}
@@ -407,20 +432,28 @@ func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
 	// 注意：这里复用你原有的字节转换函数
 	// n, err := byte_convert.Byte_Convert_byte_uint16([2]byte{header[4], header[5]}, "AB")
 	n := byte_convert.Convert_uint8_uint16([]byte{header[4], header[5]}, byte_convert.AB)[0]
-	if err != nil {
-		return []byte{}, errors.New("长度计算错误")
-	}
+
 	// n 是「单元ID+数据」的长度，完整响应长度 = 6（头） + n
-	fullLength := 6 + n
+	fullLength := 6 + int(n)
 
 	// 步骤3：读取响应体（n个字节）
 	body := make([]byte, n)
 	nBody, err := io.ReadFull(c.conn, body)
 	if err != nil {
 		c.Receive_Response += 1
-		log.Printf("读取响应体失败：%v", err)
+		log.Printf("ERROR modbus_tcp: 读取响应体失败：%v", err)
+		c.conn_err = err
+		_ = c.conn.Close()
+		c.conn = nil
+
 		if c.Receive_Response > 3 {
-			c.keepAliveConnect()
+			c.tcp_sync.Unlock()
+			reconnectErr := c.keepAliveConnect()
+			c.tcp_sync.Lock()
+			if reconnectErr != nil {
+				return []byte{}, reconnectErr
+			}
+			return []byte{}, errors.New("触发重连，请重试请求")
 		}
 		return []byte{}, err
 	}
@@ -434,26 +467,41 @@ func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
 	// 校验正确响应
 	err = c.CheckTransactionID(*send, receive)
 	if err != nil {
-		log.Print(err)
+		log.Printf("WARN modbus_tcp: 事务ID校验失败: %v", err)
+		// 事务ID不匹配可能是由于之前的请求残留或乱序，尝试清空缓冲区
 		_, err1 := ClearTCPBuffer(c.conn, 20)
 		if err1 != nil {
-			log.Print(err1)
-			c.keepAliveConnect()
+			log.Printf("ERROR modbus_tcp: 清空缓冲区失败: %v", err1)
+		}
+
+		// 校验失败通常视为一次通信异常，增加计数
+		c.Receive_Response++
+		if c.Receive_Response > 3 {
+			c.tcp_sync.Unlock()
+			reconnectErr := c.keepAliveConnect()
+			c.tcp_sync.Lock()
+			if reconnectErr != nil {
+				return []byte{}, reconnectErr
+			}
+			return []byte{}, errors.New("触发重连，请重试请求")
 		}
 
 		return []byte{}, err
 	}
+
+	// 重置连续错误计数
+	c.Receive_Response = 0
 
 	// 后续你的逻辑不变（打印、校验ID等）
 	if c.Data_Packet_Print_enable {
 		fmt.Printf("接收:% x\n", receive[:fullLength]) // 这里可以直接用receive，因为已经是完整的
 	}
 
-	if len(receive) < int(fullLength) {
+	if len(receive) < fullLength {
 		return []byte{}, fmt.Errorf("响应体长度不符，预期%d，实际%d", fullLength, len(receive))
 	}
 
-	return receive, err
+	return receive, nil
 }
 
 // 读取  00001至09999是离散输出(线圈)
@@ -744,23 +792,10 @@ func (c *Connect_struct) Write_single__Coils_tatus(Device uint8, Start uint16, V
 func (c *Connect_struct) Write_many__Coils_tatus(Device uint8, Start uint16, Number uint16, Value []bool) error {
 	Value = Value[:Number]
 
-	// 开始地址转化2个字节
-	// Start_byte, err := byte_convert.Byte_Convert_uint16_byte(Start, "AB")
-	// if err != nil {
-	// 	return err
-
-	// }
 	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{Start}, byte_convert.AB)
-	Value_Number := byte_convert.Convert_uint16_uint8([]uint16{int16(len(Value))}, byte_convert.AB)
+	Value_Number := byte_convert.Convert_uint16_uint8([]uint16{uint16(len(Value))}, byte_convert.AB)
 
-	// 数组值长度
-	// Value_Number, err := byte_convert.Byte_Convert_int16_byte(int16(len(Value)), "AB")
-	if err != nil {
-		return err
-
-	}
-
-	Value_byte := byte_convert.BoolsToBytesLittleEndian(Value)
+	Value_byte := byte_convert.Convert_bool_byte(Value)
 
 	Value_byte_Number := len(Value_byte)
 	if Value_byte_Number > 120 {
@@ -811,11 +846,7 @@ func (c *Connect_struct) Write_many__Coils_tatus(Device uint8, Start uint16, Num
 func (c *Connect_struct) Write_single__Input_register(Device uint8, Start uint16, Value [2]byte) error {
 
 	// 开始地址转化2个字节
-	Start_byte, err := byte_convert.Byte_Convert_uint16_byte(Start, "AB")
-	if err != nil {
-		return err
-
-	}
+	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{Start}, byte_convert.AB)
 
 	send := []byte{
 		0x00, 0x01, // 事务元标识符
@@ -862,18 +893,8 @@ func (c *Connect_struct) Write_many__Input_register(Device uint8, Start uint16, 
 	Value = Value[:Number*2]
 
 	// 开始地址转化2个字节
-	Start_byte, err := byte_convert.Byte_Convert_uint16_byte(Start, "AB")
-	if err != nil {
-		return err
-
-	}
-
-	// 数组值长度
-	Value_Number, err := byte_convert.Byte_Convert_uint16_byte(Number, "AB")
-	if err != nil {
-		return err
-
-	}
+	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{Start}, byte_convert.AB)
+	Value_Number := byte_convert.Convert_uint16_uint8([]uint16{Number}, byte_convert.AB)
 
 	Value_byte_Number := len(Value)
 	if Value_byte_Number > 120 {
