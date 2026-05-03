@@ -227,12 +227,12 @@ export async function Collector_Info__Del(Id: number): Promise<void> {
  * 采集-》搜索
  * 传递：field quantity 数量，vague 模糊搜索字符串 返回：configs 配置，err 错误
  */
-export async function Collector_Info__Search_Name(params?: {
+export async function Collector_Info__Search_Field_Vague(params?: {
     Field: string; Quantity: number; Vague: string;
 }): Promise<Collector_Info__table_interface[]> {
     try {
         // 修改：直接 await axios.post
-        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/search', {
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/search/field/vague', {
             Field: params?.Field,
             Quantity: params?.Quantity,
             Vague: params?.Vague
@@ -454,12 +454,12 @@ export async function Drive_Config__Del(Id: number): Promise<void> {
  * 采集-》搜索
  * 传递：field quantity 数量，vague 模糊搜索字符串 返回：configs 配置，err 错误
  */
-export async function Drive_Config__Search_Name(params?: {
+export async function Drive_Config__Search_Field_Vague(params?: {
     Field: string; Quantity: number; Vague: string;
 }): Promise<Drive_Config__table_interface[]> {
     try {
         // 修改：直接 await axios.post
-        const response = await axios.post(config_service_url + '/api/gui/v1.0/drive/search', {
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/config/drive/search/field/vague', {
             Field: params?.Field,
             Quantity: params?.Quantity,
             Vague: params?.Vague

@@ -44,10 +44,10 @@ type Collector_Info_type struct {
 
 func Collector_Info__Count(page uint, pageSize uint) (resp uint, err error) {
 	type Req struct {
-		page     uint
-		pageSize uint
+		Page     uint
+		PageSize uint
 	}
-	err = jsonCall(Req{page: page, pageSize: pageSize}, &resp,
+	err = jsonCall(Req{Page: page, PageSize: pageSize}, &resp,
 		Init.Config.Mqtt_Rpc.Broker,
 		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/V1.0/Get/Collector/Count",
@@ -62,14 +62,39 @@ func Collector_Info__Count(page uint, pageSize uint) (resp uint, err error) {
 
 func Collector_Info__Query(page uint, pageSize uint) (resp []Collector_Info_type, err error) {
 	type Req struct {
-		page     uint
-		pageSize uint
+		Page     uint
+		PageSize uint
 	}
 
-	err = jsonCall(Req{page: page, pageSize: pageSize}, &resp,
+	err = jsonCall(Req{Page: page, PageSize: pageSize}, &resp,
 		Init.Config.Mqtt_Rpc.Broker,
 		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/V1.0/Get/Collector/Query",
+		Init.Config.Mqtt_Rpc.BusinessTimeout,
+	)
+	if err != nil {
+		err = fmt.Errorf("ERROR RPC调用失败：%v", err)
+		log.Print(err)
+	}
+	return
+}
+
+// 采集-》搜索
+// 传递：field quantity 数量，vague 模糊搜索字符串
+// 返回：configs 配置，err 错误
+func Collector_Info__Search_Field(field string, quantity uint, vague string) (resp []Drive_Config_type, err error) {
+	type Req struct {
+		Field    string
+		Quantity uint
+		Vague    string
+	}
+
+	fmt.Printf("Req \n%+v\n", Req{Field: field, Quantity: quantity, Vague: vague})
+
+	err = jsonCall(Req{Field: field, Quantity: quantity, Vague: vague}, &resp,
+		Init.Config.Mqtt_Rpc.Broker,
+		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
+		"/V1.0/Get/Collector/Search/Field",
 		Init.Config.Mqtt_Rpc.BusinessTimeout,
 	)
 	if err != nil {
@@ -98,12 +123,12 @@ type Drive_Config_type struct {
 
 func Drive_Config__Count(collectorId uint, driveType string, page uint, pageSize uint) (resp uint, err error) {
 	type Req struct {
-		collectorId uint
-		driveType   string
-		page        uint
-		pageSize    uint
+		CollectorId uint
+		DriveType   string
+		Page        uint
+		PageSize    uint
 	}
-	err = jsonCall(Req{collectorId: collectorId, driveType: driveType, page: page, pageSize: pageSize}, &resp,
+	err = jsonCall(Req{CollectorId: collectorId, DriveType: driveType, Page: page, PageSize: pageSize}, &resp,
 		Init.Config.Mqtt_Rpc.Broker,
 		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/V1.0/Get/Drive/Count",
@@ -116,15 +141,15 @@ func Drive_Config__Count(collectorId uint, driveType string, page uint, pageSize
 	return
 }
 
-func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize uint) (resp []Collector_Info_type, err error) {
+func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize uint) (resp []Drive_Config_type, err error) {
 	type Req struct {
-		collectorId uint
-		driveType   string
-		page        uint
-		pageSize    uint
+		CollectorId uint
+		DriveType   string
+		Page        uint
+		PageSize    uint
 	}
 
-	err = jsonCall(Req{collectorId: collectorId, driveType: driveType, page: page, pageSize: pageSize}, &resp,
+	err = jsonCall(Req{CollectorId: collectorId, DriveType: driveType, Page: page, PageSize: pageSize}, &resp,
 		Init.Config.Mqtt_Rpc.Broker,
 		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/V1.0/Get/Drive/Query",
@@ -137,14 +162,19 @@ func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize
 	return
 }
 
+// 基础配置结构体
+type Points_Config_Basic_type struct {
+	Id         uint   // 点位id
+	Tag        string // 点位标识
+	RW_Cancel  string // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
+	Value_Type string // 输出类型
+	Config     string
+}
+
 // 点位配置更新结构体
 type Points_Config_Update_type struct {
-	Id          uint   // 点位id
-	Tag         string // 点位标识
+	Points_Config_Basic_type
 	Description string // 点位描述
-	RW_Cancel   string // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
-	Value_Type  string // 输出类型
-	Config      string
 }
 
 // 点位配置结构体
@@ -157,13 +187,18 @@ type Points_Config_type struct {
 
 }
 
+type IO_Points_Config_type struct {
+	Drive  Drive_Config_type
+	Points []Points_Config_type
+}
+
 func Points_Config__Count(driveid uint, page uint, pageSize uint) (resp uint, err error) {
 	type Req struct {
-		driveid  uint
-		page     uint
-		pageSize uint
+		Driveid  uint
+		Page     uint
+		PageSize uint
 	}
-	err = jsonCall(Req{driveid: driveid, page: page, pageSize: pageSize}, &resp,
+	err = jsonCall(Req{Driveid: driveid, Page: page, PageSize: pageSize}, &resp,
 		Init.Config.Mqtt_Rpc.Broker,
 		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/V1.0/Get/Drive/Count",
@@ -178,15 +213,15 @@ func Points_Config__Count(driveid uint, page uint, pageSize uint) (resp uint, er
 
 func Points_Config__Query(driveid uint, page uint, pageSize uint) (resp []Points_Config_type, err error) {
 	type Req struct {
-		driveid  uint
-		page     uint
-		pageSize uint
+		Driveid  uint
+		Page     uint
+		PageSize uint
 	}
 
-	err = jsonCall(Req{driveid: driveid, page: page, pageSize: pageSize}, &resp,
+	err = jsonCall(Req{Driveid: driveid, Page: page, PageSize: pageSize}, &resp,
 		Init.Config.Mqtt_Rpc.Broker,
 		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
-		"/V1.0/Get/Drive/Query",
+		"/V1.0/Get/Points/Query",
 		Init.Config.Mqtt_Rpc.BusinessTimeout,
 	)
 	if err != nil {

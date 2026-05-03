@@ -31,7 +31,7 @@ user_Service:
   secret: "123456"  
  
 Mqtt_Rpc:
-  broker: tcp://emqx.njtxy.zwf.fan:1883
+  broker: tcp://127.0.0.1:1883
   username: o7aKZOj53p2PkkFJzKzM
   password: lpj4VZ4ZYFg5GmINhRat
   client_id:  123e4567-e89b-12d3-a456-426614174000

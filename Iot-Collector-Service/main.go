@@ -2,11 +2,13 @@ package main
 
 import (
 	"log"
+	"main/IO/run"
 	"main/app/mqtt_rpc"
 	"main/db/db_point"
 	"main/db/influxdb"
 	"main/db/mysql"
 	"main/db/redis"
+
 	"os"
 	"os/signal"
 	"syscall"
@@ -35,6 +37,10 @@ func app() (err error) {
 
 	time.Sleep(200 * time.Millisecond)
 
+	err = run.New()
+	if err != nil {
+		log.Panic(err.Error())
+	}
 	return
 }
 

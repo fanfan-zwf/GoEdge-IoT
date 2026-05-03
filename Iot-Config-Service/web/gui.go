@@ -127,7 +127,7 @@ func Collector_Info__Del(ctx *gin.Context) {
 }
 
 // 采集-》搜索 传递：field quantity 数量，vague 模糊搜索字符串 返回：configs 配置，err 错误
-func Collector_Info__Search_Name(ctx *gin.Context) {
+func Collector_Info__Search_Field(ctx *gin.Context) {
 	var jsondata struct {
 		Field    string
 		Quantity uint
@@ -139,7 +139,7 @@ func Collector_Info__Search_Name(ctx *gin.Context) {
 		return
 	}
 
-	config_list, err := db_mysql.Collector_Info__Search_Name(jsondata.Field, jsondata.Quantity, jsondata.Vague)
+	config_list, err := db_mysql.Collector_Info__Search_Field(jsondata.Field, jsondata.Quantity, jsondata.Vague)
 	if err == sql.ErrNoRows {
 		ctx.Set("Response", []any{404, "查询不到"})
 		return
@@ -270,7 +270,7 @@ func Drive_Config__Del(ctx *gin.Context) {
 
 }
 
-func Drive_Config__Search_Name(ctx *gin.Context) {
+func Drive_Config__Search_Field(ctx *gin.Context) {
 	var jsondata struct {
 		Field    string
 		Quantity uint
@@ -282,7 +282,7 @@ func Drive_Config__Search_Name(ctx *gin.Context) {
 		return
 	}
 
-	config_list, err := db_mysql.Drive_Config__Search_Name(jsondata.Field, jsondata.Quantity, jsondata.Vague)
+	config_list, err := db_mysql.Drive_Config__Search_Field(jsondata.Field, jsondata.Quantity, jsondata.Vague)
 	if err == sql.ErrNoRows {
 		ctx.Set("Response", []any{404, "查询不到"})
 		return
@@ -432,14 +432,14 @@ func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/collector_info/add", Collector_Info__Add)
 	r.POST("/api/gui/v1.0/collector_info/update", Collector_Info__Update)
 	r.POST("/api/gui/v1.0/collector_info/del", Collector_Info__Del)
-	r.POST("/api/gui/v1.0/collector_info/search", Collector_Info__Search_Name)
+	r.POST("/api/gui/v1.0/collector_info/search/field", Collector_Info__Search_Field)
 
 	r.POST("/api/gui/v1.0/config/drive/count", Drive_Config__Count)
 	r.POST("/api/gui/v1.0/config/drive/query", Drive_Config__Query)
 	r.POST("/api/gui/v1.0/config/drive/add", Drive_Config__Add)
 	r.POST("/api/gui/v1.0/config/drive/update", Drive_Config__Update)
 	r.POST("/api/gui/v1.0/config/drive/del", Drive_Config__Del)
-	r.POST("/api/gui/v1.0/drive/search", Drive_Config__Search_Name)
+	r.POST("/api/gui/v1.0/config/drive/search/field", Drive_Config__Search_Field)
 
 	r.POST("/api/gui/v1.0/config/points/count", Points_Config__Count)
 	r.POST("/api/gui/v1.0/config/points/query", Points_Config__Query)

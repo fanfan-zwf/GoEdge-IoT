@@ -38,7 +38,7 @@ import { reactive, watch } from 'vue'
 import axios from "axios";
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Collector_Info__Search_Name, type Collector_Info__table_interface } from '@/api/config_service'
+import { Collector_Info__Search_Field_Vague, type Collector_Info__table_interface } from '@/api/config_service'
 
 
 // export interface api_search_interface {
@@ -88,7 +88,7 @@ const choice = (row: Collector_Info__table_interface) => {
 
 
 const api_Search = () => {
-    Collector_Info__Search_Name(
+    Collector_Info__Search_Field_Vague(
         { Field: "Name", Quantity: 20, Vague: search.search }
     ).then((value_array: Collector_Info__table_interface[]) => {
         search.result.length = 0

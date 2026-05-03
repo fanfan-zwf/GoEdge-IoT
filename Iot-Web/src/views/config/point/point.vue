@@ -40,7 +40,7 @@
                             disabled />
                     </el-form-item>
 
-                    <el-form-item prop="Collector_Id" label="驱动" v-if="UpdateItem.Id === 0">
+                    <el-form-item prop="Drive_Id_q2" label="驱动" v-if="UpdateItem.Id === 0">
                         <search_drive
                             :result="(value: Drive_Config__table_interface) => { UpdateItem.Drive.Id = value.Id; UpdateItem.Drive.Type = value.Type; UpdateItem.Collector.Uuid = value.Collector.Uuid; }" />
                     </el-form-item>
@@ -330,8 +330,8 @@ const newItemRules = reactive({
 
 // 定义提示文本
 const typeOptions: { [key: string]: string } = {
-    "Modbus_Tcp": '格式：从机地址;功能码&lt;01 02 03 04&gt;;寄存器地址.子地址[如果有];数据类型&lt;bool uint16 int16 uint32 int32 float32&gt; <br>示例：1;03;1.1;bool<br>示例：1;03;2;int16<br>示例：1;03;3;uint32<br>示例：1;01;1;bool',
-    "Modbus_Rtu": '格式：从机地址;功能码&lt;01 02 03 04&gt;;寄存器地址.子地址[如果有];数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：1;03;1.1;bool<br>示例：1;03;2;int16<br>示例：1;03;3;uint32<br>示例：1;01;1;bool',
+    "Modbus_Tcp": '格式：从机地址;功能码&lt;01 02 03 04&gt;;寄存器地址.子地址[如果有];字节顺序&lt;AB BA ABCD ABDC BACD DCBA&gt;数据类型&lt;bool uint16 int16 uint32 int32 float32&gt; <br>示例：1;03;1.1;bool<br>示例：1;03;2;int16<br>示例：1;03;3;uint32<br>示例：1;01;1;bool',
+    "Modbus_Rtu": '格式：从机地址;功能码&lt;01 02 03 04&gt;;寄存器地址.子地址[如果有];字节顺序&lt;AB BA ABCD ABDC BACD DCBA&gt;数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：1;03;1.1;bool<br>示例：1;03;2;int16<br>示例：1;03;3;uint32<br>示例：1;01;1;bool',
     "Siemens_S7": '格式：寄存器类型&lt;I Q M DB&gt;;DB编号[其他寄存器类型为0];寄存器地址.子地址[如果有];数据类型&lt;bool uint16 int16 uint32 int32&gt; <br>示例：I;0;0.1;bool <br>示例：M;0;0.1;bool <br>示例：DB;1;1.0;bool <br>示例：DB;1;2;int8 <br>示例：DB;1;3;int16<br> 示例：DB;1;5;float32',
 }
 </script>

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"main/Init"
-	"main/cloud"
 	"sync"
 	"time"
 
@@ -282,20 +281,21 @@ func New() (err error) {
 func jsonWrap[T any, R any](req []byte, business func(req T) (R, error)) (rep []byte, err error) {
 
 	// 数据解密
-	var decryption []byte
-	decryption, err = cloud.Receive__CRC32_Aes_Gzip(req, Init.Config.APP.AesPasswd)
-	if err != nil {
-		log.Printf("ERROR 解密或解压失败 %s", err)
-		return nil, err
-	}
+	// var decryption []byte
+	// decryption, err = cloud.Receive__CRC32_Aes_Gzip(req, Init.Config.APP.AesPasswd)
+	// if err != nil {
+	// 	log.Printf("ERROR 解密或解压失败 %s", err)
+	// 	return nil, err
+	// }
 
 	// 1. 自动反序列化 JSON → 请求结构体
 	var reqData T
-	if err = json.Unmarshal(decryption, &reqData); err != nil {
+	if err = json.Unmarshal(req, &reqData); err != nil {
 		log.Println("ERROR JSON解析失败：", err)
 		return nil, err
 	}
 
+	fmt.Print("===", reqData, "\n")
 	// 2. 执行业务逻辑（你只需要写这里）
 	respData, businessErr := business(reqData)
 	// if err != nil {
@@ -311,14 +311,14 @@ func jsonWrap[T any, R any](req []byte, business func(req T) (R, error)) (rep []
 	}
 
 	// 数据加密
-	var encryption []byte
-	encryption, err = cloud.Send__CRC32_Aes_Gzip(respBytes, Init.Config.APP.AesPasswd)
-	if err != nil {
-		log.Println("ERROR 加密失败：", err)
-		return nil, err
-	}
+	// var encryption []byte
+	// encryption, err = cloud.Send__CRC32_Aes_Gzip(respBytes, Init.Config.APP.AesPasswd)
+	// if err != nil {
+	// 	log.Println("ERROR 加密失败：", err)
+	// 	return nil, err
+	// }
 
-	return encryption, businessErr
+	return respBytes, businessErr
 }
 
 // rpcCall 客户端RPC调用包装：自动 JSON + 加解密 + 发送 + 解析
@@ -337,30 +337,30 @@ func jsonCall[Req any, Resp any](
 		return err
 	}
 
-	// 2. 加密
-	encBytes, err := cloud.Send__CRC32_Aes_Gzip(reqBytes, Init.Config.APP.AesPasswd)
-	if err != nil {
-		log.Println("ERROR 请求加密失败：", err)
-		return err
-	}
+	// // 2. 加密
+	// encBytes, err := cloud.Send__CRC32_Aes_Gzip(reqBytes, Init.Config.APP.AesPasswd)
+	// if err != nil {
+	// 	log.Println("ERROR 请求加密失败：", err)
+	// 	return err
+	// }
 
 	// 3. 调用 MQTT RPC
-	respBytes, err := M.Call(broker, topic, method, encBytes, timeout)
+	respBytes, err := M.Call(broker, topic, method, reqBytes, timeout)
 	if err != nil {
 		log.Println("ERROR RPC调用失败：", err)
 		return err
 	}
 
-	// 4. 解密
-	decBytes, err := cloud.Receive__CRC32_Aes_Gzip(respBytes, Init.Config.APP.AesPasswd)
-	if err != nil {
-		log.Println("ERROR 响应解密失败：", err)
-		return err
-	}
+	// // 4. 解密
+	// decBytes, err := cloud.Receive__CRC32_Aes_Gzip(respBytes, Init.Config.APP.AesPasswd)
+	// if err != nil {
+	// 	log.Println("ERROR 响应解密失败：", err)
+	// 	return err
+	// }
 
 	// 5. 反序列化到响应结构体
-	if err := json.Unmarshal(decBytes, respData); err != nil {
-		log.Printf("ERROR 响应解析失败：%s decBytes=%s", err, string(decBytes))
+	if err := json.Unmarshal(respBytes, respData); err != nil {
+		log.Printf("ERROR 响应解析失败：%s decBytes=%s", err, string(respBytes))
 		return err
 	}
 

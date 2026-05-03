@@ -204,19 +204,92 @@ func Collector_Info__Query_Uuid__DbServiceConfig(uuid string) (db_service_config
 	return
 }
 
+// 必须在这里拼接字段名（防止SQL注入，只允许白名单）
+var Collector_AllowFields = map[string]bool{
+	"Id":                 true,
+	"Equipment_Id":       true,
+	"Label":              true,
+	"Creation_Time":      true,
+	"Uuid":               true,
+	"Sn":                 true,
+	"User_Id":            true,
+	"Version":            true,
+	"Last_Activity_Time": true,
+	"Name":               true,
+}
+
+// 采集-》搜索
+// 传递：field quantity 数量，vague 搜索字段
+// 返回：configs 配置，err 错误
+func Collector_Info__Search_Field(field string, quantity uint, value string) (configs []Collector_Info_type, err error) {
+
+	// 必须在这里拼接字段名（防止SQL注入，只允许白名单）
+	if !Collector_AllowFields[field] {
+		err = fmt.Errorf("field 不合法：%s", field)
+		return
+	}
+
+	// 1. 初始化 SQL
+	baseQuery := fmt.Sprintf("SELECT `Id`, `Equipment_Id`, `Label`, `Creation_Time`, `Uuid`, `Sn`, `User_Id`, `Version`, `Last_Activity_Time`, `Name` FROM `Collector_Info` WHERE `%s` = ? LIMIT ?", field)
+
+	// 4. 执行查询
+	rows, err := DB.Query(baseQuery, value, quantity)
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询采集配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, []interface{}{value, quantity})
+		log.Print(err)
+		return nil, err
+	}
+	// 修复：仅在 err == nil 时 defer close，避免 panic
+	defer rows.Close()
+
+	var (
+		Sn                 sql.NullString
+		Last_Activity_Time sql.NullTime
+		Name               sql.NullString
+	)
+	for rows.Next() {
+		var Config Collector_Info_type
+		err = rows.Scan(
+			&Config.Id,
+			&Config.Equipment_Id,
+			&Config.Label,
+			&Config.Creation_Time,
+			&Config.Uuid,
+			&Sn,
+			&Config.User_Id,
+			&Config.Version,
+			&Last_Activity_Time,
+			&Name,
+		)
+		if err != nil {
+			log.Print(err.Error())
+			return nil, err
+		}
+
+		Config.Sn = Sn.String
+		Config.Last_Activity_Time = Last_Activity_Time.Time
+		Config.Name = Name.String
+
+		configs = append(configs, Config)
+	}
+
+	// 检查遍历过程中的错误
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return configs, nil
+}
+
 // 采集-》搜索
 // 传递：field quantity 数量，vague 模糊搜索字符串
 // 返回：configs 配置，err 错误
-func Collector_Info__Search_Name(field string, quantity uint, vague string) (configs []Collector_Info_type, err error) {
-	if field != "Name" {
-		err = fmt.Errorf("ERROR field参数错误 field:%s", field)
+func Collector_Info__Search_Field_Vague(field string, quantity uint, vague string) (configs []Collector_Info_type, err error) {
+	// 必须在这里拼接字段名（防止SQL注入，只允许白名单）
+	if !Collector_AllowFields[field] {
+		err = fmt.Errorf("field 不合法：%s", field)
 		return
-	} else if field == "" {
-		field = "Name"
-	}
-
-	if vague == "" {
-		return nil, fmt.Errorf("参数错误")
 	}
 
 	// 1. 初始化 SQL
@@ -267,7 +340,6 @@ func Collector_Info__Search_Name(field string, quantity uint, vague string) (con
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
-
 	return configs, nil
 }
 
@@ -678,19 +750,82 @@ func Drive_Config__Query(collectorId uint, driveType string, page uint, pageSize
 	return
 }
 
+// 必须在这里拼接字段名（防止SQL注入，只允许白名单）
+var DriveConfig_AllowFields = map[string]bool{
+	"Id":           true,
+	"Type":         true,
+	"Name":         true,
+	"Config":       true,
+	"Collector_Id": true,
+}
+
+// 驱动-》搜索
+// 传递：field quantity 数量，vague 搜索字段
+// 返回：configs 配置，err 错误
+func Drive_Config__Search_Field(field string, quantity uint, value string) (configs []Drive_Config_type, err error) {
+	if !DriveConfig_AllowFields[field] {
+		return nil, fmt.Errorf("field 不合法：%s", field)
+	}
+
+	// 1. 初始化 SQL
+	baseQuery := fmt.Sprintf(`
+		SELECT
+			Drive_Config.Id,
+			Drive_Config.Type,
+			Drive_Config.Name,
+			Drive_Config.Config,
+			Drive_Config.Points_Length,
+			IFNULL(Drive_Config.Collector_Id, 0) AS Collector_Id,
+			Drive_Config.Creation_Time,
+			IFNULL(Collector_Info.Name, '') AS Creation_Name,
+			IFNULL(Collector_Info.Uuid, '') AS Creation_Uuid
+		FROM
+			Drive_Config
+		LEFT JOIN Collector_Info ON
+			Drive_Config.Collector_Id = Collector_Info.Id
+		WHERE
+			Drive_Config.%s = ? LIMIT ?
+	`, field)
+
+	// 4. 执行查询
+	rows, err := DB.Query(baseQuery, value, quantity)
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询采集配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, []interface{}{value, quantity})
+		log.Print(err)
+		return nil, err
+	}
+	// 修复：仅在 err == nil 时 defer close，避免 panic
+	defer rows.Close()
+
+	for rows.Next() {
+		var config Drive_Config_type
+		err = rows.Scan(
+			&config.Id,
+			&config.Type,
+			&config.Name,
+			&config.Config,
+			&config.Points_Length,
+			&config.Collector.Id,
+			&config.Creation_Time,
+			&config.Collector.Name,
+			&config.Collector.Uuid,
+		)
+		if err != nil {
+			log.Print(err.Error())
+			return
+		}
+
+		configs = append(configs, config)
+	}
+	return
+}
+
 // 驱动-》搜索
 // 传递：field quantity 数量，vague 模糊搜索字符串
 // 返回：configs 配置，err 错误
-func Drive_Config__Search_Name(field string, quantity uint, vague string) (configs []Drive_Config_type, err error) {
-	if field != "Name" {
-		err = fmt.Errorf("ERROR field参数错误 field:%s", field)
-		return
-	} else if field == "" {
-		field = "Name"
-	}
-
-	if vague == "" {
-		return nil, fmt.Errorf("参数错误")
+func Drive_Config__Search_Field_Vague(field string, quantity uint, vague string) (configs []Drive_Config_type, err error) {
+	if !DriveConfig_AllowFields[field] {
+		return nil, fmt.Errorf("field 不合法：%s", field)
 	}
 
 	// 1. 初始化 SQL

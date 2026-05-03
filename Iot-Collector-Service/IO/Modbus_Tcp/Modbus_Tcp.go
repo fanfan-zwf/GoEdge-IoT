@@ -8,6 +8,8 @@ package Modbus_Tcp
 
 import (
 	"main/IO/byte_convert"
+	"main/app/mqtt_rpc"
+	"sort"
 
 	"bytes"
 	"encoding/binary"
@@ -22,7 +24,7 @@ import (
 )
 
 // 类型字节数量输出
-var Type_byte = map[string]int{
+var Type_byte = map[string]uint16{
 	"bool":    1,
 	"int16":   1,
 	"uint16":  1,
@@ -38,94 +40,70 @@ type Packets_type struct {
 
 // 写值
 type Posted_value struct {
-	Points_Id uint
-
-	Value_Type string      // 值类型
-	Value      interface{} // 值
+	Id    uint
+	Type  string      // 值类型
+	Value interface{} // 值
 }
 
 // 驱动更新值
-type Get_Value_type struct {
-	PC_Id      string // 设备id
-	Points_Id  uint   // 点位id
-	Comments   string // 状态
-	Value_Type string // 值类型
+type Read_Value_type struct {
+	Id       uint   // 点位id
+	Comments string // 状态
+	Type     string // 值类型
 
 	Value interface{} // 值
-	Time  string      // 时间戳
+	Time  time.Time   // 时间戳
 }
+
+type Read_Callback_type func(r []Read_Value_type) error
 
 /*******************驱动配置*******************/
 
 type Config_type struct {
-	Ip                  string `json:"Ip"`                  // IP地址
-	Port                uint16 `json:"Port"`                // 端口（可选，默认502）
-	Retry_timeout       uint   `json:"Retry_timeout"`       // 重试间隔（可选，默认3000）
-	Connect_timeout     uint   `json:"Connect_timeout"`     // 连接超时（可选，默认3000）
-	Response_timeout    uint   `json:"Response_timeout"`    // 响应超时（可选，默认180000)
-	Delay_between_polls uint   `json:"Delay_between_polls"` // 轮询时间（可选，默认1000）
-	Packet_max          uint8  `json:"Packet_max"`          // 组包字节个数
+	Ip                  string        // IP地址
+	Port                uint16        // 端口（可选，默认502）
+	Retry_timeout       time.Duration // 重试间隔（可选，默认3000）
+	Connect_timeout     time.Duration // 连接超时（可选，默认3000）
+	Response_timeout    time.Duration // 响应超时（可选，默认180000)
+	Delay_between_polls time.Duration // 轮询时间（可选，默认1000）
+	Packet_max          uint8         // 组包字节个数
 }
 
 type Points_type struct {
-	SlaveID       uint8  `json:"SlaveID"`       // 从机地址
-	Function      string `json:"Function"`      // Modbus功能码（如3=读保持寄存器）
-	Address       uint16 `json:"Address"`       // 寄存器地址
-	Type          string `json:"Type"`          // 数据类型（bool/int8/float32等）
-	Decimal       uint8  `json:"Decimal"`       // 小数位数
-	Child_Address uint8  `json:"Child_Address"` // 子地址（可选）
-	Byte_Order    string `json:"Byte_Order"`    // 字节序（如"ABCD"表示大端）
-}
-
-// 值输出
-// type value_array_type struct {
-// 	Id         uint   // 点位id
-// 	Comments   string // 状态
-// 	Value_Type string // 值类型
-
-// 	Value interface{} // 值
-// 	Time  string      // 时间戳
-// }
-
-// mysql存储结构体
-type Mysql_Config_type struct {
-	Id     uint
-	Config Config_type
-}
-
-type Mysql_Points_type struct {
-	Tag    string
-	Config Points_type
+	Id            uint
+	SlaveID       uint8  // 从机地址
+	Function      uint8  // Modbus功能码（如3=读保持寄存器）
+	Address       uint16 // 寄存器地址
+	Type          string // 数据类型（bool/int8/float32等）
+	Child_Address uint8  // 子地址（可选）
+	Byte_Order    int    // 字节序（如"ABCD"表示大端）
 }
 
 // 组包
 type Packet_type struct {
-	SlaveID        uint8    // 设备id
-	Function       string   // 功能码
-	Start_Address  uint16   // 开始地址
-	Number_Address uint16   // 地址数量
-	PointsId       []string // 这个包的点位
+	SlaveID        uint8  // 设备id
+	Function       uint8  // 功能码
+	Start_Address  uint16 // 开始地址
+	Number_Address uint16 // 地址数量
+	PointsId       []uint // 这个包的点位
 }
 
 /*******************驱动连接*******************/
 
-type Read_Points_type struct {
-	SlaveID  uint8  // 设备id
-	Function string // Modbus功能码（如3=读保持寄存器）
-	Address  uint16 // 寄存器地址
-	Number   uint16 // 寄存器地址
-}
-
 // 定义一个结构体
 type Connect_struct struct {
-	Drive                 Mysql_Config_type   // 通信参数结构体
-	Points                []Mysql_Points_type // 点位结构体
-	PointsConfig_PointId  map[uint]int
-	PointsConfig_PointTag map[string]int
-	Packets               []Packet_type // 组包格式
+	Drive_Id uint
+
+	AllConfig     mqtt_rpc.IO_Points_Config_type
+	Drive_Config  Config_type   // 通信参数结构体
+	Points_Config []Points_type // 点位结构体
+
+	PointId_PointsConfigindex map[uint]int
+	PointsConfig_PointTag     map[string]int
+	Packets                   []Packet_type // 组包格式
 
 	conn                     net.Conn   // tcp连接实例
-	conn_err                 error      //  连接状态
+	conn_err                 error      // 连接状态
 	tcp_sync                 sync.Mutex // tcp线程锁防止并发
 	tcp_again_Connect        sync.Mutex // 掉线重新锁防止并发
 	Data_Packet_Print_enable bool       // 数据包使能
@@ -134,6 +112,8 @@ type Connect_struct struct {
 	Esc_collection chan bool
 
 	Receive_Response int8 // 接收相应超时次数
+
+	Read_Callback_Value Read_Callback_type // 回调函数返回值中间对象函数返回
 }
 
 // 定义接口
@@ -149,8 +129,8 @@ type Connect_interface interface {
 	// CheckTransactionID 校验Modbus响应的事务标识符是否匹配
 	CheckTransactionID(send []byte, receive []byte) error
 
-	Read(i int) ([]Get_Value_type, error)                                 // 读取具体的包
-	Read_Continuous(stopChan *chan bool, Callback func([]Get_Value_type)) // 连续读取
+	Read(i int) ([]Read_Value_type, error)                                 // 读取具体的包
+	Read_Continuous(stopChan *chan bool, Callback func([]Read_Value_type)) // 连续读取
 
 	Write(point_id uint, value any) (exist bool, err error) // 写值
 
@@ -187,40 +167,236 @@ type Connect_interface interface {
 	Write_many__Input_register(Device uint8, Start uint16, Number uint16, Value []byte) error
 }
 
-func (c *Connect_struct) PointsConfig_Tag(Tags string) (Point Mysql_Points_type, err error) {
-	index, ok := c.PointsConfig_PointTag[Tags]
-	if !ok {
-		err = fmt.Errorf("ERROR 不存在的点位标识")
-		return
+// 回调函数传参数
+func (c *Connect_struct) Read_Callback(r Read_Callback_type) error {
+	if c.Read_Callback_Value != nil {
+		return fmt.Errorf("ERROR 已有回调函数")
 	}
-	if index < 0 || index >= len(c.Points) {
-		err = fmt.Errorf("点位下标越界, index: %d, 切片长度: %d", index, len(c.Points))
-		return
+	c.Read_Callback_Value = r
+	return nil
+}
+
+// 回调函数传参数传入值
+func (c *Connect_struct) Read_Callback_imported(r []Read_Value_type) error {
+	// 这里可能未传递,不算异常错误
+	if c.Read_Callback_Value == nil {
+		return nil
 	}
-	Point = c.Points[index]
-	return
+
+	c.Read_Callback_Value(r)
+	return nil
+}
+
+// 读取指定组包,并且拆包输出
+func (c *Connect_struct) Packet_Reading(index int) error {
+	packet := c.Packets[index]
+	status := func(v []bool, err error, index int, time time.Time) {
+		packet := c.Packets[index]
+
+		var r_list []Read_Value_type
+		for _, PointsId := range packet.PointsId {
+			var (
+				comments string
+				Point    Points_type
+			)
+
+			if err != nil {
+				comments = fmt.Sprintf("读取点位%d失败: %s", PointsId, err.Error())
+			} else {
+				PointsConfigindex, exist := c.PointId_PointsConfigindex[PointsId]
+				if !exist {
+					comments = fmt.Sprintf("读取点位%d在PointId_PointsConfigindex里不存在指针", PointsId)
+
+				}
+				if index < 0 || PointsConfigindex >= len(c.Points_Config) {
+					comments = fmt.Sprintf("读取点位%d在Points_Config里超出指针%d", PointsId, len(c.Points_Config))
+
+				}
+				Point = c.Points_Config[PointsConfigindex]
+			}
+
+			r_list = append(r_list, Read_Value_type{
+				Id:       PointsId,
+				Comments: comments,
+				Time:     time,
+				// Type:     c.Points_Config[PointsConfigindex].Type,
+				Value: v[Point.Address-packet.Start_Address],
+			})
+
+		}
+		c.Read_Callback_imported(r_list)
+	}
+
+	switch packet.Function {
+	case 1:
+		// 读取  00001至09999是离散输出(线圈)01功能码
+		// Start开始地址  Number个数
+		value, err := c.Read__Coils_status(packet.SlaveID, packet.Start_Address, packet.Number_Address)
+		go status(value, err, index, time.Now())
+		// var r []Read_Value_type
+		// for i, v := range value {
+		// }
+	}
+
+	return nil
+}
+
+// 论序
+func (c *Connect_struct) Polling() error {
+	if c.Read_Callback_Value == nil {
+		return fmt.Errorf("ERROR 论序回调函数为空")
+	}
+
+	var index int
+	p := func() {
+		for {
+			switch {
+			case <-c.Esc_collection:
+				log.Printf("INFO modbus_tcp: 轮询结束")
+				return
+			default:
+				c.Packet_Reading(index)
+			}
+			index++
+			if index >= len(c.Packets) {
+				index = 0
+			}
+
+			time.Sleep(c.Drive_Config.Delay_between_polls)
+		}
+	}
+
+	go p()
+	return nil
+}
+
+type Packet_df struct {
+	SlaveID  uint8 // 设备id
+	Function uint8 // 功能码
 }
 
 // 组包
 func (c *Connect_struct) Packet() error {
-	var err error
+	// 1️⃣ 初始化 map（必须！否则 panic）
+	pointMap := make(map[Packet_df][]PackAddressPackages_Point_type)
+	var Points_type_list []Points_type
 
-	return err
+	c.PointId_PointsConfigindex = make(map[uint]int)
+	c.PointsConfig_PointTag = make(map[string]int)
+	// 2️⃣ 遍历点位，按 SlaveID + Function 分组
+	for i, point := range c.AllConfig.Points {
+		// 获取类型长度
+		typeLen, ok := Type_byte[point.Value_Type]
+		if !ok {
+			log.Printf("ERROR modbus_tcp: 驱动id:%d, 无效类型:%+v", c.Drive_Id, point)
+			continue
+		}
+
+		// 解析点位配置
+		cfg, err := Point_Config_Switch(point.Config)
+		if err != nil {
+			log.Printf("ERROR modbus_tcp: 驱动id:%d, 解析失败:%s", c.Drive_Id, err)
+			continue
+		}
+
+		c.PointId_PointsConfigindex[point.Id] = i
+		Points_type_list = append(Points_type_list, cfg)
+
+		// 构建 key
+		key := Packet_df{
+			SlaveID:  cfg.SlaveID,
+			Function: cfg.Function,
+		}
+
+		// 加入分组
+		pointMap[key] = append(pointMap[key], PackAddressPackages_Point_type{
+			PointID:   point.Id,
+			StartAddr: cfg.Address,
+			DataLen:   typeLen,
+		})
+	}
+
+	c.Points_Config = Points_type_list
+	// 3️⃣ 执行组包
+	packets := make([]Packet_type, 0, len(pointMap)*2) // 预分配性能更好
+	for key, points := range pointMap {
+		// 调用你之前的【带功能码 + 校验】组包函数
+		var max uint16
+		switch key.Function {
+		case 1, 2:
+			max = uint16(c.Drive_Config.Packet_max) * 2
+		case 3, 4:
+			max = uint16(c.Drive_Config.Packet_max) / 2
+		default:
+			log.Printf("ERROR modbus_tcp: 驱动id:%d, 功能码错误:%d", c.Drive_Id, key.Function)
+			continue
+		}
+
+		pkgList, err := PackAddressPackages(points, max)
+		if err != nil {
+			log.Printf("ERROR modbus_tcp: 驱动id:%d, 组包失败:%s", c.Drive_Id, err)
+			return err
+		}
+
+		// 构建最终包
+		for _, pkg := range pkgList {
+			packets = append(packets, Packet_type{
+				SlaveID:        key.SlaveID,
+				Function:       key.Function,
+				Start_Address:  pkg.StartAddr,
+				Number_Address: pkg.DataLen, // ✅ 修复：你原来写的是 StartAddr，明显错了！
+				PointsId:       pkg.PointIDs,
+			})
+		}
+	}
+
+	// 4️⃣ 赋值回结构体（你原来漏了！）
+	c.Packets = packets
+
+	return nil
 }
 
 // 初始化连接
-func (c *Connect_struct) NewTCPClient(Ip string, Port uint16) error {
+func NewTCPClient(cfg mqtt_rpc.IO_Points_Config_type) (*Connect_struct, error) {
 
-	parsedIP := net.ParseIP(Ip)
+	c := &Connect_struct{AllConfig: cfg}
+	c.AllConfig = cfg
+
+	var err error
+	c.Drive_Config, err = Drive_Config_Switch(c.AllConfig.Drive.Config)
+	if err != nil {
+		return c, err
+	}
+
+	err = c.Packet()
+	if err != nil {
+		return c, err
+	}
+
+	parsedIP := net.ParseIP(c.Drive_Config.Ip)
 	if parsedIP == nil {
-		return errors.New("IP error")
+		return c, errors.New("IP error")
 	}
-	if !(strings.Contains(Ip, ".") && parsedIP.To4() != nil) {
-		return errors.New("IP error")
+	if !(strings.Contains(c.Drive_Config.Ip, ".") && parsedIP.To4() != nil) {
+		return c, errors.New("IP error")
 	}
-	c.Drive.Config.Ip = Ip
-	c.Drive.Config.Port = Port
-	return nil
+
+	switch {
+	case c.Drive_Config.Port == 0: // 端口（可选，默认502）
+		c.Drive_Config.Port = 502
+	case c.Drive_Config.Retry_timeout == 0: // 重试间隔（可选，默认3000）
+		c.Drive_Config.Retry_timeout = 3000 * time.Millisecond
+	case c.Drive_Config.Connect_timeout == 0: // 连接超时（可选，默认3000）
+		c.Drive_Config.Connect_timeout = 3000 * time.Millisecond
+	case c.Drive_Config.Response_timeout == 0: // 响应超时（可选，默认180000)
+		c.Drive_Config.Response_timeout = 180000 * time.Millisecond
+	case c.Drive_Config.Delay_between_polls == 0: // 轮询时间（可选，默认1000）
+		c.Drive_Config.Delay_between_polls = 1000 * time.Millisecond
+	case c.Drive_Config.Packet_max == 0: // 组包字节个数
+		c.Drive_Config.Packet_max = 64
+	}
+
+	return c, nil
 }
 
 // 开始连接
@@ -229,30 +405,31 @@ func (c *Connect_struct) Connect() error {
 	c.Receive_Response = 0
 
 	// 连接服务器
-	Host := fmt.Sprintf("%d", c.Drive.Config.Port)
-	address := net.JoinHostPort(c.Drive.Config.Ip, Host)
+	Host := fmt.Sprintf("%d", c.Drive_Config.Port)
+	address := net.JoinHostPort(c.Drive_Config.Ip, Host)
 
-	if c.Drive.Config.Connect_timeout == 0 {
-		c.Drive.Config.Connect_timeout = 3000
+	if c.Drive_Config.Connect_timeout == 0 {
+		c.Drive_Config.Connect_timeout = 3000 * time.Millisecond
 	}
 
 	// 单次尝试连接，不再内部无限循环，由调用者或keepAlive决定重试
-	conn, err := net.DialTimeout("tcp", address, time.Duration(c.Drive.Config.Connect_timeout)*time.Millisecond)
+	conn, err := net.DialTimeout("tcp", address, c.Drive_Config.Connect_timeout)
 	if err != nil {
-		log.Printf("WARN modbus_tcp: 驱动id:%d, 连接失败: %v", c.Drive.Id, err)
+		log.Printf("WARN modbus_tcp: 驱动id:%d, 连接失败: %v", c.Drive_Id, err)
 		c.conn_err = err
 		return err
 	}
 
 	c.conn = conn
 	c.conn_err = nil
-	log.Printf("INFO modbus_tcp: 驱动id:%d, 连接成功", c.Drive.Id)
+	log.Printf("INFO modbus_tcp: 驱动id:%d, 连接成功", c.Drive_Id)
 	return nil
 }
 
 // 关闭连接
 func (c *Connect_struct) Close() error {
-	log.Print("INFO ", c.Drive.Id, "关闭IO")
+	close(c.Esc_collection)
+	log.Print("INFO ", c.Drive_Id, "关闭IO")
 	c.conn_err = fmt.Errorf("关闭IO")
 	if c.conn != nil {
 		return c.conn.Close()
@@ -279,7 +456,7 @@ func (c *Connect_struct) keepAliveConnect() error {
 		return nil
 	}
 
-	log.Printf("INFO modbus_tcp: 驱动id:%d, 开始执行掉线重连...", c.Drive.Id)
+	log.Printf("INFO modbus_tcp: 驱动id:%d, 开始执行掉线重连...", c.Drive_Id)
 
 	// 安全关闭旧连接
 	if c.conn != nil {
@@ -293,13 +470,13 @@ func (c *Connect_struct) keepAliveConnect() error {
 	// 执行重连
 	err := c.Connect()
 	if err != nil {
-		log.Printf("ERROR modbus_tcp: 驱动id:%d, 重连失败: %v", c.Drive.Id, err)
+		log.Printf("ERROR modbus_tcp: 驱动id:%d, 重连失败: %v", c.Drive_Id, err)
 		// 设置一个标记错误，表明当前处于断开状态
 		c.conn_err = errors.New("重连失败")
 		return err
 	}
 
-	log.Printf("INFO modbus_tcp: 驱动id:%d, 重连成功", c.Drive.Id)
+	log.Printf("INFO modbus_tcp: 驱动id:%d, 重连成功", c.Drive_Id)
 	return nil
 }
 
@@ -350,10 +527,16 @@ func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
 	}
 
 	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{c.transaction_ID}, byte_convert.AB)
+	if len(Start_byte) > 2 {
+		return []byte{}, fmt.Errorf("ERROR Start_byte 长度不足 %d", len(Start_byte))
+	}
 	(*send)[0] = Start_byte[0]
 	(*send)[1] = Start_byte[1]
 
 	Number_byte := byte_convert.Convert_uint16_uint8([]uint16{uint16((len(*send) - 6))}, byte_convert.AB)
+	if len(Number_byte) > 2 {
+		return []byte{}, fmt.Errorf("ERROR Start_byte 长度不足 %d", len(Number_byte))
+	}
 	(*send)[4] = Number_byte[0]
 	(*send)[5] = Number_byte[1]
 
@@ -375,11 +558,7 @@ func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
 		fmt.Printf("发送:% x\n", (*send))
 	}
 
-	// 设置读取超时
-	if c.Drive.Config.Response_timeout == 0 {
-		c.Drive.Config.Response_timeout = 20
-	}
-	err = c.conn.SetReadDeadline(time.Now().Add(time.Duration(c.Drive.Config.Response_timeout) * time.Millisecond))
+	err = c.conn.SetReadDeadline(time.Now().Add(c.Drive_Config.Connect_timeout))
 	if err != nil {
 		c.conn_err = err
 		return []byte{}, err
@@ -431,7 +610,11 @@ func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
 	// 步骤2：解析长度字段（第5-6字节，大端序）
 	// 注意：这里复用你原有的字节转换函数
 	// n, err := byte_convert.Byte_Convert_byte_uint16([2]byte{header[4], header[5]}, "AB")
-	n := byte_convert.Convert_uint8_uint16([]byte{header[4], header[5]}, byte_convert.AB)[0]
+	headern := byte_convert.Convert_uint8_uint16([]byte{header[4], header[5]}, byte_convert.AB)
+	if len(headern) > 1 {
+		return []byte{}, fmt.Errorf("ERROR headern 长度不足 %d", len(headern))
+	}
+	n := headern[0]
 
 	// n 是「单元ID+数据」的长度，完整响应长度 = 6（头） + n
 	fullLength := 6 + int(n)
@@ -508,7 +691,13 @@ func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
 // Start开始地址  Number个数
 func (c *Connect_struct) Read__Coils_status(Device uint8, Start uint16, Number uint16) ([]bool, error) {
 	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{Start}, byte_convert.AB)
+	if len(Start_byte) > 2 {
+		return []bool{}, fmt.Errorf("ERROR Start_byte 长度不足 %d", len(Start_byte))
+	}
 	Number_byte := byte_convert.Convert_uint16_uint8([]uint16{Number}, byte_convert.AB)
+	if len(Number_byte) > 2 {
+		return []bool{}, fmt.Errorf("ERROR Number_byte 长度不足 %d", len(Number_byte))
+	}
 	PDU := []byte{
 		0x00, 0x00, // 事务元标识符
 		0x00, 0x00, // 协议标识符
@@ -558,9 +747,6 @@ func (c *Connect_struct) Read__Coils_status(Device uint8, Start uint16, Number u
 	for i := 0; i < len(byte_value); i++ {
 		// a, err := byte_convert.Byte_Convert_1byte_8bool(byte_value[i])
 		a := byte_convert.Convert_uint8_bool([]uint8{byte_value[i]})
-		if err != nil {
-			return []bool{}, err
-		}
 		value = append(value, a[:]...)
 	}
 	Number_bool := divideCeil(int(uint(Number)), 7)
@@ -576,8 +762,13 @@ func (c *Connect_struct) Read__Coils_status(Device uint8, Start uint16, Number u
 func (c *Connect_struct) Read__Input_status(Device uint8, Start uint16, Number uint16) ([]bool, error) {
 
 	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{Start}, byte_convert.AB)
+	if len(Start_byte) > 2 {
+		return []bool{}, fmt.Errorf("ERROR Start_byte 长度不足 %d", len(Start_byte))
+	}
 	Number_byte := byte_convert.Convert_uint16_uint8([]uint16{Number}, byte_convert.AB)
-
+	if len(Number_byte) > 2 {
+		return []bool{}, fmt.Errorf("ERROR Number_byte 长度不足 %d", len(Number_byte))
+	}
 	PDU := []byte{
 		0x00, 0x00, // 事务元标识符
 		0x00, 0x00, // 协议标识符
@@ -640,7 +831,13 @@ func (c *Connect_struct) Read__Input_status(Device uint8, Start uint16, Number u
 func (c *Connect_struct) Read__Holding_register(Device uint8, Start uint16, Number uint16) ([]byte, error) {
 
 	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{Start}, byte_convert.AB)
+	if len(Start_byte) > 2 {
+		return []byte{}, fmt.Errorf("ERROR Start_byte 长度不足 %d", len(Start_byte))
+	}
 	Number_byte := byte_convert.Convert_uint16_uint8([]uint16{Number}, byte_convert.AB)
+	if len(Number_byte) > 2 {
+		return []byte{}, fmt.Errorf("ERROR Number_byte 长度不足 %d", len(Number_byte))
+	}
 
 	PDU := []byte{
 		0x00, 0x00, // 事务元标识符
@@ -693,7 +890,13 @@ func (c *Connect_struct) Read__Holding_register(Device uint8, Start uint16, Numb
 func (c *Connect_struct) Read__Input_register(Device uint8, Start uint16, Number uint16) ([]byte, error) {
 
 	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{Start}, byte_convert.AB)
+	if len(Start_byte) > 2 {
+		return []byte{}, fmt.Errorf("ERROR Start_byte 长度不足 %d", len(Start_byte))
+	}
 	Number_byte := byte_convert.Convert_uint16_uint8([]uint16{Number}, byte_convert.AB)
+	if len(Number_byte) > 2 {
+		return []byte{}, fmt.Errorf("ERROR Number_byte 长度不足 %d", len(Number_byte))
+	}
 
 	PDU := []byte{
 		0x00, 0x00, // 事务元标识符
@@ -745,6 +948,9 @@ func (c *Connect_struct) Read__Input_register(Device uint8, Start uint16, Number
 // Start开始地址  Number个数
 func (c *Connect_struct) Write_single__Coils_tatus(Device uint8, Start uint16, Value bool) error {
 	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{Start}, byte_convert.AB)
+	if len(Start_byte) > 2 {
+		return fmt.Errorf("ERROR Start_byte 长度不足 %d", len(Start_byte))
+	}
 
 	send := []byte{
 		0x00, 0x01, // 事务元标识符
@@ -793,7 +999,13 @@ func (c *Connect_struct) Write_many__Coils_tatus(Device uint8, Start uint16, Num
 	Value = Value[:Number]
 
 	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{Start}, byte_convert.AB)
+	if len(Start_byte) > 2 {
+		return fmt.Errorf("ERROR Start_byte 长度不足 %d", len(Start_byte))
+	}
 	Value_Number := byte_convert.Convert_uint16_uint8([]uint16{uint16(len(Value))}, byte_convert.AB)
+	if len(Value_Number) > 2 {
+		return fmt.Errorf("ERROR Value_Number 长度不足 %d", len(Value_Number))
+	}
 
 	Value_byte := byte_convert.Convert_bool_byte(Value)
 
@@ -847,6 +1059,9 @@ func (c *Connect_struct) Write_single__Input_register(Device uint8, Start uint16
 
 	// 开始地址转化2个字节
 	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{Start}, byte_convert.AB)
+	if len(Start_byte) > 2 {
+		return fmt.Errorf("ERROR Start_byte 长度不足 %d", len(Start_byte))
+	}
 
 	send := []byte{
 		0x00, 0x01, // 事务元标识符
@@ -894,7 +1109,13 @@ func (c *Connect_struct) Write_many__Input_register(Device uint8, Start uint16, 
 
 	// 开始地址转化2个字节
 	Start_byte := byte_convert.Convert_uint16_uint8([]uint16{Start}, byte_convert.AB)
+	if len(Start_byte) > 2 {
+		return fmt.Errorf("ERROR Start_byte 长度不足 %d", len(Start_byte))
+	}
 	Value_Number := byte_convert.Convert_uint16_uint8([]uint16{Number}, byte_convert.AB)
+	if len(Value_Number) > 2 {
+		return fmt.Errorf("ERROR Value_Number 长度不足 %d", len(Value_Number))
+	}
 
 	Value_byte_Number := len(Value)
 	if Value_byte_Number > 120 {
@@ -981,4 +1202,98 @@ func ClearTCPBuffer(conn net.Conn, timeoutMs int) ([]byte, error) {
 	}
 
 	return discardedData, nil
+}
+
+// 你定义的结构体（完全保留）
+type PackAddressPackages_Point_type struct {
+	PointID   uint   // 点位id 唯一的 + 不能为0 + 不能重复
+	StartAddr uint16 // 点位开始值
+	DataLen   uint16 // 点位类型长度
+	EndAddr   uint16 // 内部计算用
+}
+
+// 组包结果结构
+type PackageResult struct {
+	StartAddr uint16
+	DataLen   uint16
+	PointIDs  []uint // 改成 uint 匹配你的结构
+}
+
+// PackAddressPackages 核心组包函数（带去重 + PointID 不能为0）
+func PackAddressPackages(addrList []PackAddressPackages_Point_type, maxPackageLen uint16) ([]PackageResult, error) {
+
+	// 内部 max 函数
+	max := func(a, b uint16) uint16 {
+		if a > b {
+			return a
+		}
+		return b
+	}
+
+	// ======================
+	//  强制校验：PointID 不能为0 + 不能重复
+	// ======================
+	pointIDMap := make(map[uint]bool)
+	var validPoints []PackAddressPackages_Point_type
+
+	for _, p := range addrList {
+		// 1. 不能为 0
+		if p.PointID == 0 {
+			return nil, fmt.Errorf("错误：点位ID不能为0")
+		}
+		// 2. 不能重复
+		if pointIDMap[p.PointID] {
+			return nil, fmt.Errorf("错误：点位ID重复 → %d", p.PointID)
+		}
+		// 3. 数据长度必须 >0
+		if p.DataLen <= 0 {
+			return nil, fmt.Errorf("错误：点位ID=%d 数据长度必须>0", p.PointID)
+		}
+
+		// 标记已存在
+		pointIDMap[p.PointID] = true
+
+		// 计算结束地址
+		p.EndAddr = p.StartAddr + p.DataLen - 1
+		validPoints = append(validPoints, p)
+	}
+
+	// 按地址排序
+	sort.Slice(validPoints, func(i, j int) bool {
+		return validPoints[i].StartAddr < validPoints[j].StartAddr
+	})
+
+	// 组包逻辑
+	var packages []PackageResult
+	for _, point := range validPoints {
+		currStart := point.StartAddr
+		currEnd := point.EndAddr
+
+		if len(packages) > 0 {
+			lastIdx := len(packages) - 1
+			lastPkg := &packages[lastIdx]
+			lastStart := lastPkg.StartAddr
+			lastEnd := lastStart + lastPkg.DataLen - 1
+
+			if currStart <= lastEnd {
+				mergedEnd := max(lastEnd, currEnd)
+				mergedLen := mergedEnd - lastStart + 1
+
+				if maxPackageLen == 0 || mergedLen <= maxPackageLen {
+					lastPkg.DataLen = mergedLen
+					lastPkg.PointIDs = append(lastPkg.PointIDs, point.PointID)
+					continue
+				}
+			}
+		}
+
+		// 新建包
+		packages = append(packages, PackageResult{
+			StartAddr: currStart,
+			DataLen:   point.DataLen,
+			PointIDs:  []uint{point.PointID},
+		})
+	}
+
+	return packages, nil
 }

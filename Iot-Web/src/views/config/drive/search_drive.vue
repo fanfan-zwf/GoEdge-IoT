@@ -34,7 +34,7 @@ import { reactive, watch } from 'vue'
 import axios from "axios";
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Drive_Config__Search_Name, type Drive_Config__table_interface } from '@/api/config_service'
+import { Drive_Config__Search_Field_Vague, type Drive_Config__table_interface } from '@/api/config_service'
 
 
 // export interface api_search_interface {
@@ -84,7 +84,7 @@ const choice = (row: Drive_Config__table_interface) => {
 
 
 const api_Search = () => {
-    Drive_Config__Search_Name(
+    Drive_Config__Search_Field_Vague(
         { Field: "Name", Quantity: 20, Vague: search.search }
     ).then((value_array: Drive_Config__table_interface[]) => {
         search.result.length = 0
