@@ -40,7 +40,7 @@
                             disabled />
                     </el-form-item>
 
-                    <el-form-item prop="Collector_Id" label="采集服务" v-if="UpdateItem.Id === 0">
+                    <el-form-item prop="Collector.Id" label="采集服务" v-if="UpdateItem.Id === 0">
                         <Search_Collector :result="(value) => { UpdateItem.Collector.Id = value.Id; }" />
                     </el-form-item>
 
@@ -49,11 +49,12 @@
                                 size="large" />
                         </el-form-item> -->
 
-                    <el-form-item prop="Type" label="驱动类型" v-if="UpdateItem.Id === 0">
-                        <el-select v-model="UpdateItem.Type" placeholder="请选择驱动类型" style="width: 100%">
+                    <el-form-item prop="Type" label="驱动类型">
+                        <el-select v-model="UpdateItem.Type" placeholder="请选择驱动类型" :disabled="UpdateItem.Id !== 0"
+                            style="width: 100%">
                             <el-option label="Modbus_Tcp" value="Modbus_Tcp" />
                             <el-option label="Modbus_Rtu" value="Modbus_Rtu" />
-                            <el-option label="西门子s7" value="Siemens_S7Comm" />
+                            <el-option label="西门子s7" value="Siemens_S7" />
                         </el-select>
                     </el-form-item>
 
@@ -66,10 +67,15 @@
                             clearable />
                         <div class="input-tip" v-html="typeOptions[UpdateItem.Type] || ''"></div>
                     </el-form-item>
+
+                    <el-divider />
+
+                    <DynamicConfigForm v-model="UpdateItem.Config" :field-rules="myRules[UpdateItem.Type] ?? []"
+                        :UpdateItem="UpdateItem" />
                 </el-form>
             </template>
             <template #footer>
-                <el-button @click="showUpdateDialog = false">取消</el-button>
+                <el-button @click="UpdateItem.Collector.Id = 0; showUpdateDialog = false">取消</el-button>
                 <el-button type="primary" @click="UpdateNewRow">确定</el-button>
             </template>
         </el-dialog>
@@ -80,11 +86,19 @@
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { reactive, onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, ElMessageBox } from 'element-plus' // 引入 FormInstance 类型
-// 修复点3: 移除未使用的 naive-ui 导入
-// import { c } from 'naive-ui' 
-import { Drive_Config__Count, Drive_Config__Query, Drive_Config__Add, Drive_Config__Update, Drive_Config__Del, type Drive_Config__table_interface ,type Drive_Config__add_interface} from '@/api/config_service'
+import { ElMessage, type FormInstance, ElMessageBox } from 'element-plus'
+import {
+    Drive_Config__Count,
+    Drive_Config__Query,
+    Drive_Config__Add,
+    Drive_Config__Update,
+    Drive_Config__Del,
+    type Drive_Config__table_interface,
+    type Drive_Config__add_interface
+} from '@/api/config_service'
 import Search_Collector from '@/views/config/collector/search_collector.vue'
+import DynamicConfigForm, { type DynamicFieldItem } from '@/components/Custom_Form.vue'
+
 
 // const router = useRouter()
 
@@ -174,7 +188,8 @@ const deleteRow = (scope: any) => {
 const showUpdateDialog = ref(false)
 
 // 修复点4: 定义表单 ref
-const addFormRef = ref<FormInstance>()
+// const addFormRef = ref<FormInstance>()
+const addFormRef = ref<FormInstance | null>(null)
 
 // 新项目数据
 const UpdateItem: Drive_Config__table_interface = reactive({
@@ -251,15 +266,33 @@ const UpdateNewRow = () => {
     })
 }
 
-// 验证规则
-const newItemRules = {
-    Collector_Id: [
-        { required: true, message: '请输入采集器标识', trigger: 'blur' },
+
+const formRules = {
+    number: [
+        { required: true, message: '请输入数字', trigger: 'blur' },
         {
             pattern: /^[1-9]\d*$/,
-            message: '请选择采集服务',
+            message: '请输入有效的数字',
             trigger: 'blur',
         },
+    ],
+}
+// 验证规则
+const newItemRules = {
+
+    'Collector.Id': [
+        { required: true, message: '请选择驱动', trigger: 'blur' },
+        {
+            validator: (rule: any, value: any, callback: any) => {
+                // 必须是数字，且必须 > 0
+                if (typeof UpdateItem.Collector.Id === 'number' && UpdateItem.Collector.Id > 0) {
+                    callback()
+                } else {
+                    callback(new Error('请选择有效的驱动'))
+                }
+            },
+            trigger: 'blur'
+        }
     ],
     Name: [
         { required: true, message: '请输入驱动名称', trigger: 'blur' },
@@ -280,6 +313,45 @@ const newItemRules = {
     Type: [
         { required: true, message: '请选择驱动类型', trigger: 'change' }, // 下拉框建议用 change
     ],
+    Ip: [
+        { required: true, message: '请输入设备ip', trigger: 'blur' },
+        {
+            pattern: /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/,
+            message: '请输入正确ip',
+            trigger: 'blur',
+        },
+    ],
+    Port: [
+        { required: true, message: '请输入设备端口', trigger: 'blur' },
+        {
+            pattern: /^([1-9]|[1-9]\d{1,3}|[1-5]\d{4}|6[0-4]\d{3}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])$/,
+            message: '请输入正确的端口号',
+            trigger: 'blur',
+        },
+    ],
+    ConnectionType: [
+        { required: true, message: '请输入设备连接类型', trigger: 'blur' },
+        {
+            pattern: /^(PG|OP|Basic)$/,
+            message: '请输入正确的连接类型,默认是OP',
+            trigger: 'blur',
+        },
+    ],
+    PortName: [
+        { required: true, message: '请输入设备串口号', trigger: 'blur' },
+        {
+            pattern: /^(COM\d+|\/dev\/(ttyS\d+|ttyUSB\d+|ttyACM\d+|ttyAMA\d+))$/,
+            message: '请输入正确的串口号',
+            trigger: 'blur',
+        },
+    ],
+    Timeout: formRules.number,
+    Interval: formRules.number,
+    Response: formRules.number,
+    RetryTime: formRules.number,
+    PollTime: formRules.number,
+    Rack: formRules.number,
+    Slot: formRules.number,
 }
 // 定义提示文本
 const typeOptions: { [key: string]: string } = {
@@ -288,6 +360,40 @@ const typeOptions: { [key: string]: string } = {
     "Siemens_S7": '格式：IP;端口;连接类型<PG OP[默认] Basic>;机架号;槽号;超时时间;重试时间;轮询时间 192.168.1.1;502;OP;0;1;3s;10s;100ms'
 }
 
+
+const myRules: { [key: string]: DynamicFieldItem[] } = {
+    "Modbus_Tcp": [
+        { prop: 'Ip', label: 'IP地址', type: 'string', placeholder: '请输入设备IP地址' },
+        { prop: 'Port', label: '端口', type: 'number', placeholder: '请输入设备端口，默认502' },
+        { prop: 'RetryTime', label: '重试间隔', type: 'unit', unitType: 's', placeholder: '请输入重试间隔，默认12s' },
+        { prop: 'Timeout', label: '超时时间', type: 'unit', unitType: 's', placeholder: '请输入超时时间，默认3s' },
+        { prop: 'Interval', label: '间隔时间', type: 'unit', unitType: 'ms', placeholder: '请输入间隔时间，默认20ms' },
+        { prop: 'Response', label: '响应时间', type: 'unit', unitType: 'ms', placeholder: '请输入响应时间，默认200ms' }
+    ],
+    "Modbus_Rtu": [
+        { prop: 'PortName', label: '串口号', type: 'string', placeholder: '请输入串口号' },
+        { prop: 'Timeout', label: '超时时间', type: 'unit', unitType: 's', placeholder: '请输入超时时间，默认3s' },
+        { prop: 'Interval', label: '间隔时间', type: 'unit', unitType: 'ms', placeholder: '请输入间隔时间，默认20ms' },
+        { prop: 'Response', label: '响应时间', type: 'unit', unitType: 'ms', placeholder: '请输入响应时间，默认200ms' }
+    ],
+    "Siemens_S7": [
+        { prop: 'Ip', label: 'IP地址', type: 'string', placeholder: '请输入设备IP地址' },
+        { prop: 'Port', label: '端口', type: 'number', placeholder: '请输入设备端口，默认502' },
+        {
+            prop: 'ConnectionType', label: '连接类型', type: 'select',
+            options: [
+                { label: 'PG', value: 'PG' },
+                { label: 'OP', value: 'OP' },
+                { label: 'Basic', value: 'Basic' }
+            ]
+        },
+        { prop: 'Rack', label: '机架号', type: 'number', placeholder: '请输入机架号' },
+        { prop: 'Slot', label: '槽号', type: 'number', placeholder: '请输入槽号' },
+        { prop: 'Timeout', label: '超时时间', type: 'unit', unitType: 's', placeholder: '请输入超时时间，默认3s' },
+        { prop: 'RetryTime', label: '重试时间', type: 'unit', unitType: 's', placeholder: '请输入重试时间，默认10s' },
+        { prop: 'PollTime', label: '轮询时间', type: 'unit', unitType: 'ms', placeholder: '请输入轮询时间，默认100ms' }
+    ]
+}
 </script>
 
 <style scoped>

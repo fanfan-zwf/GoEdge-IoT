@@ -3,7 +3,6 @@ package Modbus_Tcp
 import (
 	"fmt"
 	"log"
-	"main/IO/byte_convert"
 	"main/app/mqtt_rpc"
 	"strconv"
 	"strings"
@@ -92,18 +91,11 @@ func Point_Config_Switch(s string) (point Points_type, err error) {
 	SlaveID_str := strings.TrimSpace(parts[0])    // 从机地址
 	Function_str := strings.TrimSpace(parts[1])   // Modbus功能码（如3=读保持寄存器）
 	Address_str := strings.TrimSpace(parts[2])    // 寄存器地址
-	Byte_Order_str := strings.TrimSpace(parts[3]) // 字节序（如"ABCD"表示大端）
-	Type_str := strings.TrimSpace(parts[4])       // 数据类型（bool/int8/float32等）
+	Byte_Order_str := strings.TrimSpace(parts[4]) // 字节序（如"ABCD"表示大端）
+	Type_str := strings.TrimSpace(parts[3])       // 数据类型（bool/int8/float32等）
 
 	var slaveID int
 	slaveID, err = strconv.Atoi(SlaveID_str)
-	if err != nil {
-		err = fmt.Errorf("ERROR 从机地址不是数字%w", err)
-		return
-	}
-
-	var Function int
-	Function, err = strconv.Atoi(Function_str)
 	if err != nil {
 		err = fmt.Errorf("ERROR 从机地址不是数字%w", err)
 		return
@@ -131,48 +123,79 @@ func Point_Config_Switch(s string) (point Points_type, err error) {
 		}
 	}
 
-	var byteOrderMap = map[string]int{
-		"AB":   byte_convert.AB,
-		"BA":   byte_convert.BA,
-		"ABCD": byte_convert.ABCD,
-		"ABDC": byte_convert.ABDC,
-		"BACD": byte_convert.BACD,
-		"DCBA": byte_convert.DCBA,
-	}
-
-	// 解析字节序
-	Byte_Order, exists := byteOrderMap[Byte_Order_str]
-	if !exists {
-		err = fmt.Errorf("字节序格式错误: %s", Byte_Order_str)
-		return
-	}
-
 	point = Points_type{
 		SlaveID:       uint8(slaveID),       // 从机地址
-		Function:      uint8(Function),      // Modbus功能码（如3=读保持寄存器）
+		Function:      Function_str,         // Modbus功能码（如3=读保持寄存器）
 		Address:       uint16(Address),      // 寄存器地址
 		Type:          Type_str,             // 数据类型（bool/int8/float32等）
 		Child_Address: uint8(Child_Address), // 子地址（可选）
-		Byte_Order:    Byte_Order,           // 字节序（如"ABCD"表示大端）
+		Byte_Order:    Byte_Order_str,       // 字节序（如"ABCD"表示大端）
 	}
 
 	return
 }
 
 // func Point_Config_Switch_List(configs []string) (points []Points_type, err error)
-func New(config mqtt_rpc.IO_Points_Config_type) error {
+func New(config mqtt_rpc.IO_Points_Config_type) (err error) {
 
-	// c := Connect_struct{Drive_Id: config.Drive.Id, AllConfig: config}
-
-	c, err := NewTCPClient(config)
+	var Drive_Config Config_type
+	Drive_Config, err = Drive_Config_Switch(config.Drive.Config)
 	if err != nil {
-		log.Printf("ERROR:%s", err)
+		log.Print(err)
+		return
 	}
+
+	var Points_Config []Mysql_Points_type
+	for _, pointStr := range config.Points {
+		point, err := Point_Config_Switch(pointStr.Config)
+		if err != nil {
+			log.Printf("ERROR 解析点位配置失败: %v, 配置字符串: %s", err, pointStr.Config)
+			continue
+		}
+		Points_Config = append(Points_Config, Mysql_Points_type{
+			Id:         pointStr.Id,         // 点位id
+			Drive_Id:   pointStr.Drive.Id,   // 驱动id唯一标识符
+			Drive_Type: pointStr.Drive.Type, // 驱动类型
+			Name:       pointStr.Tag,        // 点位名称
+			RW_Cancel:  pointStr.RW_Cancel,  // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
+			Value_Type: pointStr.Value_Type, // 输出类型
+			Config:     point,
+		})
+	}
+
+	c := Connect_struct{
+		Drive: Mysql_Config_type{
+			Id:     config.Drive.Id,   // 驱动id
+			Type:   config.Drive.Type, // 驱动类型
+			Name:   config.Drive.Name, // 驱动名称
+			Config: Drive_Config,
+		},
+		Points: Points_Config,
+	}
+
+	fmt.Printf("Points |||||||||||||||| \n%+v \n\n", Points_Config)
+	// 组包
+	err = c.Packet()
+	if err != nil {
+		log.Printf("ERROR %v", err.Error())
+		return
+	}
+
+	// 连接
 	err = c.Connect()
 	if err != nil {
-		log.Printf("ERROR:%s", err)
+		log.Printf("WARNING %v", err.Error())
 	}
 
-	fmt.Printf("\n%+v >>>>>>>\n", c)
+	fmt.Printf("Packets >>>>>>>> \n%+v \n", c.Packets)
+
+	go c.Read_Continuous(func(g []IO_Collection_Value_type) {
+		fmt.Printf("Read_Callback >>>>>>>> \n%+v \n", g)
+	})
+
 	return nil
 }
+
+// func Read_Callback_v(v []Read_Value_type) {
+// 	fmt.Printf("Read_Callback >>>>>>>> \n%+v \n", v)
+// }

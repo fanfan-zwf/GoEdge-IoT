@@ -285,18 +285,13 @@ func Collector_Info__Search_Field(field string, quantity uint, value string) (co
 // 采集-》搜索
 // 传递：field quantity 数量，vague 模糊搜索字符串
 // 返回：configs 配置，err 错误
-func Collector_Info__Search_Field_Vague(field string, quantity uint, vague string) (configs []Collector_Info_type, err error) {
-	// 必须在这里拼接字段名（防止SQL注入，只允许白名单）
-	if !Collector_AllowFields[field] {
-		err = fmt.Errorf("field 不合法：%s", field)
-		return
-	}
+func Collector_Info__Search_Field_Blurred(quantity uint, vague string) (configs []Collector_Info_type, err error) {
 
 	// 1. 初始化 SQL
-	baseQuery := "SELECT `Id`, `Equipment_Id`, `Label`, `Creation_Time`, `Uuid`, `Sn`, `User_Id`, `Version`, `Last_Activity_Time`, `Name` FROM `Collector_Info` WHERE ? LIKE ? LIMIT ?"
+	baseQuery := "SELECT `Id`, `Equipment_Id`, `Label`, `Creation_Time`, `Uuid`, `Sn`, `User_Id`, `Version`, `Last_Activity_Time`, `Name` FROM `Collector_Info` WHERE `Name` LIKE ? LIMIT ?"
 
 	// 4. 执行查询
-	rows, err := DB.Query(baseQuery, field, vague, quantity)
+	rows, err := DB.Query(baseQuery, vague, quantity)
 	if err != nil {
 		err = fmt.Errorf("ERROR 查询采集配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, []interface{}{vague, quantity})
 		log.Print(err)
@@ -823,11 +818,7 @@ func Drive_Config__Search_Field(field string, quantity uint, value string) (conf
 // 驱动-》搜索
 // 传递：field quantity 数量，vague 模糊搜索字符串
 // 返回：configs 配置，err 错误
-func Drive_Config__Search_Field_Vague(field string, quantity uint, vague string) (configs []Drive_Config_type, err error) {
-	if !DriveConfig_AllowFields[field] {
-		return nil, fmt.Errorf("field 不合法：%s", field)
-	}
-
+func Drive_Config__Search_Field_Blurred(quantity uint, vague string) (configs []Drive_Config_type, err error) {
 	// 1. 初始化 SQL
 	baseQuery := `
 		SELECT
@@ -845,12 +836,12 @@ func Drive_Config__Search_Field_Vague(field string, quantity uint, vague string)
 		LEFT JOIN Collector_Info ON
 			Drive_Config.Collector_Id = Collector_Info.Id
 		WHERE
-			? LIKE ?
+			Drive_Config.Name LIKE ?
 		LIMIT ?
 	`
 
 	// 4. 执行查询
-	rows, err := DB.Query(baseQuery, field, vague, quantity)
+	rows, err := DB.Query(baseQuery, vague, quantity)
 	if err != nil {
 		err = fmt.Errorf("ERROR 查询采集配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, []interface{}{vague, quantity})
 		log.Print(err)

@@ -153,6 +153,32 @@ func Collector_Info__Search_Field(ctx *gin.Context) {
 	ctx.Set("Response", []any{200, "ok", config_list})
 }
 
+// 采集-》搜索 传递：field quantity 数量，vague 模糊搜索字符串 返回：configs 配置，err 错误
+func Collector_Info__Search_Field_Blurred(ctx *gin.Context) {
+	var jsondata struct {
+		Quantity uint
+		Vague    string
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	config_list, err := db_mysql.Collector_Info__Search_Field_Blurred(jsondata.Quantity, jsondata.Vague)
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{404, "查询不到"})
+		return
+	} else if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	} else if len(config_list) == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
+	}
+	ctx.Set("Response", []any{200, "ok", config_list})
+}
+
 /*
 ***************驱动配置接口***************
  */
@@ -283,6 +309,32 @@ func Drive_Config__Search_Field(ctx *gin.Context) {
 	}
 
 	config_list, err := db_mysql.Drive_Config__Search_Field(jsondata.Field, jsondata.Quantity, jsondata.Vague)
+	if err == sql.ErrNoRows {
+		ctx.Set("Response", []any{404, "查询不到"})
+		return
+	} else if err != nil {
+		ctx.Set("Response", []any{StatusMysql, err.Error()})
+		return
+	} else if len(config_list) == 0 {
+		ctx.Set("Response", []any{404, "无数据"})
+		return
+	}
+	ctx.Set("Response", []any{200, "ok", config_list})
+}
+
+// 驱动-》搜索 传递：field quantity 数量，vague 模糊搜索字符串 返回：configs 配置，err 错误
+func Drive_Config__Search_Field_Blurred(ctx *gin.Context) {
+	var jsondata struct {
+		Quantity uint
+		Vague    string
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	config_list, err := db_mysql.Drive_Config__Search_Field_Blurred(jsondata.Quantity, jsondata.Vague)
 	if err == sql.ErrNoRows {
 		ctx.Set("Response", []any{404, "查询不到"})
 		return
@@ -432,14 +484,16 @@ func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/collector_info/add", Collector_Info__Add)
 	r.POST("/api/gui/v1.0/collector_info/update", Collector_Info__Update)
 	r.POST("/api/gui/v1.0/collector_info/del", Collector_Info__Del)
-	r.POST("/api/gui/v1.0/collector_info/search/field", Collector_Info__Search_Field)
+	r.POST("/api/gui/v1.0/collector_info/search/field/vague", Collector_Info__Search_Field)
+	r.POST("/api/gui/v1.0/collector_info/search/blurred", Collector_Info__Search_Field_Blurred)
 
 	r.POST("/api/gui/v1.0/config/drive/count", Drive_Config__Count)
 	r.POST("/api/gui/v1.0/config/drive/query", Drive_Config__Query)
 	r.POST("/api/gui/v1.0/config/drive/add", Drive_Config__Add)
 	r.POST("/api/gui/v1.0/config/drive/update", Drive_Config__Update)
 	r.POST("/api/gui/v1.0/config/drive/del", Drive_Config__Del)
-	r.POST("/api/gui/v1.0/config/drive/search/field", Drive_Config__Search_Field)
+	r.POST("/api/gui/v1.0/config/drive/search/field/vague", Drive_Config__Search_Field)
+	r.POST("/api/gui/v1.0/config/drive/search/blurred", Drive_Config__Search_Field_Blurred)
 
 	r.POST("/api/gui/v1.0/config/points/count", Points_Config__Count)
 	r.POST("/api/gui/v1.0/config/points/query", Points_Config__Query)

@@ -254,6 +254,36 @@ export async function Collector_Info__Search_Field_Vague(params?: {
 }
 
 /**
+ * 采集-》模糊搜索
+ * 传递：field quantity 数量，vague 模糊搜索字符串 返回：configs 配置，err 错误
+ */
+export async function Collector_Info__Search_Field_Blurred(params?: {
+    Quantity: number; Vague: string;
+}): Promise<Collector_Info__table_interface[]> {
+    try {
+        // 修改：直接 await axios.post
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/search/blurred', {
+            Quantity: params?.Quantity,
+            Vague: params?.Vague
+        })
+
+        if (response.status == 200) {
+            return response.data.Data as Collector_Info__table_interface[]
+        }
+        throw response.data.Msg || '未知错误';
+    } catch (error: unknown) {
+        const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
+        if (axiosError.code == "ERR_NETWORK") {
+            throw '请求超时'
+        }
+        // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
+        throw axiosError.response?.data?.Msg || '请求失败';
+    }
+
+}
+
+
+/**
 *******************驱动*******************
 */
 
@@ -479,6 +509,36 @@ export async function Drive_Config__Search_Field_Vague(params?: {
     }
 
 }
+
+/**
+ * 驱动 -》模糊搜索
+ * 传递：传递：field quantity 数量，vague 模糊搜索字符串 返回：configs 配置，err 错误
+ */
+export async function Drive_Config__Search_Field_Blurred(params?: {
+    Quantity: number; Vague: string;
+}): Promise<Drive_Config__table_interface[]> {
+    try {
+        // 修改：直接 await axios.post
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/config/drive/search/blurred', {
+            Quantity: params?.Quantity,
+            Vague: params?.Vague
+        })
+
+        if (response.status == 200) {
+            return response.data.Data as Drive_Config__table_interface[]
+        }
+        throw response.data.Msg || '未知错误';
+    } catch (error: unknown) {
+        const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
+        if (axiosError.code == "ERR_NETWORK") {
+            throw '请求超时'
+        }
+        // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
+        throw axiosError.response?.data?.Msg || '请求失败';
+    }
+
+}
+
 
 /**
 *******************点位*******************

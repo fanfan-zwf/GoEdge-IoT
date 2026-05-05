@@ -5,7 +5,7 @@
         <div @mouseleave="handleMouseLeave">
             <el-table :data="search.result" style="" max-height="400px">
                 <el-table-column fixed prop="Id" label="Id" width="60" align="center" />
-                 <el-table-column prop="Collector.Name" label="采集名称" min-width="90" align="center" />
+                <el-table-column prop="Collector.Name" label="采集名称" min-width="90" align="center" />
                 <el-table-column prop="Name" label="名称" min-width="100" show-overflow-tooltip />
                 <el-table-column prop="Type" label="驱动类型" min-width="90" align="center" />
                 <el-table-column label="选择" width="80" align="center">
@@ -34,7 +34,7 @@ import { reactive, watch } from 'vue'
 import axios from "axios";
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Drive_Config__Search_Field_Vague, type Drive_Config__table_interface } from '@/api/config_service'
+import { Drive_Config__Search_Field_Blurred, type Drive_Config__table_interface } from '@/api/config_service'
 
 
 // export interface api_search_interface {
@@ -84,8 +84,8 @@ const choice = (row: Drive_Config__table_interface) => {
 
 
 const api_Search = () => {
-    Drive_Config__Search_Field_Vague(
-        { Field: "Name", Quantity: 20, Vague: search.search }
+    Drive_Config__Search_Field_Blurred(
+        { Quantity: 20, Vague: search.search }
     ).then((value_array: Drive_Config__table_interface[]) => {
         search.result.length = 0
         Object.assign(search.result, value_array)
@@ -114,7 +114,4 @@ const handleMouseLeave = (event: MouseEvent) => {
     width: 100%;
     height: 30px;
 }
-
- 
-
 </style>
