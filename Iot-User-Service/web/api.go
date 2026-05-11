@@ -302,11 +302,11 @@ func Api__User_Status(ctx *gin.Context) {
 }
 
 // 获取访问令牌
-func Api__User_Authority_Exist(ctx *gin.Context) {
+func Api__User_Authority_Theme_List(ctx *gin.Context) {
 
 	var jsondata struct {
-		User__Access_Token string // 用户刷新令牌
-		Authority_Theme    string // 权限主题
+		User__Access_Token string   // 用户刷新令牌
+		Authority_Theme    []string // 权限主题
 	}
 	err := ctx.BindJSON(&jsondata)
 	if err != nil {
@@ -330,8 +330,8 @@ func Api__User_Authority_Exist(ctx *gin.Context) {
 		return
 	}
 
-	var Exist bool
-	Exist, err = db_mysql.Authority_User__Query_AuthorityTheme_Exist(Access_Token_redis.User_Id, jsondata.Authority_Theme)
+	var Authority_Theme_List map[string]bool
+	Authority_Theme_List, err = db_mysql.Authority_User__Query_AuthorityTheme_List(Access_Token_redis.User_Id, jsondata.Authority_Theme)
 	if err == sql.ErrNoRows {
 		ctx.Set("Response", []any{404, "没有用户权限主题"})
 		return
@@ -341,9 +341,9 @@ func Api__User_Authority_Exist(ctx *gin.Context) {
 	}
 
 	ctx.Set("Response", []any{200, "ok", gin.H{
-		"Authority_Exist":    Exist,
-		"User__Access_Token": jsondata.User__Access_Token,
-		"Authority_Theme":    jsondata.Authority_Theme,
+		"Authority_Theme_List": Authority_Theme_List,
+		"User__Access_Token":   jsondata.User__Access_Token,
+		"Authority_Theme":      jsondata.Authority_Theme,
 	}})
 
 }
@@ -401,8 +401,8 @@ func sdk_api(r *gin.Engine) {
 	r.POST("/api/v1.0/login/refresh_token", Api__Login_Refresh_Token) // 获取刷新令牌
 	r.POST("/api/v1.0/login/access_token", Api__Access_Token_Query)   // 获取访问令牌
 
-	r.POST("/api/v1.0/user/login/status", Api__User_Status)       // 查询当前用户登陆状态
-	r.POST("/api/v1.0/user/authority", Api__User_Authority_Exist) // 查询当前用户是否有这个权限
+	r.POST("/api/v1.0/user/login/status", Api__User_Status)                       // 查询当前用户登陆状态
+	r.POST("/api/v1.0/user/authority_theme/list", Api__User_Authority_Theme_List) // 查询当前用户权限主题列表
 
 	// r.POST("/api/v1.0/user/login/status", Api__Api_Status) // 查询当前用户接口登陆状态
 }

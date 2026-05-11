@@ -91,8 +91,8 @@ func Point_Config_Switch(s string) (point Points_type, err error) {
 	SlaveID_str := strings.TrimSpace(parts[0])    // 从机地址
 	Function_str := strings.TrimSpace(parts[1])   // Modbus功能码（如3=读保持寄存器）
 	Address_str := strings.TrimSpace(parts[2])    // 寄存器地址
-	Byte_Order_str := strings.TrimSpace(parts[4]) // 字节序（如"ABCD"表示大端）
 	Type_str := strings.TrimSpace(parts[3])       // 数据类型（bool/int8/float32等）
+	Byte_Order_str := strings.TrimSpace(parts[4]) // 字节序（如"ABCD"表示大端）
 
 	var slaveID int
 	slaveID, err = strconv.Atoi(SlaveID_str)

@@ -1687,6 +1687,61 @@ func Authority_User__Query_AuthorityTheme_Exist(User_Id uint, Authority_Theme st
 	return
 }
 
+// 输入：用户ID + 要查询的权限主题列表
+// 输出：map[权限主题]是否拥有该权限（true=有，false=无）
+func Authority_User__Query_AuthorityTheme_List(User_Id uint, Authority_Theme []string) (map[string]bool, error) {
+	// 初始化结果map，默认全部无权限
+	resultMap := make(map[string]bool)
+	for _, theme := range Authority_Theme {
+		resultMap[theme] = false
+	}
+
+	if len(Authority_Theme) == 0 {
+		return resultMap, nil
+	}
+
+	// 生成 IN 占位符  ?,?,?
+	placeholders := strings.Repeat("?, ", len(Authority_Theme))
+	placeholders = strings.TrimSuffix(placeholders, ", ")
+
+	// SQL：查询该用户拥有哪些权限主题
+	query := fmt.Sprintf(`
+		SELECT DISTINCT Authority.Theme
+		FROM Authority_User
+		INNER JOIN Authority ON Authority_User.Authority_Id = Authority.Id
+		WHERE Authority_User.User_Id = ? 
+		  AND Authority.Theme IN (%s)
+		  AND Authority_User.Enable = 1  -- 只查启用的权限
+	`, placeholders)
+
+	// 构造参数
+	args := []any{User_Id}
+	for _, v := range Authority_Theme {
+		args = append(args, v)
+	}
+
+	// 查询
+	rows, err := DB.Query(query, args...)
+	if err != nil {
+		log.Printf("查询权限失败: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	// 把查到有的，标记为true
+	for rows.Next() {
+		var theme string
+		err := rows.Scan(&theme)
+		if err != nil {
+			log.Printf("ERROR 扫描权限失败: %v", err)
+			return nil, err
+		}
+		resultMap[theme] = true
+	}
+
+	return resultMap, nil
+}
+
 /*
 ***************用户组***************
  */

@@ -64,11 +64,8 @@
 
                     <el-form-item prop="Config" label="连接配置">
                         <el-input v-model="UpdateItem.Config" placeholder="请输入设备连接参数" size="large" autocomplete="off"
-                            clearable />
-                        <div class="input-tip" v-html="typeOptions[UpdateItem.Type] || ''"></div>
+                            clearable disabled />
                     </el-form-item>
-
-                    <el-divider />
 
                     <DynamicConfigForm v-model="UpdateItem.Config" :field-rules="myRules[UpdateItem.Type] ?? []"
                         :UpdateItem="UpdateItem" />
@@ -238,16 +235,12 @@ const UpdateNewRow = () => {
         }
 
         if (UpdateItem.Id === 0) {
-            // 构造符合 API 要求的对象
-            // 假设 Drive_Config__add_interface 需要 Collector_Id
-            const payload: Drive_Config__add_interface = {
-                Name: UpdateItem.Name,
-                Config: UpdateItem.Config,
-                Type: UpdateItem.Type,
-                Collector_Id: UpdateItem.Collector.Id || 0,
-                // 如果有其他必填字段，请在此补充
-            } as any // 如果字段不完全匹配，可能需要临时使用 any 或补全字段
-            Drive_Config__Add(payload).then(() => {
+            Drive_Config__Add({
+                Name: UpdateItem.Name,                 // 驱动名称
+                Config: UpdateItem.Config,             // json 配置参数
+                Type: UpdateItem.Type,                 // 驱动类型
+                Collector_Id: UpdateItem.Collector.Id, // 采集器标识
+            }).then(() => {
                 ElMessage.success('添加成功')
                 showUpdateDialog.value = false
                 Count()
@@ -255,7 +248,11 @@ const UpdateNewRow = () => {
                 ElMessage.error(error)
             })
         } else {
-            Drive_Config__Update(UpdateItem).then(() => {
+            Drive_Config__Update({
+                Id: UpdateItem.Id,        // 驱动 id
+                Name: UpdateItem.Name,    // 驱动名称
+                Config: UpdateItem.Config // json 配置参数
+            }).then(() => {
                 ElMessage.success('修改成功')
                 showUpdateDialog.value = false
                 Count()
@@ -352,14 +349,8 @@ const newItemRules = {
     PollTime: formRules.number,
     Rack: formRules.number,
     Slot: formRules.number,
+    Packet_max: formRules.number,
 }
-// 定义提示文本
-const typeOptions: { [key: string]: string } = {
-    "Modbus_Tcp": '格式：IP地址;端口[默认502];重试间隔[默认12s];连接超时[默认3s];响应超时[默认200ms];轮询时间[默认20ms];组包字节个数[默认64]，例如 192.168.1.1;502;12s;3s;200ms;20ms;64',
-    "Modbus_Rtu": '格式：串口号;重试间隔[默认3s];连接超时[默认3s];响应超时[默认200ms];轮询时间[默认20ms];组包字节个数[默认64]，例如 com1;3s;3s;200ms;20ms;64',
-    "Siemens_S7": '格式：IP;端口;连接类型<PG OP[默认] Basic>;机架号;槽号;超时时间;重试时间;轮询时间 192.168.1.1;502;OP;0;1;3s;10s;100ms'
-}
-
 
 const myRules: { [key: string]: DynamicFieldItem[] } = {
     "Modbus_Tcp": [
@@ -368,13 +359,15 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
         { prop: 'RetryTime', label: '重试间隔', type: 'unit', unitType: 's', placeholder: '请输入重试间隔，默认12s' },
         { prop: 'Timeout', label: '超时时间', type: 'unit', unitType: 's', placeholder: '请输入超时时间，默认3s' },
         { prop: 'Interval', label: '间隔时间', type: 'unit', unitType: 'ms', placeholder: '请输入间隔时间，默认20ms' },
-        { prop: 'Response', label: '响应时间', type: 'unit', unitType: 'ms', placeholder: '请输入响应时间，默认200ms' }
+        { prop: 'Response', label: '响应时间', type: 'unit', unitType: 'ms', placeholder: '请输入响应时间，默认200ms' },
+        { prop: 'Packet_max', label: '组包字节个数', type: 'unit', placeholder: '请输入组包字节个数，默认64' }
     ],
     "Modbus_Rtu": [
         { prop: 'PortName', label: '串口号', type: 'string', placeholder: '请输入串口号' },
         { prop: 'Timeout', label: '超时时间', type: 'unit', unitType: 's', placeholder: '请输入超时时间，默认3s' },
         { prop: 'Interval', label: '间隔时间', type: 'unit', unitType: 'ms', placeholder: '请输入间隔时间，默认20ms' },
-        { prop: 'Response', label: '响应时间', type: 'unit', unitType: 'ms', placeholder: '请输入响应时间，默认200ms' }
+        { prop: 'Response', label: '响应时间', type: 'unit', unitType: 'ms', placeholder: '请输入响应时间，默认200ms' },
+        { prop: 'Packet_max', label: '组包字节个数', type: 'unit', placeholder: '请输入组包字节个数，默认64' }
     ],
     "Siemens_S7": [
         { prop: 'Ip', label: 'IP地址', type: 'string', placeholder: '请输入设备IP地址' },

@@ -278,42 +278,45 @@ func Cache_Api_status(Api_Access_Token string) (result Api_Access_Token_redis_ty
 
 /*
 ******************查询当前用户是否有这个权限******************
-* url: /api/v1.0/user/authority
+* url: /api/v1.0/user/authority_theme/list
  */
 
-type Api_User_Authority_Exist__Get_type struct {
-	User__Access_Token string // 用户刷新令牌
-	Authority_Theme    string // 权限主题
+type Api_User_Authority_Theme_List__Get_type struct {
+	User__Access_Token string   // 用户刷新令牌
+	Authority_Theme    []string // 权限主题
 }
 
-type Api_User_Authority_Exist__type struct {
-	Authority_Exist    bool
-	User__Access_Token string
-	Authority_Theme    string
+type Api_User_Authority_Theme_List__type struct {
+	Authority_Theme_List map[string]bool
+	User__Access_Token   string
+	Authority_Theme      string
 }
 
-type Api_User_Authority_Exist__Byte_type struct {
+type Api_User_Authority_Theme_List__Byte_type struct {
 	Body_Standard
-	Data Api_User_Authority_Exist__type
+	Data Api_User_Authority_Theme_List__type
 }
 
-func Api_User_Authority_Exist(reqData Api_User_Authority_Exist__Get_type) (r Api_User_Authority_Exist__type, err error) {
+func Api_User_Authority_Theme_List(User__Access_Token string, Authority_Theme []string) (r Api_User_Authority_Theme_List__type, err error) {
 
 	// 2. 将结构体序列化为JSON字节数组（核心步骤）
-	jsonBytes, err := json.Marshal(reqData)
+	jsonBytes, err := json.Marshal(Api_User_Authority_Theme_List__Get_type{
+		User__Access_Token: User__Access_Token,
+		Authority_Theme:    Authority_Theme,
+	})
 	if err != nil {
 		log.Println("ERROR JSON序列化失败：", err)
 		return
 	}
 
-	code, body, err := client.Request("/api/v1.0/user/authority", jsonBytes)
+	code, body, err := client.Request("/api/v1.0/user/authority_theme/list", jsonBytes)
 	if err != nil {
 		log.Println("ERROR API请求失败：", err)
 		return
 	}
 
 	// 3. 解析响应数据
-	var response Api_User_Authority_Exist__Byte_type
+	var response Api_User_Authority_Theme_List__Byte_type
 	err = json.Unmarshal(body, &response)
 	if err != nil {
 		log.Println("ERROR JSON解析失败：", err)
@@ -327,52 +330,5 @@ func Api_User_Authority_Exist(reqData Api_User_Authority_Exist__Get_type) (r Api
 	}
 
 	r = response.Data
-	return
-}
-
-// 缓存用户权限状态
-func Cache_User_Authority_status(reqData Api_User_Authority_Exist__Get_type) (result Api_User_Authority_Exist__type, err error) {
-	redis_key := fmt.Sprintf("User_Authority_Exist:%s:%s", reqData.User__Access_Token, reqData.Authority_Theme)
-
-	var read_key string
-	read_key, err = r.Read_Key(redis_key)
-	if err == r.Nil {
-		var (
-			middle_TTL time.Duration
-		)
-		result, err = Api_User_Authority_Exist(reqData)
-		if err != nil {
-			log.Println("ERROR API 请求失败：", err)
-			middle_TTL = 30 * time.Second
-		} else {
-			middle_TTL = 10 * time.Minute
-		}
-
-		var jsonBytes []byte
-		jsonBytes, err = json.Marshal(result)
-		if err != nil {
-			log.Println("ERROR JSON 序列化失败：", err)
-			return
-		}
-
-		err = r.Write_Key_list(r.KeyValue{
-			Key:   redis_key,
-			Value: string(jsonBytes),
-			TTL:   middle_TTL,
-		})
-		if err != nil {
-			return
-		}
-
-	} else if err != nil {
-		log.Println("ERROR 读取缓存失败：", err)
-		return
-	}
-
-	err = json.Unmarshal([]byte(read_key), &result)
-	if err != nil {
-		log.Println("ERROR JSON 解析失败：", err)
-	}
-
 	return
 }

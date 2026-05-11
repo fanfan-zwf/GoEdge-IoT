@@ -41,8 +41,12 @@
                     </el-form-item>
 
                     <el-form-item prop="Drive.Id" label="驱动" v-if="UpdateItem.Id === 0">
-                        <search_drive
-                            :result="(value: Drive_Config__table_interface) => { UpdateItem.Drive.Id = value.Id; UpdateItem.Drive.Type = value.Type; UpdateItem.Collector.Uuid = value.Collector.Uuid; }" />
+                        <search_drive :result="(value: Drive_Config__table_interface) => {
+                            UpdateItem.Drive.Id = value.Id;
+                            UpdateItem.Drive.Type = value.Type;
+                            UpdateItem.Collector.Uuid = value.Collector.Uuid;
+                            UpdateItem.Tag = `//${value.Collector.Uuid}//${value.Name}/`;
+                        }" />
                     </el-form-item>
 
                     <el-form-item prop="Tag" label="标识符">
@@ -51,8 +55,7 @@
 
                     <el-form-item prop="Config" label="点位参数">
                         <el-input v-model="UpdateItem.Config" placeholder="请输入点位参数" size="large" autocomplete="off"
-                            clearable />
-                        <div class="input-tip" v-html="typeOptions[UpdateItem.Drive.Type] || ''"></div>
+                            clearable disabled />
                     </el-form-item>
 
                     <el-form-item prop="RW_Cancel" label="读写方式">
@@ -97,7 +100,8 @@ import {
     Points_Config__Update,
     Points_Config__Del,
     type Points_Config__table_interface,
-    type Drive_Config__table_interface
+    type Drive_Config__table_interface,
+    type Points_Config__add_interface
 } from '@/api/config_service'
 import search_drive from '@/views/config/drive/search_drive.vue'
 import DynamicConfigForm, { type DynamicFieldItem } from '@/components/Custom_Form.vue'
@@ -206,7 +210,6 @@ const UpdateItem: Points_Config__table_interface = reactive({
     Drive: {
         Id: 0,
         Name: '',
-        Uuid: '',
         Type: '', // <--- 添加此行以匹配 Drive__Carry_interface
     },
     Collector: {
@@ -272,21 +275,18 @@ const UpdateNewRow = () => {
             ElMessage.error('请完善表单信息')
             return
         }
-
-        // 构造提交数据，确保包含后端需要的扁平字段
-        // 如果 UpdateItem 本身已经包含了 Drive_Id 等字段（通过 reactive 定义），则可以直接使用
-        // 但为了保险起见，特别是当 UpdateItem 结构复杂时，可以显式构造 payload
-
-        const payload = {
-            ...UpdateItem,
-            // 确保嵌套对象中的关键信息同步到扁平字段（以防万一）
-            Drive_Id: UpdateItem.Drive?.Id || UpdateItem.Drive.Id,
-            Drive_Type: UpdateItem.Drive?.Type || UpdateItem.Drive.Type,
-        };
-
         if (UpdateItem.Id === 0) {
-            // 此时 payload 应该符合 Points_Config__add_interface
-            Points_Config__Add(payload as any).then(() => { // 使用 as any 临时绕过如果接口定义仍有细微差异的问题，最好修正接口定义
+            // 此时 payload符合 Points_Config__add_interface
+            Points_Config__Add({
+                Drive_Id: UpdateItem.Drive.Id,   // 点位 id 唯一标识符 
+                Drive_Type: UpdateItem.Drive.Type, // 驱动类型
+                Id: UpdateItem.Id,   // 点位 id
+                Tag: UpdateItem.Tag, // 点位标识
+                Description: UpdateItem.Description, // 点位描述
+                RW_Cancel: UpdateItem.RW_Cancel, // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
+                Value_Type: UpdateItem.Value_Type, // 输出类型
+                Config: UpdateItem.Config
+            }).then(() => {
                 ElMessage.success('添加成功')
                 showUpdateDialog.value = false
                 Count()
@@ -294,7 +294,14 @@ const UpdateNewRow = () => {
                 ElMessage.error(error)
             })
         } else {
-            Points_Config__Update(payload as any).then(() => {
+            Points_Config__Update({
+                Id: UpdateItem.Id,
+                Tag: UpdateItem.Tag,
+                Description: UpdateItem.Description,
+                RW_Cancel: UpdateItem.RW_Cancel,
+                Value_Type: UpdateItem.Value_Type,
+                Config: UpdateItem.Config,
+            }).then(() => {
                 ElMessage.success('修改成功')
                 showUpdateDialog.value = false
                 Count()
@@ -318,16 +325,8 @@ const formRules = {
         {
             // 自定义校验器
             validator: (rule: any, value: any, callback: any) => {
-                // 【这里换成你真正的布尔变量名】
-                const index: { [key: string]: number } = {
-                    "Modbus_Tcp": 4,
-                    "Modbus_Rtu": 4,
-                    "Siemens_S7": 3,
-                }
 
-
-                const isFloatEnable = UpdateItem.Config.split(';')[index[UpdateItem.Drive?.Type ?? ''] ?? 0] === 'bool';
-
+                const isFloatEnable = UpdateItem.Config.split(';')[3] === 'bool';
                 const val = String(value).trim();
 
                 // 1. 不能是负数
@@ -414,8 +413,11 @@ const newItemRules = reactive({
             trigger: 'blur'
         },
     ],
+    Function: [
+        { required: true, message: '请选择功能码', trigger: 'change' }, // 下拉框建议用 change
+    ],
     Type: [
-        { required: true, message: '请选择值类型', trigger: 'change' },
+        { required: true, message: '请选择值类型', tr高哦igigger: 'change' },
     ],
     Byte_Order: [
         { required: true, message: '请选择值类型', trigger: 'change' },
@@ -432,14 +434,6 @@ const newItemRules = reactive({
     ]
 });
 
-
-// 定义提示文本
-const typeOptions: { [key: string]: string } = {
-    "Modbus_Tcp": '格式：从机地址;功能码&lt;01 02 03 04&gt;;寄存器地址.子地址[如果有];字节顺序&lt;AB BA ABCD ABDC BACD DCBA&gt;数据类型&lt;bool uint16 int16 uint32 int32 float32&gt; <br>示例：1;03;1.1;bool<br>示例：1;03;2;int16<br>示例：1;03;3;uint32<br>示例：1;01;1;bool',
-    "Modbus_Rtu": '格式：从机地址;功能码&lt;01 02 03 04&gt;;寄存器地址.子地址[如果有];字节顺序&lt;AB BA ABCD ABDC BACD DCBA&gt;数据类型&lt;bool uint16 int16 uint32 int32 float32 float64&gt; <br>示例：1;03;1.1;bool<br>示例：1;03;2;int16<br>示例：1;03;3;uint32<br>示例：1;01;1;bool',
-    "Siemens_S7": '格式：寄存器类型&lt;I Q M DB&gt;;DB编号[其他寄存器类型为0];寄存器地址.子地址[如果有];数据类型&lt;bool uint16 int16 uint32 int32&gt; <br>示例：I;0;0.1;bool <br>示例：M;0;0.1;bool <br>示例：DB;1;1.0;bool <br>示例：DB;1;2;int8 <br>示例：DB;1;3;int16<br> 示例：DB;1;5;float32',
-}
-
 const myRules: { [key: string]: DynamicFieldItem[] } = {
     "Modbus_Tcp": [
         { prop: 'Modbus__SlaveID', label: '从机地址', type: 'unit', placeholder: '请输入从机地址' },
@@ -453,6 +447,17 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
             ]
         },
         { prop: 'Address', label: '寄存器地址', type: 'string', placeholder: '请输入寄存器地址' },
+        {
+            prop: 'Type', label: '数据类型', type: 'select',
+            options: [
+                { label: 'bool', value: 'bool' },
+                { label: 'uint16', value: 'uint16' },
+                { label: 'int16', value: 'int16' },
+                { label: 'uint32', value: 'uint32' },
+                { label: 'int32', value: 'int32' },
+                { label: 'float32', value: 'float32' }
+            ]
+        },
         {
             prop: 'Byte_Order', label: '字节序', type: 'select',
             hidden: () => {
@@ -469,17 +474,7 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
                 { label: 'DCBA', value: 'DCBA' }
             ]
         },
-        {
-            prop: 'Type', label: '数据类型', type: 'select',
-            options: [
-                { label: 'bool', value: 'bool' },
-                { label: 'uint16', value: 'uint16' },
-                { label: 'int16', value: 'int16' },
-                { label: 'uint32', value: 'uint32' },
-                { label: 'int32', value: 'int32' },
-                { label: 'float32', value: 'float32' }
-            ]
-        },
+
     ],
     "Modbus_Rtu": [
         { prop: 'Modbus__SlaveID', label: '从机地址', type: 'unit', placeholder: '请输入从机地址' },
@@ -493,6 +488,17 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
             ]
         },
         { prop: 'Address', label: '寄存器地址', type: 'string', placeholder: '请输入寄存器地址' },
+        {
+            prop: 'Type', label: '数据类型', type: 'select',
+            options: [
+                { label: 'bool', value: 'bool' },
+                { label: 'uint16', value: 'uint16' },
+                { label: 'int16', value: 'int16' },
+                { label: 'uint32', value: 'uint32' },
+                { label: 'int32', value: 'int32' },
+                { label: 'float32', value: 'float32' }
+            ]
+        },
         {
             prop: 'Byte_Order',
             label: '字节序',
@@ -511,17 +517,7 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
                 { label: 'DCBA', value: 'DCBA' }
             ]
         },
-        {
-            prop: 'Type', label: '数据类型', type: 'select',
-            options: [
-                { label: 'bool', value: 'bool' },
-                { label: 'uint16', value: 'uint16' },
-                { label: 'int16', value: 'int16' },
-                { label: 'uint32', value: 'uint32' },
-                { label: 'int32', value: 'int32' },
-                { label: 'float32', value: 'float32' }
-            ]
-        },
+
     ],
     "Siemens_S7": [
         {
