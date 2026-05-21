@@ -1463,6 +1463,16 @@ func Authority_User__Add(ctx *gin.Context) {
 		return
 	}
 
+	if jsondata.User_Id == 0 {
+		ctx.Set("Response", []any{417, "请选择 用户id"})
+		return
+	}
+
+	if jsondata.Authority_Id == 0 {
+		ctx.Set("Response", []any{417, "请选择 权限id"})
+		return
+	}
+
 	err = db_mysql.Authority_User__Add(jsondata)
 	if err != nil {
 		ctx.Set("Response", []any{StatusMysql, err.Error()})

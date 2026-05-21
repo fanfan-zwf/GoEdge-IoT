@@ -1,9 +1,10 @@
 package Modbus_Tcp
 
 import (
+	"main/db/mysql"
+
 	"fmt"
 	"log"
-	"main/app/mqtt_rpc"
 	"strconv"
 	"strings"
 	"time"
@@ -91,8 +92,8 @@ func Point_Config_Switch(s string) (point Points_type, err error) {
 	SlaveID_str := strings.TrimSpace(parts[0])    // 从机地址
 	Function_str := strings.TrimSpace(parts[1])   // Modbus功能码（如3=读保持寄存器）
 	Address_str := strings.TrimSpace(parts[2])    // 寄存器地址
-	Type_str := strings.TrimSpace(parts[3])       // 数据类型（bool/int8/float32等）
 	Byte_Order_str := strings.TrimSpace(parts[4]) // 字节序（如"ABCD"表示大端）
+	Type_str := strings.TrimSpace(parts[3])       // 数据类型（bool/int8/float32等）
 
 	var slaveID int
 	slaveID, err = strconv.Atoi(SlaveID_str)
@@ -122,6 +123,11 @@ func Point_Config_Switch(s string) (point Points_type, err error) {
 			return
 		}
 	}
+	Byte_Order, exists := byte_value[Byte_Order_str]
+	if !exists {
+		err = fmt.Errorf("ERROR 无效的字节序: %s", Byte_Order_str)
+		return
+	}
 
 	point = Points_type{
 		SlaveID:       uint8(slaveID),       // 从机地址
@@ -129,24 +135,39 @@ func Point_Config_Switch(s string) (point Points_type, err error) {
 		Address:       uint16(Address),      // 寄存器地址
 		Type:          Type_str,             // 数据类型（bool/int8/float32等）
 		Child_Address: uint8(Child_Address), // 子地址（可选）
-		Byte_Order:    Byte_Order_str,       // 字节序（如"ABCD"表示大端）
+		Byte_Order:    Byte_Order,           // 字节序（如"ABCD"表示大端）
 	}
 
 	return
 }
 
 // func Point_Config_Switch_List(configs []string) (points []Points_type, err error)
-func New(config mqtt_rpc.IO_Points_Config_type) (err error) {
+func New(id uint) (err error) {
+	var (
+		Drive  mysql.Drive_Config_type
+		Points []mysql.Points_Config_type
+	)
+	Drives, err := mysql.Drive_Config__Query([]uint{id}, []string{}, 0, 0)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+	Drive = Drives[0]
+	Points, err = mysql.Points_Config__Query([]uint{id}, 0, 0)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
 
 	var Drive_Config Config_type
-	Drive_Config, err = Drive_Config_Switch(config.Drive.Config)
+	Drive_Config, err = Drive_Config_Switch(Drive.Config)
 	if err != nil {
 		log.Print(err)
 		return
 	}
 
 	var Points_Config []Mysql_Points_type
-	for _, pointStr := range config.Points {
+	for _, pointStr := range Points {
 		point, err := Point_Config_Switch(pointStr.Config)
 		if err != nil {
 			log.Printf("ERROR 解析点位配置失败: %v, 配置字符串: %s", err, pointStr.Config)
@@ -165,15 +186,15 @@ func New(config mqtt_rpc.IO_Points_Config_type) (err error) {
 
 	c := Connect_struct{
 		Drive: Mysql_Config_type{
-			Id:     config.Drive.Id,   // 驱动id
-			Type:   config.Drive.Type, // 驱动类型
-			Name:   config.Drive.Name, // 驱动名称
+			Id:     Drive.Id,   // 驱动id
+			Type:   Drive.Type, // 驱动类型
+			Name:   Drive.Name, // 驱动名称
 			Config: Drive_Config,
 		},
-		Points: Points_Config,
+		Points:                   Points_Config,
+		Data_Packet_Print_enable: true, // 是否打印组包数据
 	}
 
-	fmt.Printf("Points |||||||||||||||| \n%+v \n\n", Points_Config)
 	// 组包
 	err = c.Packet()
 	if err != nil {
@@ -186,8 +207,6 @@ func New(config mqtt_rpc.IO_Points_Config_type) (err error) {
 	if err != nil {
 		log.Printf("WARNING %v", err.Error())
 	}
-
-	fmt.Printf("Packets >>>>>>>> \n%+v \n", c.Packets)
 
 	go c.Read_Continuous(func(g []IO_Collection_Value_type) {
 		fmt.Printf("Read_Callback >>>>>>>> \n%+v \n", g)

@@ -4,7 +4,7 @@
 * 作用: 用户服务接口
  */
 
-package userservice
+package user_service
 
 import (
 	"main/Init"

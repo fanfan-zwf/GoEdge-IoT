@@ -30,7 +30,7 @@ func init() {
 
 // IO数据采集结构体
 type Db_Value_type struct {
-	Id   uint   // 点位id
+	// Id   uint   // 点位id
 	Tag  string // 点位标识
 	Msg  string // 状态
 	Type string // 值类型
@@ -75,13 +75,9 @@ func Db_Publisher(value []Db_Value_type) (err error) {
 			err = fmt.Errorf("ERROR 点位型不正确 %v", v.Type)
 			return err
 		}
-		if v.Id == 0 {
-			err = fmt.Errorf("ERROR 点位id不正确 %d", v.Id)
-			return err
-		}
 
 		if v.Tag == "" {
-			err = fmt.Errorf("ERROR 点位标识不正确 %d", v.Id)
+			err = fmt.Errorf("ERROR 点位标识不正确 %d", v.Tag)
 			return err
 		}
 
@@ -192,13 +188,9 @@ func Update_Publisher(value []Update_Value_type) (err error) {
 			err := fmt.Errorf("ERROR 点位型不正确 %v", v.Type)
 			return err
 		}
-		if v.Id == 0 {
-			err = fmt.Errorf("ERROR 点位id不正确 %d", v.Id)
-			return err
-		}
 
 		if v.Tag == "" {
-			err = fmt.Errorf("ERROR 点位标识不正确 %d", v.Id)
+			err = fmt.Errorf("ERROR 点位标识不正确 %d", v.Tag)
 			return err
 		}
 
@@ -292,8 +284,7 @@ func Update_Redis(db_value []Db_Value_type) (err error) {
 			}
 		}
 
-		if Last_Change.Id == 0 || Last_Change.Tag == "" || Last_Change.Type == "" {
-			Last_Change.Id = v.Id
+		if Last_Change.Tag == "" || Last_Change.Type == "" {
 			Last_Change.Tag = v.Tag
 			Last_Change.Type = v.Type
 		}

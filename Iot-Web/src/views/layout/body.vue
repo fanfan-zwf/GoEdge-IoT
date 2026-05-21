@@ -16,9 +16,10 @@
                         </div>
                     </div>
 
-                    <!-- 菜单区域 -->
-                    <el-menu default-active="1" class="sidebar-menu" :collapse="isCollapsed" @select="handleMenuSelect">
-                        <el-sub-menu index="2" v-if="User_info.Permissions == 0">
+                    <!-- 菜单区域 → 已修复：路由自动高亮 -->
+                    <el-menu :default-active="activePath" class="sidebar-menu" :collapse="isCollapsed"
+                        @select="handleMenuSelect">
+                        <el-sub-menu index="/config" v-if="User_info.Permissions == 0">
                             <template #title>
                                 <el-icon>
                                     <img src="@/assets/icons/采集.svg" alt="点位配置" />
@@ -26,7 +27,7 @@
                                 <span>点位配置</span>
                             </template>
                             <router-link active-class="active" :to="{ name: 'collector_config' }">
-                                <el-menu-item index="2-1">
+                                <el-menu-item index="/config/collector">
                                     <el-icon>
                                         <img src="@/assets/icons/服务器.svg" alt="驱动配置" />
                                     </el-icon>
@@ -34,7 +35,7 @@
                                 </el-menu-item>
                             </router-link>
                             <router-link active-class="active" :to="{ name: 'drive_config' }">
-                                <el-menu-item index="2-2">
+                                <el-menu-item index="/config/drive">
                                     <el-icon>
                                         <img src="@/assets/icons/PLC.svg" alt="驱动配置" />
                                     </el-icon>
@@ -42,7 +43,7 @@
                                 </el-menu-item>
                             </router-link>
                             <router-link active-class="active" :to="{ name: 'point_config' }">
-                                <el-menu-item index="2-3">
+                                <el-menu-item index="/config/point">
                                     <el-icon>
                                         <img src="@/assets/icons/点.svg" alt="点位配置" />
                                     </el-icon>
@@ -50,7 +51,8 @@
                                 </el-menu-item>
                             </router-link>
                         </el-sub-menu>
-                        <el-sub-menu index="1" v-if="User_info.Permissions == 0">
+
+                        <el-sub-menu index="/user" v-if="User_info.Permissions == 0">
                             <template #title>
                                 <el-icon>
                                     <img src="@/assets/icons/用户管理.svg" alt="用户管理" />
@@ -59,7 +61,7 @@
                             </template>
                             <router-link active-class="active"
                                 :to="{ name: 'info', params: { User_Id: User_info.Id } }">
-                                <el-menu-item index="1-1">
+                                <el-menu-item index="/user/info">
                                     <el-icon>
                                         <img src="@/assets/icons/账号信息.svg" alt="账号信息" />
                                     </el-icon>
@@ -67,7 +69,7 @@
                                 </el-menu-item>
                             </router-link>
                             <router-link active-class="active" :to="{ name: 'authority_user' }">
-                                <el-menu-item index="1-2" v-if="User_info.Permissions == 0">
+                                <el-menu-item index="/user/authority_user" v-if="User_info.Permissions == 0">
                                     <el-icon>
                                         <img src="@/assets/icons/分组管理.svg" alt="分组管理" />
                                     </el-icon>
@@ -75,7 +77,7 @@
                                 </el-menu-item>
                             </router-link>
                             <router-link active-class="active" :to="{ name: 'group' }">
-                                <el-menu-item index="1-3" v-if="User_info.Permissions == 0">
+                                <el-menu-item index="/user/group" v-if="User_info.Permissions == 0">
                                     <el-icon>
                                         <img src="@/assets/icons/分组管理.svg" alt="分组管理" />
                                     </el-icon>
@@ -83,7 +85,7 @@
                                 </el-menu-item>
                             </router-link>
                             <router-link active-class="active" :to="{ name: 'user_account' }">
-                                <el-menu-item index="1-4" v-if="User_info.Permissions == 0">
+                                <el-menu-item index="/user/user_account" v-if="User_info.Permissions == 0">
                                     <el-icon>
                                         <img src="@/assets/icons/用户管理.svg" alt="用户管理" />
                                     </el-icon>
@@ -92,7 +94,6 @@
                             </router-link>
                         </el-sub-menu>
                     </el-menu>
-
                     <!-- 折叠按钮 -->
                     <div class="sidebar-footer">
                         <el-button :icon="isCollapsed ? Expand : Fold" @click="toggleCollapse" circle size="small"
@@ -119,7 +120,7 @@
                         <!-- 修改：重构面包屑，支持多级路径解析和点击跳转 -->
                         <el-breadcrumb separator="/">
                             <el-breadcrumb-item v-for="(item, index) in breadcrumbList" :key="index" :to="item.path">
-                                {{ item.name }}
+                                {{ getDecodedName(item.name) }}
                             </el-breadcrumb-item>
                         </el-breadcrumb>
                     </div>
@@ -148,8 +149,7 @@
 import { ref, computed, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Fold, Expand } from '@element-plus/icons-vue'
-import UserMenu from '@/components/User_Menu.vue'
-import { User__Get_Info } from '@/api/api'
+import UserMenu from '@/components/User_Menu.vue' 
 import type { User__table_interface } from '@/api/api'
 import { useUserStore } from '@/stores/user'
 
@@ -158,13 +158,18 @@ const UserStore = useUserStore() // 获取用户信息
 const router = useRouter()
 const route = useRoute()
 
-const User_info: User__table_interface = UserStore.get
+const User_info: User__table_interface = UserStore.userInfo
 
 const isCollapsed = ref(false)
 // 新增：移动端状态控制
 const isMobile = ref(false)
 const isMobileVisible = ref(false)
 
+// 哈希模式专用：路由 name 映射菜单 index
+const activePath = computed(() => {
+    const lastRoute = route.matched[route.matched.length - 1]
+    return lastRoute ? lastRoute.path.replace(/\/:.*/, '') : route.path
+})
 const toggleCollapse = () => {
     if (isMobile.value) {
         // 移动端：切换显示/隐藏
@@ -180,6 +185,7 @@ const toggleCollapse = () => {
         isCollapsed.value = !isCollapsed.value
     }
 }
+
 
 // 新增：关闭侧边栏（用于遮罩点击或菜单选择后）
 const closeSidebar = () => {
@@ -271,6 +277,11 @@ const handleMenuSelect = (index: any) => {
     }
     // 菜单选择逻辑
 }
+
+const getDecodedName = (name: string) => {
+    return decodeURIComponent(name.split('?')[0] ?? '')
+}
+
 </script>
 
 <style scoped>

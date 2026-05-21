@@ -33,7 +33,7 @@
                 <!-- 分页查询 -->
                 <el-form-item label="分页：">
                     <el-pagination v-model:page-size="pagination.Page_length" :page-sizes="[10, 50, 100, 150, 200]"
-                        layout="total, sizes, prev, pager, next, jumper" :pager-count=10
+                        layout="total, sizes, prev, pager, next, jumper" :pager-count=7
                         :total="pagination.total_length" @size-change="handleSizeChange"
                         @current-change="handleCurrentChange" />
                 </el-form-item>

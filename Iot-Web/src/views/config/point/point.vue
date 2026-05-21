@@ -1,6 +1,7 @@
 <template>
     <el-config-provider :locale="zhCn">
         <div class="user-info-card">
+            <h6 v-if="drive_name && drive_name !== 'undefined'">驱动名称：{{ drive_name }}</h6>
             <el-table :data="config_data" style="width: 100%" max-height="800px">
                 <el-table-column fixed prop="Id" label="Id" width="60" align="center" />
                 <el-table-column prop="Tag" label="点位标签" min-width="200" max-width="300" show-overflow-tooltip />
@@ -23,9 +24,8 @@
                 <!-- 分页查询 -->
                 <el-form-item label="分页：">
                     <el-pagination v-model:page-size="pagination.Page_length" :page-sizes="[10, 50, 100, 150, 200]"
-                        layout="total, sizes, prev, pager, next, jumper" :pager-count=10
-                        :total="pagination.total_length" @size-change="handleSizeChange"
-                        @current-change="handleCurrentChange" />
+                        layout="total, sizes, prev, pager, next, jumper" :pager-count=7 :total="pagination.total_length"
+                        @size-change="handleSizeChange" @current-change="handleCurrentChange" />
                 </el-form-item>
             </div>
         </div>
@@ -40,7 +40,7 @@
                             disabled />
                     </el-form-item>
 
-                    <el-form-item prop="Drive.Id" label="驱动" v-if="UpdateItem.Id === 0">
+                    <el-form-item prop="Drive.Id" label="驱动" v-if="UpdateItem.Id === 0 && drive_name === ''">
                         <search_drive :result="(value: Drive_Config__table_interface) => {
                             UpdateItem.Drive.Id = value.Id;
                             UpdateItem.Drive.Type = value.Type;
@@ -70,6 +70,11 @@
                     <el-form-item prop="Description" label="描述">
                         <el-input v-model="UpdateItem.Description" type="textarea" clearable
                             @clear="handleCustomClear" />
+                        <div class="input-tip">
+                            <!-- <el-button @clear="handleCustomClear" key="primary" type="primary" >
+                                清空
+                            </el-button> 请输入:null -->
+                        </div>
                     </el-form-item>
 
                     <el-divider />
@@ -91,7 +96,7 @@
 <script setup lang="ts">
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { reactive, onMounted, ref, nextTick, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, ElMessageBox } from 'element-plus'
 import {
     Points_Config__Count,
@@ -105,9 +110,12 @@ import {
 } from '@/api/config_service'
 import search_drive from '@/views/config/drive/search_drive.vue'
 import DynamicConfigForm, { type DynamicFieldItem } from '@/components/Custom_Form.vue'
-import { c } from 'naive-ui'
 
+const route = useRoute()
 // const router = useRouter()
+
+const drive_name = ref<string>(String(route.params.name) ?? '')
+const drive_id = ref<number>(Number(route.query.drive_id ?? 0) ?? 0)
 
 const config_data: Points_Config__table_interface[] = reactive([])
 const pagination = reactive({
@@ -117,10 +125,15 @@ const pagination = reactive({
 
 // 分页查询 Page 页码
 const Query = (Page: number) => {
-    Points_Config__Query({
+    const params: any = {
         Page: Page,
         Page_Size: pagination.Page_length
-    }).then((config_info) => {
+    };
+
+    if (drive_id.value !== 0) {
+        params.Drive_Id = [drive_id.value];
+    }
+    Points_Config__Query(params).then((config_info) => {
         config_data.length = 0
         Object.assign(config_data, config_info)
     }).catch((error) => {
@@ -130,7 +143,13 @@ const Query = (Page: number) => {
 
 // 查询总条目
 const Count = () => {
-    Points_Config__Count().then((Count) => {
+    // 构建请求参数，如果 drive_id 为 0 则不传 Drive_Id
+    const params: any = {};
+
+    if (drive_id.value !== 0) {
+        params.Drive_Id = [drive_id.value];
+    }
+    Points_Config__Count(params).then((Count) => {
         pagination.total_length = Count
         Query(1)
     }).catch((error) => {
@@ -142,6 +161,16 @@ onMounted(() => {
     Count()
 })
 
+watch(
+    () => route, // 监听整个路由
+    () => {
+        // 路由一变，就重新赋值
+        drive_name.value = String(route.params.name ?? '')
+        drive_id.value = Number(route.query.drive_id ?? 0) || 0
+        Count() // 重新查询数据
+    },
+    { immediate: true, deep: true } // 进入页面立即执行一次
+)
 // 分页事件
 const handleSizeChange = (value: number) => {
     pagination.Page_length = value
@@ -223,8 +252,8 @@ const UpdateItem: Points_Config__table_interface = reactive({
 watch(() => UpdateItem.Config, (newValue, _) => {
     // 1. 按 ; 分割成数组
     const parts = newValue.split(";");
-    // 2. 取出最后一段（你要的内容）
-    const lastStr = (parts.length > 0 ? parts[parts.length - 1] : '') ?? '';
+    // 2. 取出最后一段（你要的内容） 
+    const lastStr = (parts[parts.length - 1]) ?? '';
     switch (lastStr) {
         case 'bool':
             UpdateItem.Value_Type = 'bool'
@@ -244,25 +273,33 @@ watch(() => UpdateItem.Config, (newValue, _) => {
             UpdateItem.Value_Type = 'float'
             break
         default:
+            console.error('未知类型:', lastStr, parts)
             break
     }
 
-})
+}, { deep: true })
 const addNewRow = () => {
     addFormRef.value?.clearValidate();
     Object.assign(UpdateItem, {
-        Id: 0,
-        Tag: '',
-        Description: '',
-        RW_Cancel: 'R',
-        Value_Type: '',
+        Id: 0,   // 点位 id
+        Tag: `//${String(route.query.collector_uuid)}//${drive_name.value}/`, // 点位标识
+        Description: '', // 点位描述
+        RW_Cancel: 'R', // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
+        Value_Type: '', // 输出类型
         Config: '',
-        Creation_Time: '',
-        Drive_Id: 0,
-        Drive_Type: '',
-        Collector_Id: 0,
-        Collector_Uuid: '',
-        Collector_Name: '',
+        Creation_Time: '', // 创建时间 
+        // 修复点：补充 Drive 对象中缺失的 Type 属性
+        Drive: {
+            Id: drive_id.value ?? 0,
+            Name: drive_name.value ?? '',
+            Type: String(route.query.drive_type) ?? '', // <--- 添加此行以匹配 Drive__Carry_interface
+        },
+        Collector: {
+            Id: 0,
+            Name: '',
+            Uuid: '',
+            // 注意：如果 Collector 对应的接口也有必填字段缺失，请在此处一并补充
+        },
     });
     showUpdateDialog.value = true;
 };
@@ -326,7 +363,12 @@ const formRules = {
             // 自定义校验器
             validator: (rule: any, value: any, callback: any) => {
 
-                const isFloatEnable = UpdateItem.Config.split(';')[3] === 'bool';
+                // 1. 按 ; 分割成数组
+                const parts = UpdateItem.Config.split(";");
+                // 2. 取出最后一段（你要的内容） 
+                const lastStr = (parts[parts.length - 1]) ?? '';
+
+                const isFloatEnable = lastStr === 'bool';
                 const val = String(value).trim();
 
                 // 1. 不能是负数
@@ -448,17 +490,6 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
         },
         { prop: 'Address', label: '寄存器地址', type: 'string', placeholder: '请输入寄存器地址' },
         {
-            prop: 'Type', label: '数据类型', type: 'select',
-            options: [
-                { label: 'bool', value: 'bool' },
-                { label: 'uint16', value: 'uint16' },
-                { label: 'int16', value: 'int16' },
-                { label: 'uint32', value: 'uint32' },
-                { label: 'int32', value: 'int32' },
-                { label: 'float32', value: 'float32' }
-            ]
-        },
-        {
             prop: 'Byte_Order', label: '字节序', type: 'select',
             hidden: () => {
                 const parts = UpdateItem.Config.split(';');
@@ -472,6 +503,17 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
                 { label: 'ABDC', value: 'ABDC' },
                 { label: 'BACD', value: 'BACD' },
                 { label: 'DCBA', value: 'DCBA' }
+            ]
+        },
+        {
+            prop: 'Type', label: '数据类型', type: 'select',
+            options: [
+                { label: 'bool', value: 'bool' },
+                { label: 'uint16', value: 'uint16' },
+                { label: 'int16', value: 'int16' },
+                { label: 'uint32', value: 'uint32' },
+                { label: 'int32', value: 'int32' },
+                { label: 'float32', value: 'float32' }
             ]
         },
 
@@ -488,17 +530,6 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
             ]
         },
         { prop: 'Address', label: '寄存器地址', type: 'string', placeholder: '请输入寄存器地址' },
-        {
-            prop: 'Type', label: '数据类型', type: 'select',
-            options: [
-                { label: 'bool', value: 'bool' },
-                { label: 'uint16', value: 'uint16' },
-                { label: 'int16', value: 'int16' },
-                { label: 'uint32', value: 'uint32' },
-                { label: 'int32', value: 'int32' },
-                { label: 'float32', value: 'float32' }
-            ]
-        },
         {
             prop: 'Byte_Order',
             label: '字节序',
@@ -517,7 +548,17 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
                 { label: 'DCBA', value: 'DCBA' }
             ]
         },
-
+        {
+            prop: 'Type', label: '数据类型', type: 'select',
+            options: [
+                { label: 'bool', value: 'bool' },
+                { label: 'uint16', value: 'uint16' },
+                { label: 'int16', value: 'int16' },
+                { label: 'uint32', value: 'uint32' },
+                { label: 'int32', value: 'int32' },
+                { label: 'float32', value: 'float32' }
+            ]
+        },
     ],
     "Siemens_S7": [
         {

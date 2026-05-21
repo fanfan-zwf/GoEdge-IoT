@@ -9,8 +9,9 @@
                 <el-table-column prop="Config" label="配置" min-width="200" show-overflow-tooltip />
                 <el-table-column prop="Points_Length" label="点位数量" width="100" align="center" />
                 <el-table-column prop="Creation_Time" label="创建时间" width="230" align="center" />
-                <el-table-column label="操作" width="180" fixed="right">
+                <el-table-column label="操作" width="200" fixed="right">
                     <template #default="scope">
+                        <el-button size="small" @click="viewPoints(scope)">点位</el-button>
                         <el-button size="small" @click="editRow(scope)">编辑</el-button>
                         <el-button size="small" type="danger" @click="deleteRow(scope)">删除</el-button>
                     </template>
@@ -23,7 +24,7 @@
                 <!-- 分页查询 -->
                 <el-form-item label="分页：">
                     <el-pagination v-model:page-size="pagination.Page_length" :page-sizes="[10, 50, 100, 150, 200]"
-                        layout="total, sizes, prev, pager, next, jumper" :pager-count=10
+                        layout="total, sizes, prev, pager, next, jumper" :pager-count=7
                         :total="pagination.total_length" @size-change="handleSizeChange"
                         @current-change="handleCurrentChange" />
                 </el-form-item>
@@ -95,9 +96,10 @@ import {
 } from '@/api/config_service'
 import Search_Collector from '@/views/config/collector/search_collector.vue'
 import DynamicConfigForm, { type DynamicFieldItem } from '@/components/Custom_Form.vue'
+import { c } from 'naive-ui'
 
 
-// const router = useRouter()
+const router = useRouter()
 
 const config_data: Drive_Config__table_interface[] = reactive([])
 const pagination = reactive({
@@ -178,7 +180,25 @@ const deleteRow = (scope: any) => {
         .catch(() => {
             ElMessage.info('已取消输入')
         })
+}
 
+// 跳转当前点位配置页面
+const viewPoints = (scope: any) => {
+    const id: number = scope.row.Id ?? 0
+    if (id === 0) {
+        ElMessage.error('无效的ID')
+        return
+    }
+    router.push({
+        name: 'point_config',
+        params: { name: scope.row.Name ?? '' },
+        query: {
+            drive_id: id,
+            drive_type: scope.row.Type ?? '',
+            collector_uuid: scope.row.Collector.Uuid ?? ''
+        }
+    }
+    )
 }
 
 // 响应式数据 

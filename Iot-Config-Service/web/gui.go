@@ -190,8 +190,8 @@ func Drive_Config__Count(ctx *gin.Context) {
 	var jsondata struct {
 		Page         uint
 		Page_Size    uint
-		Collector_Id uint
-		Drive_Type   string
+		Collector_Id []uint
+		Drive_Type   []string
 	}
 	err := ctx.BindJSON(&jsondata)
 	if err != nil {
@@ -218,8 +218,8 @@ func Drive_Config__Query(ctx *gin.Context) {
 	var jsondata struct {
 		Page         uint
 		Page_Size    uint
-		Collector_Id uint
-		Drive_Type   string
+		Collector_Id []uint
+		Drive_Type   []string
 	}
 	err := ctx.BindJSON(&jsondata)
 	if err != nil {
@@ -356,9 +356,10 @@ func Drive_Config__Search_Field_Blurred(ctx *gin.Context) {
 // 点位-》查询数量 传递: driveid 设备id, page 页码, pageSize 每页数量 返回: Count 数量, err 错误
 func Points_Config__Count(ctx *gin.Context) {
 	var jsondata struct {
-		Page      uint
-		Page_Size uint
-		Drive_Id  uint
+		Page         uint
+		Page_Size    uint
+		Drive_Id     []uint
+		Collector_Id []uint
 	}
 	err := ctx.BindJSON(&jsondata)
 	if err != nil {
@@ -366,7 +367,7 @@ func Points_Config__Count(ctx *gin.Context) {
 		return
 	}
 
-	count, err := db_mysql.Points_Config__Count(jsondata.Drive_Id, jsondata.Page, jsondata.Page_Size)
+	count, err := db_mysql.Points_Config__Count(jsondata.Collector_Id, jsondata.Drive_Id, jsondata.Page, jsondata.Page_Size)
 	if err == sql.ErrNoRows {
 		ctx.Set("Response", []any{404, "查询不到"})
 		return
@@ -383,9 +384,10 @@ func Points_Config__Count(ctx *gin.Context) {
 // 点位-》查询配置 传递: driveid 设备id, page 页码, pageSize 每页数量 返回: configs 配置, err 错误
 func Points_Config__Query(ctx *gin.Context) {
 	var jsondata struct {
-		Page      uint
-		Page_Size uint
-		Drive_Id  uint
+		Page         uint
+		Page_Size    uint
+		Drive_Id     []uint
+		Collector_Id []uint
 	}
 	err := ctx.BindJSON(&jsondata)
 	if err != nil {
@@ -393,7 +395,7 @@ func Points_Config__Query(ctx *gin.Context) {
 		return
 	}
 
-	config_list, err := db_mysql.Points_Config__Query(jsondata.Drive_Id, jsondata.Page, jsondata.Page_Size)
+	config_list, err := db_mysql.Points_Config__Query(jsondata.Collector_Id, jsondata.Drive_Id, jsondata.Page, jsondata.Page_Size)
 	if err == sql.ErrNoRows {
 		ctx.Set("Response", []any{404, "查询不到"})
 		return
@@ -480,14 +482,34 @@ func App_Restart(ctx *gin.Context) {
 
 	ctx.Set("Response", []any{200, "ok"})
 }
+
+// 采集服务同步
+func Collector_Synchronise_Config(ctx *gin.Context) {
+	var jsondata struct {
+		Uuid string
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+	err = mqtt_rpc.Collector_Synchronise_Config(jsondata.Uuid)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
 func gui_api(r *gin.Engine) {
-	r.POST("/api/gui/v1.0/collector_info/count", Collector_Info__Count)
-	r.POST("/api/gui/v1.0/collector_info/query", Collector_Info__Query)
-	r.POST("/api/gui/v1.0/collector_info/add", Collector_Info__Add)
-	r.POST("/api/gui/v1.0/collector_info/update", Collector_Info__Update)
-	r.POST("/api/gui/v1.0/collector_info/del", Collector_Info__Del)
-	r.POST("/api/gui/v1.0/collector_info/search/field/vague", Collector_Info__Search_Field)
-	r.POST("/api/gui/v1.0/collector_info/search/blurred", Collector_Info__Search_Field_Blurred)
+	r.POST("/api/gui/v1.0/collector/count", Collector_Info__Count)
+	r.POST("/api/gui/v1.0/collector/query", Collector_Info__Query)
+	r.POST("/api/gui/v1.0/collector/add", Collector_Info__Add)
+	r.POST("/api/gui/v1.0/collector/update", Collector_Info__Update)
+	r.POST("/api/gui/v1.0/collector/del", Collector_Info__Del)
+	r.POST("/api/gui/v1.0/collector/search/field/vague", Collector_Info__Search_Field)
+	r.POST("/api/gui/v1.0/collector/search/blurred", Collector_Info__Search_Field_Blurred)
+	r.POST("/api/gui/v1.0/collector/synchronise", Collector_Synchronise_Config)
 
 	r.POST("/api/gui/v1.0/config/drive/count", Drive_Config__Count)
 	r.POST("/api/gui/v1.0/config/drive/query", Drive_Config__Query)
@@ -504,4 +526,5 @@ func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/config/points/del", Points_Config__Del)
 
 	r.POST("/api/gui/v1.0/app/restart", App_Restart)
+
 }

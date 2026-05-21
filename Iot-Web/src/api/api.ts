@@ -53,7 +53,7 @@ export async function User__Get_Info(User_Id: number = 0): Promise<User__table_i
                 sessionStorage.removeItem('F_User_Info');
                 sessionStorage.setItem('F_User_Info', JSON.stringify(User_info))
                 const userStore = useUserStore()
-                userStore.set(User_info)
+                userStore.setUserInfo(User_info)
             }
             return User_info
         }

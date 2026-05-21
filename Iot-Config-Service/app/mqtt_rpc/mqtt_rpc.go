@@ -12,24 +12,50 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
+// ====================== 安全 JSON 载体：永不报错 ======================
+type SafePayload []byte
+
+// 序列化：空时自动返回合法的 JSON {}，不会断裂
+func (s SafePayload) MarshalJSON() ([]byte, error) {
+	if len(s) == 0 {
+		return []byte("{}"), nil
+	}
+	return s, nil
+}
+
+// 反序列化：兼容空、null、正常数据
+func (s *SafePayload) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 || string(data) == "null" {
+		*s = []byte("{}")
+		return nil
+	}
+	*s = data
+	return nil
+}
+
+// 方便使用：转成普通 []byte
+func (s SafePayload) Bytes() []byte {
+	return []byte(s)
+}
+
 var timeoutErr = fmt.Errorf("ERROR 请求超时")
 
-// ====================== 【正确】消息结构 ======================
+// ====================== 消息结构 ======================
 type RequestID string
 
 type RpcMessage struct {
-	ReqID      RequestID       // 唯一ID，防冲突
-	ReplyTopic string          // ✅ 回复主题（必须）
-	BizTopic   string          // 业务接口名
-	Payload    json.RawMessage // 业务数据
-	Uuid       string          // 发送方uuid
-	Error      string          // 执行错误
+	ReqID      RequestID   `json:"reqId"`
+	ReplyTopic string      `json:"replyTopic"`
+	BizTopic   string      `json:"bizTopic"`
+	Payload    SafePayload `json:"payload"`
+	Uuid       string      `json:"uuid"`
+	Error      string      `json:"error"`
 }
 
 func NewReqID() RequestID {
 	b := make([]byte, 8)
 	_, _ = rand.Read(b)
-	return RequestID(fmt.Sprintf("%x", b))
+	return RequestID(fmt.Sprintf("%s %x", time.Now().Format(time.RFC3339Nano), b))
 }
 
 // ====================== MQTT 配置 ======================
@@ -38,13 +64,12 @@ type MqttConfig struct {
 	Username          string
 	Password          string
 	ClientID          string
-	SetCleanSession   bool          // 清洁会话（重启不接收离线消息）
-	SetAutoReconnect  bool          // 自动重连（必须开）
-	SetConnectTimeout time.Duration // 连接超时
-	SetWriteTimeout   time.Duration // 写超时
-	SetKeepAlive      time.Duration // 心跳保活
-
-	ListenTopic string // 我订阅的主题（别人发给我）
+	SetCleanSession   bool
+	SetAutoReconnect  bool
+	SetConnectTimeout time.Duration
+	SetWriteTimeout   time.Duration
+	SetKeepAlive      time.Duration
+	ListenTopic       string
 }
 
 // ====================== MQTT 实例 ======================
@@ -59,7 +84,7 @@ type mqttInstance struct {
 	wMutex      sync.Mutex
 }
 
-// ====================== MQTT 管理器（map 按名称管理）======================
+// ====================== MQTT 管理器 ======================
 type MqttManager struct {
 	inst map[string]*mqttInstance
 	mu   sync.RWMutex
@@ -71,7 +96,7 @@ func NewMqttManager() *MqttManager {
 	}
 }
 
-// 添加MQTT连接（指定名称）
+// 添加MQTT连接
 func (m *MqttManager) Add(name string, cfg MqttConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -81,15 +106,31 @@ func (m *MqttManager) Add(name string, cfg MqttConfig) error {
 	opts.SetUsername(cfg.Username)
 	opts.SetPassword(cfg.Password)
 	opts.SetClientID(cfg.ClientID)
+	opts.SetCleanSession(cfg.SetCleanSession)
+	opts.SetAutoReconnect(cfg.SetAutoReconnect)
+	opts.SetConnectTimeout(cfg.SetConnectTimeout)
+	opts.SetWriteTimeout(cfg.SetWriteTimeout)
+	opts.SetKeepAlive(cfg.SetKeepAlive)
 
-	opts.SetCleanSession(cfg.SetCleanSession)     // 清洁会话（重启不接收离线消息）
-	opts.SetAutoReconnect(cfg.SetAutoReconnect)   // 自动重连（必须开）
-	opts.SetConnectTimeout(cfg.SetConnectTimeout) // 连接超时
-	opts.SetWriteTimeout(cfg.SetWriteTimeout)     // 写超时
-	opts.SetKeepAlive(cfg.SetKeepAlive)           // 心跳保活
+	// 连接丢失处理
+	opts.SetConnectionLostHandler(func(client mqtt.Client, err error) {
+		log.Printf("MQTT 连接断开: %v", err)
+	})
+
+	// 重连成功处理
+	opts.SetReconnectingHandler(func(client mqtt.Client, opts *mqtt.ClientOptions) {
+		log.Printf("MQTT 尝试重连...")
+	})
+
+	// 连接成功后自动订阅
+	opts.SetOnConnectHandler(func(client mqtt.Client) {
+		log.Printf("MQTT 连接成功，订阅主题: %s", cfg.ListenTopic)
+		client.Subscribe(cfg.ListenTopic, 1, m.inst[name].onMsg)
+	})
 
 	client := mqtt.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
+	token := client.Connect()
+	if token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
 
@@ -100,35 +141,44 @@ func (m *MqttManager) Add(name string, cfg MqttConfig) error {
 		waiters:     make(map[RequestID]chan RpcMessage),
 	}
 
-	// 订阅自己的主题
-	client.Subscribe(cfg.ListenTopic, 1, inst.onMsg)
 	m.inst[name] = inst
-	fmt.Println("已连接MQTT:", name, " 监听主题:", cfg.ListenTopic)
+	log.Println("MQTT 已初始化:", name, " 监听主题:", cfg.ListenTopic)
 	return nil
 }
 
 // 收到消息
 func (inst *mqttInstance) onMsg(c mqtt.Client, msg mqtt.Message) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("消息处理 panic: %v", r)
+		}
+	}()
+
 	var m RpcMessage
-	err := json.Unmarshal(msg.Payload(), &m)
-	if err != nil {
-		log.Printf("ERROR 收到消息 处理json失败 %s", err)
+	if err := json.Unmarshal(msg.Payload(), &m); err != nil {
+		log.Printf("消息 JSON 解析失败: %v", err)
 		return
 	}
 
-	// 1. 若是响应 → 交给等待的Call
+	// 1. 处理响应：唤醒等待的调用方
 	inst.wMutex.Lock()
 	ch, ok := inst.waiters[m.ReqID]
 	if ok {
 		delete(inst.waiters, m.ReqID)
 	}
 	inst.wMutex.Unlock()
+
 	if ok {
-		ch <- m
+		// 非阻塞发送，防止超时后通道无人接收
+		select {
+		case ch <- m:
+		default:
+			log.Printf("响应通道已满，丢弃消息 ReqID: %s", m.ReqID)
+		}
 		return
 	}
 
-	// 2. 若是请求 → 执行业务
+	// 2. 处理请求：执行本地业务
 	inst.hMutex.RLock()
 	fn, exists := inst.handlers[m.BizTopic]
 	inst.hMutex.RUnlock()
@@ -136,38 +186,40 @@ func (inst *mqttInstance) onMsg(c mqtt.Client, msg mqtt.Message) {
 		return
 	}
 
-	// 处理并回复
-	respData, errFn := fn(m.Payload)
-	if m.ReplyTopic == "" {
-		return
-	}
+	// 异步执行业务，不阻塞消息循环
+	go func() {
+		respData, errFn := fn(m.Payload.Bytes())
+		if m.ReplyTopic == "" {
+			return
+		}
 
-	respMsg := RpcMessage{
-		ReqID:      m.ReqID,
-		ReplyTopic: m.ReplyTopic,
-		BizTopic:   m.BizTopic,
-		Payload:    respData,
-		Uuid:       Init.Config.APP.Uuid,
-	}
-	if errFn != nil {
-		respMsg.Error = errFn.Error() // 现在绝对安全
-	}
+		respMsg := RpcMessage{
+			ReqID:      m.ReqID,
+			ReplyTopic: m.ReplyTopic,
+			BizTopic:   m.BizTopic,
+			Payload:    respData,
+			Uuid:       Init.Config.APP.Uuid,
+		}
+		if errFn != nil {
+			respMsg.Error = errFn.Error()
+		}
 
-	respBytes, err := json.Marshal(respMsg)
-	if err != nil {
-		log.Printf("ERROR 收到消息 处理json失败 %s", err)
-		return
-	}
-	inst.client.Publish(m.ReplyTopic, 1, false, respBytes).Wait()
+		respBytes, err := json.Marshal(respMsg)
+		if err != nil {
+			log.Printf("响应 JSON 打包失败: %v", err)
+			return
+		}
+		inst.client.Publish(m.ReplyTopic, 1, false, respBytes)
+	}()
 }
 
-// ====================== 注册业务（指定MQTT名称）======================
+// 注册业务接口
 func (m *MqttManager) Register(mqttName string, bizTopic string, fn BizHandler) error {
 	m.mu.RLock()
 	inst, ok := m.inst[mqttName]
 	m.mu.RUnlock()
 	if !ok {
-		return fmt.Errorf("mqtt %s not found", mqttName)
+		return fmt.Errorf("mqtt %s 不存在", mqttName)
 	}
 	inst.hMutex.Lock()
 	defer inst.hMutex.Unlock()
@@ -175,12 +227,10 @@ func (m *MqttManager) Register(mqttName string, bizTopic string, fn BizHandler) 
 	return nil
 }
 
-// ====================== 调用（指定MQTT + 目标主题）======================
-
-// 传入：mqttName 驱动名称  targetTopic 目标主题  bizTopic 业务主题  reqData 请求数据  timeout 超时时间
+// ====================== RPC 调用（支持并发）======================
 func (m *MqttManager) Call(
 	mqttName string,
-	targetTopic string, // 对方订阅的主题
+	targetTopic string,
 	bizTopic string,
 	req []byte,
 	timeout time.Duration,
@@ -190,118 +240,118 @@ func (m *MqttManager) Call(
 	inst, ok := m.inst[mqttName]
 	m.mu.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("mqtt %s not found", mqttName)
+		return nil, fmt.Errorf("mqtt %s 不存在", mqttName)
 	}
 
 	reqID := NewReqID()
-
-	// ✅ 关键：消息里带上自己的监听主题（回复主题）
 	msg := RpcMessage{
 		ReqID:      reqID,
-		ReplyTopic: inst.listenTopic, // 我在哪收响应
+		ReplyTopic: inst.listenTopic,
 		BizTopic:   bizTopic,
 		Payload:    req,
 		Uuid:       Init.Config.APP.Uuid,
 	}
+
 	reqBytes, err := json.Marshal(msg)
 	if err != nil {
-		err = fmt.Errorf("ERROR JSON转化错误%s", err)
-		return nil, err
+		return nil, fmt.Errorf("请求 JSON 错误: %v", err)
 	}
 
+	// 带缓冲通道，防止阻塞
 	ch := make(chan RpcMessage, 1)
 
+	// 注册等待者
 	inst.wMutex.Lock()
 	inst.waiters[reqID] = ch
 	inst.wMutex.Unlock()
 
-	// 超时
-	go func() {
-		time.Sleep(timeout)
+	// 确保退出时清理 waiter 和 channel
+	defer func() {
 		inst.wMutex.Lock()
 		delete(inst.waiters, reqID)
+		close(ch)
 		inst.wMutex.Unlock()
-		ch <- RpcMessage{Error: timeoutErr.Error()}
 	}()
 
-	// 发给对方主题
-	inst.client.Publish(targetTopic, 1, false, reqBytes).Wait()
+	// 发送请求
+	token := inst.client.Publish(targetTopic, 1, false, reqBytes)
+	if token.Wait() && token.Error() != nil {
+		return nil, fmt.Errorf("发布失败: %v", token.Error())
+	}
 
-	resp := <-ch
-	if resp.Error == timeoutErr.Error() {
+	// 等待响应或超时
+	select {
+	case resp := <-ch:
+		if resp.Error != "" {
+			return nil, fmt.Errorf("%s", resp.Error)
+		}
+		if resp.BizTopic != bizTopic {
+			return nil, fmt.Errorf("业务主题不匹配")
+		}
+		if resp.ReqID != reqID {
+			return nil, fmt.Errorf("请求 ID 不匹配")
+		}
+		return resp.Payload.Bytes(), nil
+
+	case <-time.After(timeout):
 		return nil, timeoutErr
 	}
-
-	if resp.BizTopic != bizTopic {
-		return nil, fmt.Errorf("ERROR 业务接口 不一致")
-	}
-
-	if resp.ReqID != reqID {
-		return nil, fmt.Errorf("ERROR 唯一ID 不一致")
-	}
-
-	if resp.Error != "" {
-		return nil, fmt.Errorf("%s", resp.Error)
-	}
-
-	return resp.Payload, nil
 }
 
+// 关闭所有连接
 func (m *MqttManager) Close() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	for _, inst := range m.inst {
+	for name, inst := range m.inst {
 		inst.client.Disconnect(200)
+		log.Printf("MQTT %s 已关闭", name)
 	}
 }
 
+// ====================== 全局单例 ======================
 var M *MqttManager
 
-func New() (err error) {
+func New() error {
 	M = NewMqttManager()
-	M.Add(Init.Config.Mqtt_Rpc.Broker, MqttConfig{
+	err := M.Add(Init.Config.Mqtt_Rpc.Broker, MqttConfig{
 		Broker:            Init.Config.Mqtt_Rpc.Broker,
 		Username:          Init.Config.Mqtt_Rpc.Username,
 		Password:          Init.Config.Mqtt_Rpc.Password,
 		ClientID:          Init.Config.Mqtt_Rpc.ClientID,
-		SetCleanSession:   Init.Config.Mqtt_Rpc.SetCleanSession,   // 清洁会话（重启不接收离线消息）
-		SetAutoReconnect:  Init.Config.Mqtt_Rpc.SetAutoReconnect,  // 自动重连（必须开）
-		SetConnectTimeout: Init.Config.Mqtt_Rpc.SetConnectTimeout, // 连接超时
-		SetWriteTimeout:   Init.Config.Mqtt_Rpc.SetWriteTimeout,   // 写超时
-		SetKeepAlive:      Init.Config.Mqtt_Rpc.SetKeepAlive,      // 心跳保活
-
-		ListenTopic: Init.Config.Mqtt_Rpc.ListenTopic,
+		SetCleanSession:   Init.Config.Mqtt_Rpc.SetCleanSession,
+		SetAutoReconnect:  Init.Config.Mqtt_Rpc.SetAutoReconnect,
+		SetConnectTimeout: Init.Config.Mqtt_Rpc.SetConnectTimeout,
+		SetWriteTimeout:   Init.Config.Mqtt_Rpc.SetWriteTimeout,
+		SetKeepAlive:      Init.Config.Mqtt_Rpc.SetKeepAlive,
+		ListenTopic:       Init.Config.Mqtt_Rpc.ListenTopic,
 	})
-	register()
-
-	// resp, _ := M.Call("mqtt2", "/device/1", "test.hello", []byte("hi"), 3*time.Second)
-	return
-}
-
-func jsonWrap[T any, R any](req []byte, business func(req T) (R, error)) (rep []byte, err error) {
-
-	// 1. 自动反序列化 JSON → 请求结构体
-	var reqData T
-	if err = json.Unmarshal(req, &reqData); err != nil {
-		log.Println("ERROR JSON解析失败：", err)
-		return
-	}
-
-	// 2. 执行业务逻辑（你只需要写这里）
-	var respData R
-	respData, err = business(reqData)
-
-	// 3. 自动序列化 结构体 → JSON
-	rep, err = json.Marshal(respData)
 	if err != nil {
-		log.Println("ERROR JSON转换失败：", err)
-		return
+		log.Fatalf("MQTT 初始化失败: %v", err)
+		return err
 	}
 
-	return
+	register()
+	return nil
 }
 
-// rpcCall 客户端RPC调用包装：自动 JSON + 加解密 + 发送 + 解析
+// ====================== 工具函数 ======================
+// 服务端：自动 JSON 解析/打包
+func jsonWrap[T any, R any](req []byte, business func(req T) (R, error)) ([]byte, error) {
+	var reqData T
+	if err := json.Unmarshal(req, &reqData); err != nil {
+		log.Println("JSON 解析失败:", err)
+		return nil, err
+	}
+
+	respData, err := business(reqData)
+	if err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(respData)
+}
+
+// 客户端：自动 JSON 调用
 func jsonCall[Req any, Resp any](
 	reqData Req,
 	respData *Resp,
@@ -309,23 +359,22 @@ func jsonCall[Req any, Resp any](
 	topic string,
 	method string,
 	timeout time.Duration,
-) (err error) {
-	// 1. 序列化请求
+) error {
 	reqBytes, err := json.Marshal(reqData)
 	if err != nil {
-		log.Println("ERROR 请求打包失败：", err)
+		log.Println("请求打包失败:", err)
+		return err
 	}
 
-	// 2. 调用 MQTT RPC
 	respBytes, err := M.Call(broker, topic, method, reqBytes, timeout)
 	if err != nil {
-		log.Println("ERROR RPC调用失败：", err)
+		log.Println("RPC 调用失败:", err)
+		return err
 	}
 
-	// 3. 反序列化到响应结构体
 	if err := json.Unmarshal(respBytes, respData); err != nil {
-		log.Printf("ERROR 响应解析失败：%s decBytes=%s", err, string(respBytes))
+		log.Println("响应解析失败:", err, "内容:", string(respBytes))
+		return err
 	}
-
-	return
+	return nil
 }

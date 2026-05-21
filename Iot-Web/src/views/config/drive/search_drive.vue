@@ -113,5 +113,25 @@ const handleMouseLeave = (event: MouseEvent) => {
 .button {
     width: 100%;
     height: 30px;
+
+}
+
+
+.el-popover {
+    width: 1000px !important;
+}
+
+/* 屏幕宽度小于800px时，调整.el-dialog宽度为80% */
+@media (max-width: 800px) {
+    .el-popover {
+        width: 90% !important;
+    }
+}
+
+/* 更小的手机 < 480px */
+@media (max-width: 480px) {
+    .el-popover {
+        width: 460px !important;
+    }
 }
 </style>

@@ -261,6 +261,95 @@ func (c *Connect_struct) Read(scopes []Read_Scope_type) (readResults []Read_Scop
 	return
 }
 
+// ===================== 查询最后一条数据 结构体 =====================
+// 查询最后一条数据 请求结构
+type LastQueryReq struct {
+	Tag        string // 点位标识
+	Value_Type string // 值类型
+}
+
+// 查询最后一条数据 返回结构
+type LastPointResult struct {
+	Time  time.Time // 最后写入时间
+	Value any       // 最后值
+	Type  string    // 值类型
+	Msg   string    // 消息
+}
+
+// ===================== 【新增】批量查询：每个点位的最后一条数据 =====================
+// 入参：tag+类型列表  |  返回：map[tag]LastPointResult
+func (c *Connect_struct) QueryLastPoints(reqs []LastQueryReq) (map[string]LastPointResult, error) {
+	// 校验
+	if c.client == nil {
+		return nil, fmt.Errorf("influxdb 未连接")
+	}
+	if len(reqs) == 0 {
+		return nil, fmt.Errorf("查询列表不能为空")
+	}
+
+	resultMap := make(map[string]LastPointResult)
+	queryAPI := c.client.QueryAPI(c.org)
+
+	for _, req := range reqs {
+		// 参数校验
+		if req.Tag == "" || req.Value_Type == "" {
+			return nil, fmt.Errorf("tag/type 不能为空")
+		}
+		fieldName := req.Value_Type + "_value"
+
+		// Flux：查最后一条（limit 1 + 倒序）
+		flux := fmt.Sprintf(`
+			from(bucket: "%s")
+			|> range(start: -10y)  // 查最近10年，保证能查到
+			|> filter(fn: (r) => r._measurement == "%s")
+			|> filter(fn: (r) => r._field == "%s")
+			|> sort(columns: ["_time"], desc: true)
+			|> limit(n:1)
+			|> keep(columns: ["_time","_value","_msg"])
+		`,
+			c.bucket,
+			req.Tag,
+			fieldName,
+		)
+
+		// 执行查询
+		res, err := queryAPI.Query(context.Background(), flux)
+		if err != nil {
+			return nil, fmt.Errorf("tag=%s 查询失败: %w", req.Tag, err)
+		}
+
+		// 解析结果
+		var point LastPointResult
+		found := false
+		for res.Next() {
+			record := res.Record()
+			// 类型校验
+			val, err := Value_Type_Confirm(req.Value_Type, record.Value())
+			if err != nil {
+				continue
+			}
+
+			// 消息
+			msg, _ := record.ValueByKey("_msg").(string)
+
+			point = LastPointResult{
+				Time:  record.Time(),
+				Value: val,
+				Type:  req.Value_Type,
+				Msg:   msg,
+			}
+			found = true
+		}
+		res.Close()
+
+		if found {
+			resultMap[req.Tag] = point
+		}
+	}
+
+	return resultMap, nil
+}
+
 var c Connect_struct
 
 func init() {

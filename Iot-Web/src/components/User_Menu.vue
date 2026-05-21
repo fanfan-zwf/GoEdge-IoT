@@ -2,10 +2,11 @@
     <el-dropdown trigger="click" class="user-menu-dropdown">
         <span class="user-dropdown-trigger">
             <!-- 恢复使用标准的 el-avatar 组件 -->
-            <el-avatar :size="36" :src="UserStore.Avatar" :icon="UserStore.Avatar ? undefined : 'User'"
-                :name="UserStore.Name" class="user-avatar-img">
+            <el-avatar :size="36" :src="UserStore.userInfo.Avatar"
+                :icon="UserStore.userInfo.Avatar ? undefined : 'User'" :name="UserStore.userInfo.Name"
+                class="user-avatar-img">
                 <!-- 如果有头像 URL 可以在这里通过 src 属性传入，目前使用名字首字母或默认图标 -->
-                {{ UserStore.Name ? UserStore.Name.charAt(0).toUpperCase() : '' }}
+                {{ UserStore.userInfo.Name ? UserStore.userInfo.Name.charAt(0).toUpperCase() : '' }}
             </el-avatar>
         </span>
 
@@ -13,13 +14,13 @@
             <!-- 修改：确保下拉卡片在移动端也有正确的背景色，防止继承黑色 -->
             <div class="dropdown-card" :class="{ 'mobile-card': isMobile }">
                 <div class="dropdown-header">
-                    <el-avatar size="48" :src="UserStore.Avatar" icon="User" class="header-avatar" />
+                    <el-avatar size="48" :src="UserStore.userInfo.Avatar" icon="User" class="header-avatar" />
                     <div class="header-info">
                         <div class="header-main">
-                            <span class="header-name">{{ UserStore.Name || '未登录' }}</span>
-                            <span class="header-badge" v-if="UserStore.Permissions < 100">Pro</span>
+                            <span class="header-name">{{ UserStore.userInfo.Name || '未登录' }}</span>
+                            <span class="header-badge" v-if="UserStore.userInfo.Permissions < 100">Pro</span>
                         </div>
-                        <div class="header-email">{{ UserStore.Email || '未设置邮箱' }}</div>
+                        <div class="header-email">{{ UserStore.userInfo.Email || '未设置邮箱' }}</div>
                     </div>
                 </div>
 
@@ -28,7 +29,7 @@
                         <div class="menu-item-content">
                             <img src="@/assets/icons/账号信息.svg" class="custom-icon-img" alt="个人信息" />
                             <router-link active-class="active" class="custom-router-link"
-                                :to="{ name: 'info', params: { User_Id: UserStore.Id } }">
+                                :to="{ name: 'info', params: { User_Id: UserStore.userInfo.Id } }">
                                 个人信息
                             </router-link>
                         </div>
@@ -44,15 +45,17 @@
                     <el-dropdown-item>
                         <div class="menu-item-content">
                             <img src="@/assets/icons/用户权限.svg" class="custom-icon-img" alt="权限管理" />
-                            <router-link active-class="active" class="custom-router-link" :to="{ name: 'authority_user' }">
+                            <router-link active-class="active" class="custom-router-link"
+                                :to="{ name: 'authority_user' }">
                                 权限管理
                             </router-link>
                         </div>
                     </el-dropdown-item>
                     <el-dropdown-item>
                         <div class="menu-item-content">
-                            <img src="@/assets/icons/用户管理.svg"  class="custom-icon-img" alt="用户管理" />
-                            <router-link active-class="active" class="custom-router-link" :to="{ name: 'user_account' }">
+                            <img src="@/assets/icons/用户管理.svg" class="custom-icon-img" alt="用户管理" />
+                            <router-link active-class="active" class="custom-router-link"
+                                :to="{ name: 'user_account' }">
                                 用户管理
                             </router-link>
                         </div>
@@ -64,8 +67,7 @@
     </el-dropdown>
 </template>
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue' 
-import { User__Get_Info } from '@/api/api'
+import { ref, onMounted, onUnmounted } from 'vue'
 import type { User__table_interface } from '@/api/api'
 import { useUserStore } from '@/stores/user'
 

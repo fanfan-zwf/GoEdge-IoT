@@ -134,7 +134,7 @@ const handleLogin = async () => {
         const userInfo = await User__Get_Info(0)
 
         // 4. 登录成功后的处理
-        userStore.set(userInfo)
+        userStore.setUserInfo(userInfo)
         router.push("/")
         ElMessage.success('登录成功')
 

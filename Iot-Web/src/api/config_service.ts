@@ -85,6 +85,34 @@ export interface Collector_Info__table_interface {
     Name: string    // 设备名称
 }
 
+/**
+ * 采集配置 -》同步配置
+ * 传递：Id 点位 id
+ */
+export async function Collector_Synchronise_Config(Uuid: string): Promise<void> {
+    if (Uuid === "") {
+        throw '请选择设备'
+    }
+    try {
+        // 修改：直接 await axios.post
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/synchronise', {
+            Uuid: Uuid
+        })
+
+        if (response.status == 200) {
+            return
+        }
+        throw response.data.Msg || '未知错误';
+    } catch (error: unknown) {
+        const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
+        if (axiosError.code == "ERR_NETWORK") {
+            throw '请求超时'
+        }
+        // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
+        throw axiosError.response?.data?.Msg || '请求失败';
+    }
+
+}
 
 /**
  * 采集 -》查询数量
@@ -95,7 +123,7 @@ export async function Collector_Info__Count(params?: {
 }): Promise<number> {
     try {
         // 修改：直接 await axios.post，移除多余的二次 await
-        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/count', {
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/count', {
             Page: params?.Page,
             Page_Size: params?.Page_Size,
         })
@@ -125,7 +153,7 @@ export async function Collector_Info__Query(params?: {
 }): Promise<Collector_Info__table_interface[]> {
     try {
         // 修改：直接 await axios.post
-        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/query', {
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/query', {
             Page: params?.Page,
             Page_Size: params?.Page_Size,
         })
@@ -152,7 +180,7 @@ export async function Collector_Info__Query(params?: {
 export async function Collector_Info__Add(add: Collector_Info__Add_interface): Promise<void> {
     try {
         // 修改：直接 await axios.post
-        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/add', add)
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/add', add)
 
         if (response.status == 200) {
             return
@@ -176,7 +204,7 @@ export async function Collector_Info__Add(add: Collector_Info__Add_interface): P
 export async function Collector_Info__Update(add: Collector_Info__Update_interface): Promise<void> {
     try {
         // 修改：直接 await axios.post
-        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/update', add)
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/update', add)
 
         if (response.status == 200) {
             return
@@ -204,7 +232,7 @@ export async function Collector_Info__Del(Id: number): Promise<void> {
 
     try {
         // 修改：直接 await axios.post
-        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/del', {
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/del', {
             Id: Id
         })
 
@@ -232,7 +260,7 @@ export async function Collector_Info__Search_Field_Vague(params?: {
 }): Promise<Collector_Info__table_interface[]> {
     try {
         // 修改：直接 await axios.post
-        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/search/field/vague', {
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/search/field/vague', {
             Field: params?.Field,
             Quantity: params?.Quantity,
             Vague: params?.Vague
@@ -262,7 +290,7 @@ export async function Collector_Info__Search_Field_Blurred(params?: {
 }): Promise<Collector_Info__table_interface[]> {
     try {
         // 修改：直接 await axios.post
-        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector_info/search/blurred', {
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/search/blurred', {
             Quantity: params?.Quantity,
             Vague: params?.Vague
         })
@@ -332,15 +360,15 @@ export interface Drive_Config__table_interface {
  */
 
 export async function Drive_Config__Count(params?: {
-    Page?: number; Page_Size?: number; Collector_Id?: number;
-    Drive_Type?: string;
+    Page?: number; Page_Size?: number; Collector_Id?: number[];
+    Drive_Type?: string[];
 }): Promise<number> {
     // 默认值
     const {
         Page = 0,
         Page_Size = 0,
-        Collector_Id = 0,
-        Drive_Type = ""
+        Collector_Id = [],
+        Drive_Type = []
     } = params || {};
     try {
         // 修改：直接 await axios.post
@@ -370,15 +398,15 @@ export async function Drive_Config__Count(params?: {
  * 传递：Page 页码，Page_Size 每页数量，Collector_Id 采集器标识，Drive_Type 驱动类型 返回：配置列表
  */
 export async function Drive_Config__Query(params?: {
-    Page?: number; Page_Size?: number; Collector_Id?: number;
-    Drive_Type?: string;
+    Page?: number; Page_Size?: number; Collector_Id?: number[];
+    Drive_Type?: string[];
 }): Promise<Drive_Config__table_interface[]> {
     // 默认值
     const {
         Page = 0,
         Page_Size = 0,
-        Collector_Id = 0,
-        Drive_Type = ""
+        Collector_Id = [],
+        Drive_Type = []
     } = params || {}
 
     try {
@@ -582,13 +610,14 @@ export interface Points_Config__table_interface extends Points_Config__Update_in
  */
 
 export async function Points_Config__Count(params?: {
-    Page?: number; Page_Size?: number; Drive_Id?: number;
+    Page?: number; Page_Size?: number; Drive_Id?: number[]; Collector_Info?: number[];
 }): Promise<number> {
     // 默认值
     const {
         Page = 0,
         Page_Size = 0,
-        Drive_Id = 0,
+        Drive_Id = [],
+        Collector_Info = [],
     } = params || {}
     try {
         // 修改：直接 await axios.post
@@ -596,6 +625,7 @@ export async function Points_Config__Count(params?: {
             Page: Page,
             Page_Size: Page_Size,
             Drive_Id: Drive_Id,
+            Collector_Info: Collector_Info,
         })
 
         if (response.status == 200) {
@@ -618,13 +648,14 @@ export async function Points_Config__Count(params?: {
  * 传递：Page 页码，Page_Size 每页数量，Drive_Id 驱动 id 返回：配置列表
  */
 export async function Points_Config__Query(params?: {
-    Page?: number; Page_Size?: number; Drive_Id?: number;
+    Page?: number; Page_Size?: number; Drive_Id?: number[]; Collector_Info?: number[];
 }): Promise<Points_Config__table_interface[]> {
     // 默认值
     const {
         Page = 0,
         Page_Size = 0,
-        Drive_Id = 0,
+        Drive_Id = [],
+        Collector_Info = [],
     } = params || {}
     try {
         // 修改：直接 await axios.post
@@ -632,6 +663,7 @@ export async function Points_Config__Query(params?: {
             Page: Page,
             Page_Size: Page_Size,
             Drive_Id: Drive_Id,
+            Collector_Info: Collector_Info,
         })
 
         if (response.status == 200) {

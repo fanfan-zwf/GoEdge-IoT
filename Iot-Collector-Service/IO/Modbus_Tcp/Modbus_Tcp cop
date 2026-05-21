@@ -22,30 +22,6 @@ import (
 )
 
 // 类型字节数量输出
-var byte_value = map[string]int{
-
-	// 2字节
-	"AB": byte_util.AB,
-	"BA": byte_util.BA,
-
-	// 4字节
-	"ABCD": byte_util.ABCD,
-	"ABDC": byte_util.ABDC,
-	"BACD": byte_util.BACD,
-	"DCBA": byte_util.DCBA,
-
-	// 8字节（8种完整顺序）
-	"ABCDEFGH": byte_util.ABCDEFGH,
-	"ABCDEHGF": byte_util.ABCDEHGF,
-	"ABFEGHCD": byte_util.ABFEGHCD,
-	"ABGHFEDC": byte_util.ABGHFEDC,
-	"BACDFEGH": byte_util.BACDFEGH,
-	"BADCFEHG": byte_util.BADCFEHG,
-	"HGFEDCBA": byte_util.HGFEDCBA,
-	"HGFECDAB": byte_util.HGFECDAB,
-}
-
-// 类型字节数量输出
 var Type_byte = map[string]uint16{
 	"bool":    1,
 	"int16":   1,
@@ -89,8 +65,9 @@ type Points_type struct {
 	Function      string // Modbus功能码（如3=读保持寄存器）
 	Address       uint16 // 寄存器地址
 	Type          string // 数据类型（bool/int8/float32等）
+	Decimal       uint8  // 小数位数
 	Child_Address uint8  // 子地址（可选）
-	Byte_Order    int    // 字节序（如"ABCD"表示大端）
+	Byte_Order    string // 字节序（如"ABCD"表示大端）
 }
 
 // 值输出
@@ -321,13 +298,13 @@ func (c *Connect_struct) Close() error {
 func (c *Connect_struct) RT(data []byte) ([]byte, error) {
 	fmt.Printf("Affair_Data=%d\n\n", len(c.Affair_Data))
 
-	c.XT_Clear()
+	// c.XT_Clear()
 	if len(data) <= 3 {
 		return nil, fmt.Errorf("数据长度小于3 byte:%s", data)
 	}
 	// 带缓冲通道，防止阻塞
 	ch := make(chan XTMessage, 1)
-	a := byte_util.Convert_uint8_uint16(data, byte_util.BA)
+	a := byte_util.Convert_uint8_uint16(data, byte_util.AB)
 	if len(a) == 0 {
 		return nil, fmt.Errorf("转换后切片为空，无法获取 a[0]")
 	}
@@ -346,8 +323,8 @@ func (c *Connect_struct) RT(data []byte) ([]byte, error) {
 	case resp := <-ch:
 		return resp.data, resp.err
 
-	case <-time.After(c.Drive.Config.Response_timeout):
-		return nil, tcp_udp.ErrReceiveTimeout
+		// case <-time.After(2 * time.Second):
+		// 	return nil, tcp_udp.ErrReceiveTimeout
 	}
 }
 
@@ -357,13 +334,11 @@ func (c *Connect_struct) XT() error {
 		var m XTMessage
 		data, err := c.conn.Receive(6, 1*time.Second)
 		if err != nil {
-			fmt.Printf("接收数据错误: %v\n", err)
 			continue
 		}
 
-		a := byte_util.Convert_uint8_uint16(data, byte_util.BA)
+		a := byte_util.Convert_uint8_uint16(data, byte_util.AB)
 		if len(a) <= 2 {
-			fmt.Printf("接收数据长度不足，无法获取事务ID a[0]:%s\n", data)
 			continue
 		}
 		var data2 []byte
@@ -371,21 +346,18 @@ func (c *Connect_struct) XT() error {
 		if err != nil {
 			m.err = err
 		}
-		fmt.Printf("接收append:% x  % x  % d\n", data, data2, a)
 		m.data = append(data, data2...)
 
 		// 1. 处理响应：唤醒等待的调用方
 		c.Mutex.Lock()
 		ch, ok := c.Affair_Data[a[0]]
 		if !ok {
-			err = tcp_udp.ErrReceiveTimeout
-			// continue
-		} else {
-			if IsTimePassed(ch.Time, time.Now(), c.Drive.Config.Response_timeout) {
-				err = tcp_udp.ErrReceiveTimeout
-			}
+			continue
 		}
-		// delete(c.Affair_Data, a[0])
+		if IsTimePassed(ch.Time, time.Now(), c.Drive.Config.Response_timeout) {
+			err = tcp_udp.ErrReceiveTimeout
+		}
+		delete(c.Affair_Data, a[0])
 		c.Mutex.Unlock()
 		if err != nil {
 			m.err = err
@@ -396,10 +368,8 @@ func (c *Connect_struct) XT() error {
 
 func (c *Connect_struct) XT_Clear() {
 	c.Mutex.Lock()
-	time := time.Now()
 	for i, v := range c.Affair_Data {
-		if IsTimePassed(v.Time, time, c.Drive.Config.Response_timeout) {
-			fmt.Printf("清理事务ID %d %s %s\n", i, v.Time, time)
+		if IsTimePassed(v.Time, time.Now(), c.Drive.Config.Response_timeout) {
 			delete(c.Affair_Data, i)
 		}
 	}
@@ -419,21 +389,13 @@ func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
 
 	c.transaction_ID++
 	Start_byte := byte_util.Convert_uint16_uint8([]uint16{c.transaction_ID}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return []byte{}, errors.New("ERROR 事务ID长度错误")
-	}
 	(*send)[0] = Start_byte[0]
 	(*send)[1] = Start_byte[1]
 
 	Number_byte := byte_util.Convert_uint16_uint8([]uint16{uint16(len(*send) - 6)}, byte_util.BA)
-	if len(Number_byte) < 2 {
-		return []byte{}, errors.New("ERROR 数据内容长度错误")
-	}
 	(*send)[4] = Number_byte[0]
 	(*send)[5] = Number_byte[1]
-	if c.Data_Packet_Print_enable {
-		fmt.Printf("发送:% x\n", *send)
-	}
+
 	// 接收响应
 	receive, err := c.RT(*send)
 	if err != nil {
@@ -459,13 +421,13 @@ func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
 // Start开始地址  Number个数
 func (c *Connect_struct) Read__Coils_status(Device uint8, Start uint16, Number uint16) ([]bool, error) {
 
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return []bool{}, errors.New("ERROR 事务ID长度错误")
+	Start_byte, err := Byte_Convert_uint16_byte(Start, "AB")
+	if err != nil {
+		return []bool{}, err
 	}
-	Number_byte := byte_util.Convert_uint16_uint8([]uint16{Number}, byte_util.BA)
-	if len(Number_byte) < 2 {
-		return []bool{}, errors.New("ERROR 数据内容长度错误")
+	Number_byte, err := Byte_Convert_uint16_byte(Number, "AB")
+	if err != nil {
+		return []bool{}, err
 	}
 
 	PDU := []byte{
@@ -515,14 +477,13 @@ func (c *Connect_struct) Read__Coils_status(Device uint8, Start uint16, Number u
 
 	var value []bool
 	for i := 0; i < len(byte_value); i++ {
-		a := byte_util.Convert_uint8_bool([]uint8{byte_value[i]}, byte_util.AB)
-		// a, err := Byte_Convert_1byte_8bool(byte_value[i])
-		// if err != nil {
-		// 	return []bool{}, err
-		// }
+		a, err := Byte_Convert_1byte_8bool(byte_value[i])
+		if err != nil {
+			return []bool{}, err
+		}
 		value = append(value, a[:]...)
 	}
-	Number_bool := divideCeil(int(Number), 7)
+	Number_bool := divideCeil(int(uint(Number)), 7)
 	if len(value) < Number_bool {
 		return []bool{}, errors.New("组包数量不正确")
 	}
@@ -533,13 +494,14 @@ func (c *Connect_struct) Read__Coils_status(Device uint8, Start uint16, Number u
 // 读取  10001至19999是离散输入(触点)
 // Start开始地址  Number个数
 func (c *Connect_struct) Read__Input_status(Device uint8, Start uint16, Number uint16) ([]bool, error) {
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return []bool{}, errors.New("ERROR 事务ID长度错误")
+
+	Start_byte, err := Byte_Convert_uint16_byte(Start, "AB")
+	if err != nil {
+		return []bool{}, err
 	}
-	Number_byte := byte_util.Convert_uint16_uint8([]uint16{Number}, byte_util.BA)
-	if len(Number_byte) < 2 {
-		return []bool{}, errors.New("ERROR 数据内容长度错误")
+	Number_byte, err := Byte_Convert_uint16_byte(Number, "AB")
+	if err != nil {
+		return []bool{}, err
 	}
 
 	PDU := []byte{
@@ -588,7 +550,10 @@ func (c *Connect_struct) Read__Input_status(Device uint8, Start uint16, Number u
 	byte_value := r[9 : 9+int(r[8])]
 	var value []bool
 	for i := 0; i < len(byte_value); i++ {
-		a := byte_util.Convert_uint8_bool([]uint8{byte_value[i]}, byte_util.AB)
+		a, err := Byte_Convert_1byte_8bool(byte_value[i])
+		if err != nil {
+			return []bool{}, err
+		}
 		value = append(value, a[:]...)
 	}
 
@@ -602,13 +567,14 @@ func (c *Connect_struct) Read__Input_status(Device uint8, Start uint16, Number u
 // 读取  40001至49999是保持寄存器 03功能码
 // Start开始地址  Number个数
 func (c *Connect_struct) Read__Holding_register(Device uint8, Start uint16, Number uint16) ([]byte, error) {
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return []byte{}, errors.New("ERROR 事务ID长度错误")
+
+	Start_byte, err := Byte_Convert_uint16_byte(Start, "AB")
+	if err != nil {
+		return []byte{}, err
 	}
-	Number_byte := byte_util.Convert_uint16_uint8([]uint16{Number}, byte_util.BA)
-	if len(Number_byte) < 2 {
-		return []byte{}, errors.New("ERROR 数据内容长度错误")
+	Number_byte, err := Byte_Convert_uint16_byte(Number, "AB")
+	if err != nil {
+		return []byte{}, err
 	}
 
 	PDU := []byte{
@@ -621,8 +587,8 @@ func (c *Connect_struct) Read__Holding_register(Device uint8, Start uint16, Numb
 		Number_byte[0], Number_byte[1], // 长度
 	}
 
-	// crc := ModbusCRC16(PDU[5:])
-	// PDU = append(PDU, byte(crc), byte(crc>>8))
+	crc := ModbusCRC16(PDU[5:])
+	PDU = append(PDU, byte(crc), byte(crc>>8))
 
 	// 读取tcp数据
 	r, err := c.tcp_data(&PDU)
@@ -660,13 +626,14 @@ func (c *Connect_struct) Read__Holding_register(Device uint8, Start uint16, Numb
 // 读取 30001至39999是输入寄存器(通常是模拟量输入) 04功能码
 // Start开始地址  Number个数
 func (c *Connect_struct) Read__Input_register(Device uint8, Start uint16, Number uint16) ([]byte, error) {
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return []byte{}, errors.New("ERROR 事务ID长度错误")
+
+	Start_byte, err := Byte_Convert_uint16_byte(Start, "AB")
+	if err != nil {
+		return []byte{}, err
 	}
-	Number_byte := byte_util.Convert_uint16_uint8([]uint16{Number}, byte_util.BA)
-	if len(Number_byte) < 2 {
-		return []byte{}, errors.New("ERROR 数据内容长度错误")
+	Number_byte, err := Byte_Convert_uint16_byte(Number, "AB")
+	if err != nil {
+		return []byte{}, err
 	}
 
 	PDU := []byte{
@@ -718,9 +685,9 @@ func (c *Connect_struct) Read__Input_register(Device uint8, Start uint16, Number
 // 写入单个  00001至09999是离散输出(线圈)
 // Start开始地址  Number个数
 func (c *Connect_struct) Write_single__Coils_tatus(Device uint8, Start uint16, Value bool) error {
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return errors.New("ERROR 事务ID长度错误")
+	Start_byte, err := Byte_Convert_uint16_byte(Start, "AB")
+	if err != nil {
+		return err
 	}
 
 	send := []byte{
@@ -769,21 +736,25 @@ func (c *Connect_struct) Write_single__Coils_tatus(Device uint8, Start uint16, V
 func (c *Connect_struct) Write_many__Coils_tatus(Device uint8, Start uint16, Number uint16, Value []bool) error {
 	Value = Value[:Number]
 
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return errors.New("ERROR 事务ID长度错误")
-	}
-	// 数组值长度
-	Value_Number := byte_util.Convert_int16_uint8([]int16{int16(len(Value))}, byte_util.BA)
-	if len(Value_Number) < 2 {
-		return errors.New("ERROR 数据内容长度错误")
+	// 开始地址转化2个字节
+	Start_byte, err := Byte_Convert_uint16_byte(Start, "AB")
+	if err != nil {
+		return err
+
 	}
 
-	Value_byte := byte_util.Convert_bool_byte(Value, byte_util.AB)
+	// 数组值长度
+	Value_Number, err := Byte_Convert_int16_byte(int16(len(Value)), "AB")
+	if err != nil {
+		return err
+
+	}
+
+	Value_byte := BoolsToBytesLittleEndian(Value)
 
 	Value_byte_Number := len(Value_byte)
 	if Value_byte_Number > 120 {
-		return errors.New("ERROR 写值长度过大")
+		return errors.New("写值过大")
 	}
 
 	send := []byte{
@@ -828,9 +799,12 @@ func (c *Connect_struct) Write_many__Coils_tatus(Device uint8, Start uint16, Num
 // 写入单个 40001至49999是输入寄存器(通常是模拟量输入)
 // Start开始地址  Number个数
 func (c *Connect_struct) Write_single__Input_register(Device uint8, Start uint16, Value [2]byte) error {
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return errors.New("ERROR 事务ID长度错误")
+
+	// 开始地址转化2个字节
+	Start_byte, err := Byte_Convert_uint16_byte(Start, "AB")
+	if err != nil {
+		return err
+
 	}
 
 	send := []byte{
@@ -877,14 +851,18 @@ func (c *Connect_struct) Write_many__Input_register(Device uint8, Start uint16, 
 
 	Value = Value[:Number*2]
 
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return errors.New("ERROR 事务ID长度错误")
+	// 开始地址转化2个字节
+	Start_byte, err := Byte_Convert_uint16_byte(Start, "AB")
+	if err != nil {
+		return err
+
 	}
 
-	Value_Number := byte_util.Convert_uint16_uint8([]uint16{Number}, byte_util.BA)
-	if len(Value_Number) < 2 {
-		return errors.New("ERROR 事务ID长度错误")
+	// 数组值长度
+	Value_Number, err := Byte_Convert_uint16_byte(Number, "AB")
+	if err != nil {
+		return err
+
 	}
 
 	Value_byte_Number := len(Value)
@@ -1177,5 +1155,5 @@ func IsTimePassed(a, b time.Time, c time.Duration) bool {
 	duration := b.Sub(a)
 
 	// 3. 判断间隔是否 >= 指定时长
-	return duration > c
+	return duration >= c
 }

@@ -7,6 +7,7 @@
 package Modbus_Tcp
 
 import (
+	"main/IO/byte_util"
 	"main/Init"
 
 	"errors"
@@ -395,7 +396,7 @@ func (c *Connect_struct) read_status_ok(value []bool, Packet Packet_type) []IO_C
 			continue
 		}
 
-		if mysql_Points.Drive_Type != "modbus_tcp" {
+		if mysql_Points.Drive_Type != "Modbus_Tcp" {
 			log.Print("ERROR 这个点位驱动类型不正确")
 			continue
 		}
@@ -474,7 +475,7 @@ func (c *Connect_struct) read_status_err(Msg string, PointsId []uint) []IO_Colle
 			continue
 		}
 
-		if mysql_Points.Drive_Type != "modbus_tcp" {
+		if mysql_Points.Drive_Type != "Modbus_Tcp" {
 			log.Print("ERROR 这个点位驱动类型不正确")
 			continue
 		}
@@ -523,7 +524,7 @@ func (c *Connect_struct) read_register_err(Msg string, PointsId []uint) []IO_Col
 			continue
 		}
 
-		if mysql_Points.Drive_Type != "modbus_tcp" {
+		if mysql_Points.Drive_Type != "Modbus_Tcp" {
 			log.Print("ERROR 这个点位驱动类型不正确")
 			continue
 		}
@@ -638,65 +639,38 @@ func read_register_byte_Convert(Points_config Mysql_Points_type, v []byte) (inte
 
 	switch Points_config.Config.Type {
 	case "bool":
-		bools, err := Byte_Convert_2byte_16bool([2]byte{v[0], v[1]}, Points_config.Config.Byte_Order)
-		return bools[Points_config.Config.Child_Address], "bool", err
+		bools := byte_util.Convert_uint8_bool([]byte{v[1], v[0]}, Points_config.Config.Byte_Order)
+		return bools[Points_config.Config.Child_Address], "bool", nil
 	case "int16":
-		intv, err := Byte_Convert_byte_int16([2]byte{v[0], v[1]}, Points_config.Config.Byte_Order)
-		if err != nil {
-			return 0, "int", nil
+		intv := byte_util.Convert_uint8_int16([]byte{v[1], v[0]}, Points_config.Config.Byte_Order)
+		if len(intv) == 0 {
+			return nil, Points_config.Value_Type, fmt.Errorf("error length 类型长度%d,byte值长度%d", Type_length, len(v)*2)
 		}
-		if Points_config.Config.Decimal == 0 {
-			return int(intv), "int", nil
-		} else {
-			return addDecimalPoint(int(intv), int(Points_config.Config.Decimal)), "float", nil
-		}
+		return int(intv[0]), "int", nil
 	case "uint16":
-		uintv, err := Byte_Convert_byte_uint16([2]byte{v[0], v[1]}, Points_config.Config.Byte_Order)
-		if err != nil {
-			return 0, "uint", nil
+		uintv := byte_util.Convert_uint8_uint16([]byte{v[1], v[0]}, Points_config.Config.Byte_Order)
+		if len(uintv) == 0 {
+			return nil, Points_config.Value_Type, fmt.Errorf("error length 类型长度%d,byte值长度%d", Type_length, len(v)*2)
 		}
-		if Points_config.Config.Decimal == 0 {
-			return int(uintv), "uint", nil
-		} else {
-			return addDecimalPoint(int(uintv), int(Points_config.Config.Decimal)), "float", nil
-		}
+		return int(uintv[0]), "uint", nil
 	case "int32":
-		intv, err := Byte_Convert_byte_int32([4]byte{v[0], v[1], v[2], v[3]}, Points_config.Config.Byte_Order)
-		if err != nil {
-			return 0, "int", nil
+		intv := byte_util.Convert_uint8_int32([]byte{v[0], v[1], v[2], v[3]}, Points_config.Config.Byte_Order)
+		if len(intv) == 0 {
+			return nil, Points_config.Value_Type, fmt.Errorf("error length 类型长度%d,byte值长度%d", Type_length, len(v)*2)
 		}
-		if Points_config.Config.Decimal == 0 {
-			return int(intv), "int", nil
-		} else {
-			return addDecimalPoint(int(intv), int(Points_config.Config.Decimal)), "float", nil
-		}
+		return int(intv[0]), "int", nil
 	case "uint32":
-		uintv, err := Byte_Convert_byte_uint32([4]byte{v[0], v[1], v[2], v[3]}, Points_config.Config.Byte_Order)
-		if err != nil {
-			return 0, "uint", nil
+		uintv := byte_util.Convert_uint8_uint32([]byte{v[0], v[1], v[2], v[3]}, Points_config.Config.Byte_Order)
+		if len(uintv) == 0 {
+			return nil, Points_config.Value_Type, fmt.Errorf("error length 类型长度%d,byte值长度%d", Type_length, len(v)*2)
 		}
-		if Points_config.Config.Decimal == 0 {
-			return int(uintv), "uint", nil
-		} else {
-			return addDecimalPoint(int(uintv), int(Points_config.Config.Decimal)), "float", nil
-		}
+		return int(uintv[0]), "uint", nil
 	case "float32":
-		floatv, err := Byte_Convert_byte_float32([4]byte{v[0], v[1], v[2], v[3]}, Points_config.Config.Byte_Order)
-		if err != nil {
-			return 0, "float", nil
+		floatv := byte_util.Convert_uint8_float32([]byte{v[0], v[1], v[2], v[3]}, Points_config.Config.Byte_Order)
+		if len(floatv) == 0 {
+			return nil, Points_config.Value_Type, fmt.Errorf("error length 类型长度%d,byte值长度%d", Type_length, len(v)*2)
 		}
-
-		return Round_float64(float64(floatv), int(Points_config.Config.Decimal)), "float", nil
-	case "Hex":
-		ints, err := Byte_Convert_2byte_hex_int([2]byte{v[0], v[1]}, Points_config.Config.Byte_Order)
-		if err != nil {
-			return 0, "int", nil
-		}
-		if Points_config.Config.Decimal == 0 {
-			return int(ints), "int", nil
-		} else {
-			return addDecimalPoint(int(ints), int(Points_config.Config.Decimal)), "float", nil
-		}
+		return float64(floatv[0]), "float", nil
 	}
 
 	return nil, Points_config.Value_Type, errors.New("no Config Type")
@@ -809,22 +783,22 @@ func (c *Connect_struct) Write_register_Input_register(point_config Mysql_Points
 			return err
 		}
 
-		bools, err := Byte_Convert_2byte_16bool([2]byte{v[0], v[1]}, point_config.Config.Byte_Order)
-		if err != nil {
-			return err
+		bools := byte_util.Convert_uint8_bool([]byte{v[0], v[1]}, point_config.Config.Byte_Order)
+		if len(bools) < 16 {
+			return fmt.Errorf("error length 类型长度%d,byte值长度%d", 1, len(v))
 		}
 
 		bools[point_config.Config.Child_Address] = value_bool
-		Write_value, err := Byte_Convert_16bool_2byte(bools, point_config.Config.Byte_Order)
-		if err != nil {
-			return err
+		Write_value := byte_util.Convert_bool_byte(bools, point_config.Config.Byte_Order)
+		if len(Write_value) < 2 {
+			return fmt.Errorf("error length 类型长度%d,byte值长度%d", 1, len(Write_value))
 		}
 
-		return c.Write_single__Input_register(point_config.Config.SlaveID, point_config.Config.Address-1, Write_value)
+		return c.Write_single__Input_register(point_config.Config.SlaveID, point_config.Config.Address-1, [2]byte{Write_value[0], Write_value[1]})
 	}
 
 	// uint16 无小数点
-	if point_config.Config.Type == "uint16" && point_config.Config.Decimal == 0 {
+	if point_config.Config.Type == "uint16" {
 		if point_config.Value_Type != "uint" {
 			return fmt.Errorf("输出类型计算错误,应该是uint,而不是%s", point_config.Value_Type)
 		}
@@ -833,16 +807,18 @@ func (c *Connect_struct) Write_register_Input_register(point_config Mysql_Points
 		if !ok {
 			return fmt.Errorf("输入类型错误")
 		}
-		Write_value, err := Byte_Convert_uint16_byte(uint16(value_uint), point_config.Config.Byte_Order)
-		if err != nil {
-			return err
+		Write_value := byte_util.Convert_uint16_uint8([]uint16{uint16(value_uint)}, point_config.Config.Byte_Order)
+		if len(Write_value) < 2 {
+			return fmt.Errorf("error length 类型长度%d,byte值长度%d", 1, len(Write_value))
 		}
-
-		return c.Write_single__Input_register(point_config.Config.SlaveID, point_config.Config.Address-1, Write_value)
+		return c.Write_single__Input_register(
+			point_config.Config.SlaveID, point_config.Config.Address-1, [2]byte{
+				Write_value[1], Write_value[0],
+			})
 	}
 
 	// int16 无小数点
-	if point_config.Config.Type == "int16" && point_config.Config.Decimal == 0 {
+	if point_config.Config.Type == "int16" {
 		if point_config.Value_Type != "int" {
 			return fmt.Errorf("输出类型计算错误,应该是int,而不是%s", point_config.Value_Type)
 		}
@@ -851,16 +827,18 @@ func (c *Connect_struct) Write_register_Input_register(point_config Mysql_Points
 		if !ok {
 			return fmt.Errorf("输入类型错误")
 		}
-		Write_value, err := Byte_Convert_int16_byte(int16(value_uint), point_config.Config.Byte_Order)
-		if err != nil {
-			return err
+		Write_value := byte_util.Convert_int16_uint8([]int16{int16(value_uint)}, point_config.Config.Byte_Order)
+		if len(Write_value) < 2 {
+			return fmt.Errorf("error length 类型长度%d,byte值长度%d", 1, len(Write_value))
 		}
-
-		return c.Write_single__Input_register(point_config.Config.SlaveID, point_config.Config.Address-1, Write_value)
+		return c.Write_single__Input_register(
+			point_config.Config.SlaveID, point_config.Config.Address-1, [2]byte{
+				Write_value[1], Write_value[0],
+			})
 	}
 
 	// uint32 无小数点
-	if point_config.Config.Type == "uint32" && point_config.Config.Decimal == 0 {
+	if point_config.Config.Type == "uint32" {
 		if point_config.Value_Type != "uint" {
 			return fmt.Errorf("输出类型计算错误,应该是uint,而不是%s", point_config.Value_Type)
 		}
@@ -869,35 +847,40 @@ func (c *Connect_struct) Write_register_Input_register(point_config Mysql_Points
 		if !ok {
 			return fmt.Errorf("输入类型错误")
 		}
-		Write_value, err := Byte_Convert_uint32_byte(uint32(value_uint), point_config.Config.Byte_Order)
-		if err != nil {
-			return err
+		Write_value := byte_util.Convert_uint32_uint8([]uint32{uint32(value_uint)}, point_config.Config.Byte_Order)
+		if len(Write_value) < 4 {
+			return fmt.Errorf("error length 类型长度%d,byte值长度%d", 1, len(Write_value))
 		}
-
-		return c.Write_many__Input_register(point_config.Config.SlaveID, point_config.Config.Address-1, 2, Write_value[:])
+		return c.Write_many__Input_register(
+			point_config.Config.SlaveID, point_config.Config.Address-1, 2, []byte{
+				Write_value[0], Write_value[1], Write_value[2], Write_value[3],
+			})
 	}
 
 	// int32 无小数点
-	if point_config.Config.Type == "int32" && point_config.Config.Decimal == 0 {
+	if point_config.Config.Type == "int32" {
 		if point_config.Value_Type != "int" {
-			return fmt.Errorf("输出类型计算错误,应该是uint,而不是%s", point_config.Value_Type)
+			return fmt.Errorf("输出类型计算错误,应该是int,而不是%s", point_config.Value_Type)
 		}
 
 		value_int, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("输入类型错误")
 		}
-		Write_value, err := Byte_Convert_int32_byte(int32(value_int), point_config.Config.Byte_Order)
-		if err != nil {
-			return err
-		}
 
-		return c.Write_many__Input_register(point_config.Config.SlaveID, point_config.Config.Address-1, 2, Write_value[:])
+		Write_value := byte_util.Convert_int32_uint8([]int32{int32(value_int)}, point_config.Config.Byte_Order)
+		if len(Write_value) < 4 {
+			return fmt.Errorf("error length 类型长度%d,byte值长度%d", 1, len(Write_value))
+		}
+		return c.Write_many__Input_register(
+			point_config.Config.SlaveID, point_config.Config.Address-1, 2, []byte{
+				Write_value[0], Write_value[1], Write_value[2], Write_value[3],
+			})
 	}
 
 	// float32
 	if point_config.Config.Type == "float32" {
-		if point_config.Value_Type != "float" {
+		if point_config.Value_Type != "float" && point_config.Value_Type != "float32" {
 			return fmt.Errorf("输出类型计算错误,应该是float32,而不是%s", point_config.Value_Type)
 		}
 
@@ -905,148 +888,15 @@ func (c *Connect_struct) Write_register_Input_register(point_config Mysql_Points
 		if !ok {
 			return fmt.Errorf("输入类型错误")
 		}
-		Write_value, err := Byte_Convert_float32_4byte(float32(value_float), point_config.Config.Byte_Order)
-		if err != nil {
-			return err
-		}
 
-		return c.Write_many__Input_register(point_config.Config.SlaveID, point_config.Config.Address-1, 2, Write_value[:])
-	}
-
-	// uint16 有小数点
-	if point_config.Config.Type == "uint16" && point_config.Config.Decimal != 0 {
-		if point_config.Value_Type != "float" {
-			return fmt.Errorf("输出类型计算错误,应该是float,而不是%s", point_config.Value_Type)
+		Write_value := byte_util.Convert_float32_uint8([]float32{float32(value_float)}, point_config.Config.Byte_Order)
+		if len(Write_value) < 4 {
+			return fmt.Errorf("error length 类型长度%d,byte值长度%d", 1, len(Write_value))
 		}
-		value_float, ok := value.(float64)
-		if !ok {
-			return fmt.Errorf("输入类型错误")
-		}
-
-		canConvert, err := CanConvertAfterScaling(value_float, int(point_config.Config.Decimal))
-		if err != nil {
-			log.Printf("ERROR %v", err.Error())
-			return err
-		}
-		if !canConvert {
-			log.Printf("ERROR 无法转换 %v", err)
-			return fmt.Errorf("无法转换 %v", err)
-		}
-
-		result, err := SafeConvertAfterScaling(value_float, int(point_config.Config.Decimal))
-		if err != nil {
-			log.Printf("ERROR %v", err.Error())
-			return err
-		}
-
-		Write_value, err := Byte_Convert_uint16_byte(uint16(result), point_config.Config.Byte_Order)
-		if err != nil {
-			return err
-		}
-
-		return c.Write_single__Input_register(point_config.Config.SlaveID, point_config.Config.Address-1, Write_value)
-	}
-
-	// int16 有小数点
-	if point_config.Config.Type == "int16" && point_config.Config.Decimal != 0 {
-		if point_config.Value_Type != "float" {
-			return fmt.Errorf("输出类型计算错误,应该是float,而不是%s", point_config.Value_Type)
-		}
-		value_float, ok := value.(float64)
-		if !ok {
-			return fmt.Errorf("输入类型错误")
-		}
-
-		canConvert, err := CanConvertAfterScaling(value_float, int(point_config.Config.Decimal))
-		if err != nil {
-			log.Printf("ERROR %v", err.Error())
-			return err
-		}
-		if !canConvert {
-			log.Printf("ERROR 无法转换 %v", err)
-			return fmt.Errorf("无法转换 %v", err)
-		}
-
-		result, err := SafeConvertAfterScaling(value_float, int(point_config.Config.Decimal))
-		if err != nil {
-			log.Printf("ERROR %v", err.Error())
-			return err
-		}
-
-		Write_value, err := Byte_Convert_int16_byte(int16(result), point_config.Config.Byte_Order)
-		if err != nil {
-			return err
-		}
-
-		return c.Write_single__Input_register(point_config.Config.SlaveID, point_config.Config.Address-1, Write_value)
-	}
-
-	// uint32 有小数点
-	if point_config.Config.Type == "uint32" && point_config.Config.Decimal != 0 {
-		if point_config.Value_Type != "float" {
-			return fmt.Errorf("输出类型计算错误,应该是float,而不是%s", point_config.Value_Type)
-		}
-		value_float, ok := value.(float64)
-		if !ok {
-			return fmt.Errorf("输入类型错误")
-		}
-
-		canConvert, err := CanConvertAfterScaling(value_float, int(point_config.Config.Decimal))
-		if err != nil {
-			log.Printf("ERROR %v", err.Error())
-			return err
-		}
-		if !canConvert {
-			log.Printf("ERROR 无法转换 %v", err)
-			return fmt.Errorf("无法转换 %v", err)
-		}
-
-		result, err := SafeConvertAfterScaling(value_float, int(point_config.Config.Decimal))
-		if err != nil {
-			log.Printf("ERROR %v", err.Error())
-			return err
-		}
-
-		Write_value, err := Byte_Convert_uint32_byte(uint32(result), point_config.Config.Byte_Order)
-		if err != nil {
-			return err
-		}
-
-		return c.Write_many__Input_register(point_config.Config.SlaveID, point_config.Config.Address-1, 2, Write_value[:])
-	}
-
-	// int32 有小数点
-	if point_config.Config.Type == "int32" && point_config.Config.Decimal != 0 {
-		if point_config.Value_Type != "float" {
-			return fmt.Errorf("输出类型计算错误,应该是float,而不是%s", point_config.Value_Type)
-		}
-		value_float, ok := value.(float64)
-		if !ok {
-			return fmt.Errorf("输入类型错误")
-		}
-
-		canConvert, err := CanConvertAfterScaling(value_float, int(point_config.Config.Decimal))
-		if err != nil {
-			log.Printf("ERROR %v", err.Error())
-			return err
-		}
-		if !canConvert {
-			log.Printf("ERROR 无法转换 %v", err)
-			return fmt.Errorf("无法转换 %v", err)
-		}
-
-		result, err := SafeConvertAfterScaling(value_float, int(point_config.Config.Decimal))
-		if err != nil {
-			log.Printf("ERROR %v", err.Error())
-			return err
-		}
-
-		Write_value, err := Byte_Convert_int32_byte(int32(result), point_config.Config.Byte_Order)
-		if err != nil {
-			return err
-		}
-
-		return c.Write_many__Input_register(point_config.Config.SlaveID, point_config.Config.Address-1, 2, Write_value[:])
+		return c.Write_many__Input_register(
+			point_config.Config.SlaveID, point_config.Config.Address-1, 2, []byte{
+				Write_value[0], Write_value[1], Write_value[2], Write_value[3],
+			})
 	}
 
 	return fmt.Errorf("modbus_tcp写值错误:未知类型, 点位id%d,值类型%s", point_config.Id, point_config.Config.Function)

@@ -5,7 +5,7 @@ APP:
   aes_passwd: "123456"
   
 MYSQL:
-  dsn: "root:123456@tcp(127.0.0.1:3306)/iot-collector-server?charset=utf8mb4&parseTime=True&loc=Local"
+  dsn: "root:123456@tcp(127.0.0.1:3306)/iot-collector-server-123e4567-e89b-12d3-a456-426614174000?charset=utf8mb4&parseTime=True&loc=Local"
   
 REDIS:
   ip: 127.0.0.1
@@ -15,9 +15,9 @@ REDIS:
  
 Influxdb :
   url : "http://192.168.220.40:8086"
-  token : "CEL6GU0n0-lsU2SZG6TB3pLLsE6zeWbDnzce3NuIy6x1tfQdPoP63MmRJbMDL1TJxYY_LNEY8MLN5OCh1GHODw=="
-  org : "group"
-  bucket : "my2"
+  token : "XGwVLBQDWuqQ5F3l62E_IZ7U1BacqKpYablCj5EWkC3gCoU0SUjfC2K-qemC3TH3g0iJVsJineiSViuUvVgElw=="
+  org : "default_group"
+  bucket : "my1"
 
 LOG:
   enable: true
