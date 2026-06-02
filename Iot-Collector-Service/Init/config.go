@@ -32,6 +32,16 @@ type Config_type struct {
 		AesPasswd string `yaml:"aes_passwd"`
 	} `yaml:"APP"` // 程序主要参数
 
+	API struct {
+		Enable bool   `yaml:"enable"`
+		Ip     string `yaml:"ip"`
+		Post   uint16 `yaml:"post"`
+		Header []struct {
+			Key   string `yaml:"key"`
+			Value string `yaml:"value"`
+		} `yaml:"header"` // 请求头
+	} `yaml:"API"` // 接口服务
+
 	MYSQL struct {
 		Dsn string `yaml:"dsn"`
 	} `yaml:"MYSQL"` // 数据库

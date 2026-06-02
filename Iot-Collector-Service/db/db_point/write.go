@@ -7,6 +7,8 @@
 package db_point
 
 import (
+	"main/IO/manager/fullConfig"
+
 	"fmt"
 	"log"
 	"sync"
@@ -15,55 +17,96 @@ import (
 /*
 ******************写入******************
  */
-type Write_value_type struct {
-	Points_Id  uint   // 点位id
-	Value_Type string // 值类型
-	Time       string
-	Value      any
+type tag_drive_map_value struct {
+	Drive uint
+	Type  string
 }
 
-type Write_value_func_type func(Write_value_type) (exist bool, err error)
+type Write_value_func_type func([]fullConfig.Value_type) (err error)
 
 var (
-	Write_value    []*Write_value_func_type
+	tag_drive_map map[string]tag_drive_map_value
+
+	Write_value    map[uint]*Write_value_func_type
 	Write_value_mu sync.Mutex
 )
 
+func init() {
+	tag_drive_map = make(map[string]tag_drive_map_value)
+	Write_value = make(map[uint]*Write_value_func_type)
+}
+
 // 变化更新 发布 发送
-func Write_value_Publisher(value Write_value_type) error {
-	var ok bool
+func Write_value_Publisher(value_list []fullConfig.Value_type) error {
+	drive_value_list := make(map[uint][]fullConfig.Value_type)
+	for _, v := range value_list {
+		d, ok := tag_drive_map[v.Tag]
+		if !ok {
+			log.Printf("ERROR 不存在的标识符 %s", v.Tag)
+			return fmt.Errorf("不存在的标识符或者不是一个可写的点位 %s", v.Tag)
+		}
 
-	for i, v := range Write_value {
-		if v == nil {
-			Write_value_mu.Lock() // 这里要阻塞运行，防止同步删除
-			Write_value = append(Write_value[:i], Write_value[i+1:]...)
-			log.Printf("WARNING 关闭一个 变化更新 的订阅者 %d", i)
-			Write_value_mu.Unlock()
-			continue
+		if d.Type != v.Type {
+			log.Printf("ERROR 类型不匹配 %s ,配置类型 %s ,传递类型： %s", v.Tag, d.Type, v.Type)
+			return fmt.Errorf("类型不匹配 %s ,配置类型 %s ,传递类型： %s", v.Tag, d.Type, v.Type)
 		}
-		exist, err := (*v)(value)
-		if exist && err == nil {
-			ok = true
-			break
+
+		_, ok = drive_value_list[d.Drive]
+		if !ok {
+			drive_value_list[d.Drive] = []fullConfig.Value_type{}
 		}
-		if err != nil {
-			if err == Err_Publisher_Close {
-				Write_value[i] = nil
+
+		drive_value_list[d.Drive] = append(drive_value_list[d.Drive], value_list...)
+	}
+
+	for i, value := range drive_value_list {
+		Write_value_mu.Lock()
+		v, ok := Write_value[i]
+		Write_value_mu.Unlock()
+		if ok {
+			log.Printf("INFO 写值-> %+v\n", value)
+			err := (*v)(value)
+			if err != nil {
+				return err
 			}
-			log.Printf("ERROR 值写入错误: %v", err)
+		} else {
+			err := fmt.Errorf("ERROR map找不到驱动%d ", i)
+			log.Print(err)
+			return err
 		}
 	}
 
-	if ok {
-		log.Printf("INFO 写值->  Point:%d, Value:%v,", value.Points_Id, value.Value)
-		return nil
-	}
-
-	return fmt.Errorf("找不到%d点位", value.Points_Id)
+	return nil
 }
 
 // 变化更新 订阅 接收
-func Write_value_Subscriber(value Write_value_func_type) error {
-	Write_value = append(Write_value, &value)
+func Write_value_Subscriber(p map[string]tag_drive_map_value, value Write_value_func_type) error {
+	Write_value_mu.Lock()
+	defer Write_value_mu.Unlock()
+
+	for i, v := range p {
+		tag_drive_map[i] = v
+		_, ok := Write_value[v.Drive]
+		if ok {
+			continue
+		}
+		Write_value[v.Drive] = &value
+	}
+
 	return nil
+}
+
+// 变化更新 订阅 接收 mysql配置
+func Write_value_Subscriber_mysqlconfig(cfg fullConfig.FullConfig_type, value Write_value_func_type) error {
+	p := make(map[string]tag_drive_map_value)
+	for _, v := range cfg.Points {
+		if v.RW_Cancel != "R/W" && v.RW_Cancel != "W" {
+			continue
+		}
+		p[v.Tag] = tag_drive_map_value{
+			Drive: v.Drive.Id,
+			Type:  v.Value_Type,
+		}
+	}
+	return Write_value_Subscriber(p, value)
 }

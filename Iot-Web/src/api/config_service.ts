@@ -113,6 +113,34 @@ export async function Collector_Synchronise_Config(Uuid: string): Promise<void> 
     }
 
 }
+/**
+ * 采集配置 -》重载配置
+ * 传递：Id 点位 id
+ */
+export async function Collector_Reload(Uuid: string): Promise<void> {
+    if (Uuid === "") {
+        throw '请选择设备'
+    }
+    try {
+        // 修改：直接 await axios.post
+        const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/reload', {
+            Uuid: Uuid
+        })
+
+        if (response.status == 200) {
+            return
+        }
+        throw response.data.Msg || '未知错误';
+    } catch (error: unknown) {
+        const axiosError = error as { code?: string; response?: { data?: { Msg?: string }, status: number } }
+        if (axiosError.code == "ERR_NETWORK") {
+            throw '请求超时'
+        }
+        // ElMessage({ message: axiosError?.response?.data?.Msg || '请求失败', type: 'error' })
+        throw axiosError.response?.data?.Msg || '请求失败';
+    }
+
+}
 
 /**
  * 采集 -》查询数量

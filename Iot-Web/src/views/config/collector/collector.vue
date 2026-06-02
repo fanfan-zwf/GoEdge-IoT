@@ -12,6 +12,7 @@
                 <el-table-column prop="Last_Activity_Time" label="最后活动时间" width="230" align="center" />
                 <el-table-column label="操作" width="200" fixed="right">
                     <template #default="scope">
+                               <el-button size="small" @click="reloadRow(scope)">重载</el-button>
                         <el-button size="small" @click="synchroniseRow(scope)">同步</el-button>
                         <el-button size="small" @click="editRow(scope)">编辑</el-button>
                         <el-button size="small" type="danger" @click="deleteRow(scope)">删除</el-button>
@@ -75,6 +76,7 @@ import {
     Collector_Info__Del,
     Collector_Info__Update,
     Collector_Synchronise_Config,
+    Collector_Reload,
     type Collector_Info__table_interface,
     type Collector_Info__Add_interface,
 } from '@/api/config_service'
@@ -139,7 +141,7 @@ const restartRow = (scope: any) => {
     })
 }
 
-const synchroniseRow=(scope: any) => {
+const synchroniseRow = (scope: any) => {
     const Uuid: string = scope.row.Uuid ?? ""
     if (Uuid === "") {
         ElMessage.error('无效的uuid')
@@ -147,6 +149,19 @@ const synchroniseRow=(scope: any) => {
     }
     Collector_Synchronise_Config(Uuid).then(() => {
         ElMessage.success('同步配置成功')
+    }).catch((error) => {
+        ElMessage.error(error)
+    })
+}
+
+const reloadRow=(scope: any) => {
+    const Uuid: string = scope.row.Uuid ?? ""
+    if (Uuid === "") {
+        ElMessage.error('无效的uuid')
+        return
+    }
+    Collector_Reload(Uuid).then(() => {
+        ElMessage.success('重载配置成功')
     }).catch((error) => {
         ElMessage.error(error)
     })

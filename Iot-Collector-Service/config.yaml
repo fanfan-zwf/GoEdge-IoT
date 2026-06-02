@@ -28,19 +28,31 @@ LOG:
 user_Service:
   url: "http://127.0.0.1:8101" 
   apikey: "123456"
-  secret: "123456"  
- 
+  secret: "123456"
+
+API:
+  enable: true
+  ip: 0.0.0.0
+  post: 8103
+  header:
+    - key: Access-Control-Allow-Origin
+      value: "*"
+    - key: Access-Control-Allow-Methods
+      value: POST, GET
+    - key: Access-Control-Allow-Headers
+      value: Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, F_Access_Token, F_Refresh_Token, F_Terminal_Uuid
+
 Mqtt_Rpc:
   broker: tcp://127.0.0.1:1883
   username: o7aKZOj53p2PkkFJzKzM
   password: lpj4VZ4ZYFg5GmINhRat
   client_id:  123e4567-e89b-12d3-a456-426614174000
-  clean_session: True
-  auto_reconnect: True
-  connect_timeout: 10s
-  write_timeout: 5s
-  keep_alive: 30s
+  clean_session: True # 清洁会话（重启不接收离线消息）
+  auto_reconnect: True # 自动重连
+  connect_timeout: 10s # 连接超时
+  write_timeout: 5s # 写超时
+  keep_alive: 30s # 心跳保活
   
-  business_timeout: 5s 
-  listen_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000
-  config_service_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174001 
+  business_timeout: 5s # 业务处理超时
+  listen_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000 # 监听主题
+  config_service_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174001 # 配置服务主题

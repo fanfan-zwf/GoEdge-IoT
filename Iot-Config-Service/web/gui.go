@@ -501,6 +501,24 @@ func Collector_Synchronise_Config(ctx *gin.Context) {
 
 	ctx.Set("Response", []any{200, "ok"})
 }
+
+func Collector_Reload(ctx *gin.Context) {
+	var jsondata struct {
+		Uuid string
+	}
+	err := ctx.BindJSON(&jsondata)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+	err = mqtt_rpc.Collector_Reload(jsondata.Uuid)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	ctx.Set("Response", []any{200, "ok"})
+}
 func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/collector/count", Collector_Info__Count)
 	r.POST("/api/gui/v1.0/collector/query", Collector_Info__Query)
@@ -510,6 +528,7 @@ func gui_api(r *gin.Engine) {
 	r.POST("/api/gui/v1.0/collector/search/field/vague", Collector_Info__Search_Field)
 	r.POST("/api/gui/v1.0/collector/search/blurred", Collector_Info__Search_Field_Blurred)
 	r.POST("/api/gui/v1.0/collector/synchronise", Collector_Synchronise_Config)
+	r.POST("/api/gui/v1.0/collector/reload", Collector_Reload)
 
 	r.POST("/api/gui/v1.0/config/drive/count", Drive_Config__Count)
 	r.POST("/api/gui/v1.0/config/drive/query", Drive_Config__Query)

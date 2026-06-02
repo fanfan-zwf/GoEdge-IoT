@@ -225,3 +225,39 @@ func Collector_Synchronise_Config(uuid string) (err error) {
 	}
 	return
 }
+
+// 采集服务重载驱动
+func Collector_Reload(uuid string) (err error) {
+	if uuid == "" {
+		err = fmt.Errorf("ERROR uuid参数错误")
+		return
+	}
+
+	type Req struct {
+	}
+
+	var listen_topic string
+	listen_topic, err = m_mysql.Collector_Info__Query_Uuid__ListenTopic(uuid)
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询失败：%v", err)
+		return
+	}
+
+	var resp string
+	err = jsonCall(Req{}, &resp,
+		Init.Config.Mqtt_Rpc.Broker,
+		listen_topic,
+		"/Order/Collector/Reload",
+		Init.Config.Mqtt_Rpc.BusinessTimeout,
+	)
+	if err != nil {
+		err = fmt.Errorf("ERROR ：%v", err)
+		return
+	}
+
+	if resp != "ok" {
+		err = fmt.Errorf("ERROR 响应错误： %+v ", resp)
+		return
+	}
+	return
+}

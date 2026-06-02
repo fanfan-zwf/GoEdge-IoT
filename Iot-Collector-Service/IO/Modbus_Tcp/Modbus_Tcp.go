@@ -8,42 +8,16 @@ package Modbus_Tcp
 
 import (
 	"main/IO/byte_util"
-	"main/IO/tcp_udp"
-	"main/Init"
+	"main/IO/manager/fullConfig"
+	"sync"
 
-	"bytes"
-	"errors"
 	"fmt"
 	"log"
-	"sort"
 
-	"sync"
 	"time"
+
+	modbus "github.com/things-go/go-modbus"
 )
-
-// 类型字节数量输出
-var byte_value = map[string]int{
-
-	// 2字节
-	"AB": byte_util.AB,
-	"BA": byte_util.BA,
-
-	// 4字节
-	"ABCD": byte_util.ABCD,
-	"ABDC": byte_util.ABDC,
-	"BACD": byte_util.BACD,
-	"DCBA": byte_util.DCBA,
-
-	// 8字节（8种完整顺序）
-	"ABCDEFGH": byte_util.ABCDEFGH,
-	"ABCDEHGF": byte_util.ABCDEHGF,
-	"ABFEGHCD": byte_util.ABFEGHCD,
-	"ABGHFEDC": byte_util.ABGHFEDC,
-	"BACDFEGH": byte_util.BACDFEGH,
-	"BADCFEHG": byte_util.BADCFEHG,
-	"HGFEDCBA": byte_util.HGFEDCBA,
-	"HGFECDAB": byte_util.HGFECDAB,
-}
 
 // 类型字节数量输出
 var Type_byte = map[string]uint16{
@@ -53,23 +27,6 @@ var Type_byte = map[string]uint16{
 	"int32":   2,
 	"uint32":  2,
 	"float32": 2,
-}
-
-// 写值
-type Posted_value struct {
-	Points_Id  uint
-	Value_Type string      // 值类型
-	Value      interface{} // 值
-}
-
-// 驱动更新值
-type Get_Value_type struct {
-	Points_Id  uint   // 点位id
-	Comments   string // 状态
-	Value_Type string // 值类型
-
-	Value interface{} // 值
-	Time  string      // 时间戳
 }
 
 /*******************驱动配置*******************/
@@ -82,11 +39,14 @@ type Config_type struct {
 	Response_timeout    time.Duration // 响应超时（可选，默认180000)
 	Delay_between_polls time.Duration // 轮询时间（可选，默认1000）
 	Packet_max          uint8         // 组包字节个数
+
+	Write_Coils_Function    uint8 // 写线圈功能码
+	Write_Register_Function uint8 // 写寄存器功能码
 }
 
 type Points_type struct {
 	SlaveID       uint8  // 从机地址
-	Function      string // Modbus功能码（如3=读保持寄存器）
+	Function      uint8  // Modbus功能码（如3=读保持寄存器）
 	Address       uint16 // 寄存器地址
 	Type          string // 数据类型（bool/int8/float32等）
 	Child_Address uint8  // 子地址（可选）
@@ -104,19 +64,15 @@ type Points_type struct {
 // }
 
 // mysql存储结构体
-type Mysql_Config_type struct {
+type Drive_Config_type struct {
 	Id     uint   // 驱动id
 	Type   string // 驱动类型
 	Name   string // 驱动名称
 	Config Config_type
 }
 
-type Mysql_Points_type struct {
-	Id         uint   // 点位id
-	Drive_Id   uint   // 驱动id唯一标识符
-	Drive_Type string // 驱动类型
-	Name       string // 点位名称
-	Group      string // 分组
+type Points_Config_type struct {
+	Tag        string // 点位标识符
 	RW_Cancel  string // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
 	Value_Type string // 输出类型
 	Config     Points_type
@@ -124,116 +80,130 @@ type Mysql_Points_type struct {
 
 // 组包
 type Packet_type struct {
-	SlaveID        uint8  // 设备id
-	Function       string // 功能码
-	Start_Address  uint16 // 开始地址
-	Number_Address uint16 // 地址数量
-	PointsId       []uint // 这个包的点位
+	SlaveID        uint8    // 设备id
+	Function       uint8    // 功能码
+	Start_Address  uint16   // 开始地址
+	Number_Address uint16   // 地址数量
+	Tags           []string // 这个包的点位
 }
 
 /*******************驱动连接*******************/
 
 type Read_Points_type struct {
 	SlaveID  uint8  // 设备id
-	Function string // Modbus功能码（如3=读保持寄存器）
+	Function uint8  // Modbus功能码（如3=读保持寄存器）
 	Address  uint16 // 寄存器地址
 	Number   uint16 // 寄存器地址
 }
 
-var conn_err_close = fmt.Errorf("关闭连接")
-
-type XTMessage struct {
-	data []byte
-	err  error
-}
-
-type XTMessage_time struct {
-	XTMessage chan XTMessage
-	Time      time.Time
-}
-
 // 定义一个结构体
-type Connect_struct struct {
-	Drive                    Mysql_Config_type   // 通信参数结构体
-	Points                   []Mysql_Points_type // 点位结构体
-	conn                     tcp_udp.Client      // tcp连接实例
-	conn_err                 error               // 连接状态
-	tcp_sync                 sync.Mutex          // tcp线程锁防止并发
-	tcp_again_Connect        sync.Mutex          // 掉线重新锁防止并发
-	Data_Packet_Print_enable bool                // 数据包使能
-	transaction_ID           uint16              // 事务元标识符
-	Read_Points              []Read_Points_type  // 读取结构体
-	Packets                  []Packet_type       // 组包格式
-	Esc_collection           chan bool
+type Modbus_Tcp struct {
+	fullConfig.BaseDriver                      // 驱动全配置（驱动配置 + 该驱动下的所有点位配置）
+	Drive                 Drive_Config_type    // 通信参数结构体
+	Points                []Points_Config_type // 点位结构体
+
+	conn          *modbus.Client // tcp连接实例
+	conn_err      error          // 连接状态
+	first_connect bool           // 首次连接
+
+	read_points    []Read_Points_type // 读取结构体
+	packets        []Packet_type      // 组包格式
+	Esc_collection chan bool
 
 	Tag_Pointsindex_Map map[string]int // tag点位index索引
 
-	Affair_Data map[uint16]XTMessage_time
-
-	Mutex sync.RWMutex
+	Read_External_Mappings func([]fullConfig.Value_type) error
+	Write_value_mu         sync.Mutex
 }
 
 // 定义接口
 type Connect_interface interface {
-	NewTCPClient(Ip string, Port uint16) error // 初始化连接
-	Connect() error                            // 开始连接
-	keepAliveConnect() error                   // 掉线重连
-	Close() error                              // 关闭连接
-	tcp_data(message *[]byte) ([]byte, error)  // 发送tcp数据
+	New() error     // 初始化
+	Connect() error // 开始连接
+	Close() error   // 停止连接
+}
 
-	Packet() error                                                        // 组包
-	Read(i int) ([]Get_Value_type, error)                                 // 读取具体的包
-	Read_Continuous(stopChan *chan bool, Callback func([]Get_Value_type)) // 连续读取
+func (m *Modbus_Tcp) LoadConfig(cfg fullConfig.FullConfig_type) error {
+	m.BaseDriver.LoadConfig(cfg)
 
-	Write(point_id uint, value any) (exist bool, err error) // 写值
+	// 解析驱动配置字符串格式: IP;Port;RetryTimeout;ConnectTimeout;ResponseTimeout;DelayBetweenPolls;PacketMax
+	var err error
+	m.Drive.Config, err = Drive_Config_Switch(cfg.Drive.Config)
+	if err != nil {
+		return fmt.Errorf("ERROR 解析驱动配置失败: %w", err)
+	}
 
-	// 读取  00001至09999是离散输出(线圈)01功能码
-	// Start开始地址  Number个数
-	Read__Coils_status(Device uint8, Start uint16, Number uint16) ([]bool, error)
+	// 设置其他字段
+	m.Drive.Id = cfg.Drive.Id
+	m.Drive.Type = cfg.Drive.Type
+	m.Drive.Name = cfg.Drive.Name
 
-	// 读取  10001至19999是离散输入(触点)02功能码
-	// Start开始地址  Number个数
-	Read__Input_status(Device uint8, Start uint16, Number uint16) ([]bool, error)
-
-	// 读取 30001至39999是输入寄存器(通常是模拟量输入) 04功能码
-	// Start开始地址  Number个数
-	Read__Input_register(Device uint8, Start uint16, Number uint16) ([]byte, error)
-
-	// 读取  40001至49999是保持寄存器 03功能码
-	// Start开始地址  Number个数
-	Read__Holding_register(Device uint8, Start uint16, Number uint16) ([]byte, error)
-
-	// 写入单个  00001至09999是离散输出(线圈)
-	// Start开始地址  Number个数
-	Write_single__Coils_tatus(Device uint8, Start uint16, Value bool) error
-
-	// 写入单个 40001至49999是输入寄存器(通常是模拟量输入)
-	// Start开始地址  Number个数
-	Write_single__Input_register(Device uint8, Start uint16, Value [2]byte) error
-
-	// 写入多个  00001至09999是离散输出(线圈)
-	// Start开始地址  Number个数
-	Write_many__Coils_tatus(Device uint8, Start uint16, Number uint16, Value []bool) error
-
-	// 写入多个 40001至49999是输入寄存器(通常是模拟量输入)
-	// Start开始地址  Number个数
-	Write_many__Input_register(Device uint8, Start uint16, Number uint16, Value []byte) error
+	return nil
 }
 
 type Packet_df struct {
-	SlaveID  uint8  // 设备id
-	Function string // 功能码
+	SlaveID  uint8 // 设备id
+	Function uint8 // 功能码
 }
 
-func (c *Connect_struct) Packet() error {
+func (c *Modbus_Tcp) New() (err error) {
+	c.Drive.Config, err = Drive_Config_Switch(c.Config.Drive.Config)
+	if err != nil {
+		return err
+	}
+
+	c.Tag_Pointsindex_Map = make(map[string]int)
+
+	var points []Points_Config_type
+	for i, v := range c.Config.Points {
+		point, err := Point_Config_Switch(v.Config)
+		if err != nil {
+			return fmt.Errorf("ERROR 解析点位配置失败: %v, 配置字符串: %s", err, v.Config)
+		}
+		points = append(points, Points_Config_type{
+			Config:     point,
+			RW_Cancel:  v.RW_Cancel,
+			Tag:        v.Tag,
+			Value_Type: v.Value_Type,
+		})
+		c.Tag_Pointsindex_Map[v.Tag] = i // 建立tag到index的映射
+
+	}
+	c.Points = points
+
+	c.packets, err = c.packet(c.Points, map[string]bool{"R": true, "R/W": true})
+	if err != nil {
+		return fmt.Errorf("ERROR 组包失败: %v", err)
+	}
+
+	return nil
+}
+
+func (c *Modbus_Tcp) tag_points_index(tag string) (p Points_Config_type, err error) {
+	index, exists := c.Tag_Pointsindex_Map[tag]
+	if !exists {
+		err = fmt.Errorf("ERROR 点位不存在:  c.Tag_Pointsindex_Map:%+ v   tag %s", c.Tag_Pointsindex_Map, tag)
+		return
+	}
+
+	if index < 0 || index >= len(c.Points) {
+		err = fmt.Errorf("ERROR 点位下标越界, index: %d, 切片长度: %d", index, len(c.Points))
+		return
+	}
+
+	p = c.Points[index]
+	return
+}
+func (c *Modbus_Tcp) packet(Points []Points_Config_type, RW_Cancel map[string]bool) (Packets []Packet_type, err error) {
 	// 1️⃣ 初始化 map（必须！否则 panic）
 	pointMap := make(map[Packet_df][]PackAddressPackages_Point_type)
 
-	c.Tag_Pointsindex_Map = make(map[string]int)
 	// 2️⃣ 遍历点位，按 SlaveID + Function 分组
-	for i, point := range c.Points {
-		//fmt.Printf(" point >>>>>>>> \n%+v \n", point)
-		c.Tag_Pointsindex_Map[point.Name] = i // 添加点位和点位配置的索引
+	for _, point := range Points {
+
+		if !RW_Cancel[point.RW_Cancel] {
+			continue
+		}
 
 		// 构建 key
 		key := Packet_df{
@@ -243,23 +213,19 @@ func (c *Connect_struct) Packet() error {
 
 		len, exist := Type_byte[point.Config.Type]
 		if !exist {
-			log.Printf("ERROR modbus_tcp: 无效类型:%s  点位:%s", point.Config.Type, point.Name)
+			log.Printf("ERROR modbus_tcp: 无效类型:%s  点位:%s", point.Config.Type, point.Tag)
 			continue
 		}
 
 		// 加入分组
 		pointMap[key] = append(pointMap[key], PackAddressPackages_Point_type{
-			PointID:   point.Id,
+			Tag:       point.Tag,
 			StartAddr: point.Config.Address,
 			DataLen:   len,
 		})
 	}
 
-	var Packets []Packet_type
 	for key, value := range pointMap {
-		//fmt.Printf(" key >>>>>>>> \n%+v \n", key)
-		//fmt.Printf(" value <<<<<< \n%+v \n\n\n", value)
-
 		packa, err := PackAddressPackages(value, uint16(c.Drive.Config.Packet_max))
 		if err != nil {
 			log.Printf("ERROR modbus_tcp: 组包错误:%v", err)
@@ -273,909 +239,388 @@ func (c *Connect_struct) Packet() error {
 				Function:       key.Function,
 				Start_Address:  v.StartAddr,
 				Number_Address: v.DataLen,
-				PointsId:       v.PointIDs,
+				Tags:           v.Tags,
 			})
 		}
 	}
 
-	// 最后统一赋值
-	c.Packets = Packets
+	return
+}
 
+// 开始连接外部映射
+func (c *Modbus_Tcp) Connect() error {
+	err := c.connect()
+	if err != nil {
+		return err
+	}
+	go c.polling()
 	return nil
 }
 
 // 开始连接
-func (c *Connect_struct) Connect() error {
+func (c *Modbus_Tcp) connect() error {
 
-	c.Esc_collection = make(chan bool)
-	c.Affair_Data = make(map[uint16]XTMessage_time)
-	// 连接服务器
+	// ---------- 2. 创建客户端，绑定所有时间参数 ----------
+	p := modbus.NewTCPClientProvider(
+		fmt.Sprintf("%s:%d", c.Drive.Config.Ip, c.Drive.Config.Port),
+		modbus.WithTCPTimeout(c.Drive.Config.Connect_timeout),
+	)
 
-	tcpCfg := tcp_udp.Config{
-		Type:              tcp_udp.TCP,
-		RemoteAddr:        fmt.Sprintf("%s:%d", c.Drive.Config.Ip, c.Drive.Config.Port),
-		Reconnect:         true,
-		ReconnectInterval: c.Drive.Config.Retry_timeout,
-		ConnectTimeout:    c.Drive.Config.Connect_timeout, // 连接超时 5s
-		SendQueueSize:     100,
+	client := modbus.NewClient(p)
+
+	c.conn = &client
+
+	c.conn_err = client.Connect()
+	if c.conn_err != nil {
+		c.Error_External_Mappings(c.conn_err.Error())
+		return c.conn_err
 	}
-	c.conn = tcp_udp.NewClient(tcpCfg)
-	// c.conn_err = c.conn.Start()
-	go c.XT()
-	return c.conn_err
 
-}
-
-// 关闭连接
-func (c *Connect_struct) Close() error {
-	c.conn_err = tcp_udp.ErrClosed
-	c.conn.Close()
-	log.Print("INFO ", c.Drive.Id, "关闭IO")
-	if c.conn != nil {
-		return c.conn.Close()
-	}
+	log.Printf("modbus_tcp 连接状态: %v", c.conn_err)
 	return nil
 }
 
-// 发送tcp数据
-func (c *Connect_struct) RT(data []byte) ([]byte, error) {
-	fmt.Printf("Affair_Data=%d\n\n", len(c.Affair_Data))
+// 关闭连接
+func (c *Modbus_Tcp) Close() error {
+	(*c.conn).Close()
+	c.Error_External_Mappings("驱动连接已关闭")
 
-	c.XT_Clear()
-	if len(data) <= 3 {
-		return nil, fmt.Errorf("数据长度小于3 byte:%s", data)
-	}
-	// 带缓冲通道，防止阻塞
-	ch := make(chan XTMessage, 1)
-	a := byte_util.Convert_uint8_uint16(data, byte_util.BA)
-	if len(a) == 0 {
-		return nil, fmt.Errorf("转换后切片为空，无法获取 a[0]")
-	}
-	c.Mutex.Lock()
-	c.Affair_Data[a[0]] = XTMessage_time{
-		XTMessage: ch,
-		Time:      time.Now(),
-	}
-	c.Mutex.Unlock()
-	err := c.conn.Send(data)
-	if err != nil {
-		return nil, err
-	}
-	// 等待响应或超时
-	select {
-	case resp := <-ch:
-		return resp.data, resp.err
-
-	case <-time.After(c.Drive.Config.Response_timeout):
-		return nil, tcp_udp.ErrReceiveTimeout
-	}
+	return nil
 }
 
-// 接收tcp数据
-func (c *Connect_struct) XT() error {
-	for {
-		var m XTMessage
-		data, err := c.conn.Receive(6, 1*time.Second)
+func (c *Modbus_Tcp) Error_External_Mappings(msg string) error {
+	var read_list []fullConfig.Value_type
+	for _, point := range c.Points {
+		read_list = append(read_list, fullConfig.Value_type{
+			Tag:  point.Tag,        // 点位名称
+			Type: point.Value_Type, // 输出类型
+			Msg:  msg,              // 状态信息
+			Time: time.Now(),       // 读取时间
+		})
+	}
+
+	// 外部映射
+	if c.Read_External_Mappings != nil {
+		c.Read_External_Mappings(read_list)
+	}
+
+	return nil
+}
+
+func (c *Modbus_Tcp) Error_External_Mappings_list(tags []string, msg string) (err error) {
+	var read_list []fullConfig.Value_type
+	for _, tag := range tags {
+		cfg, err := c.tag_points_index(tag)
 		if err != nil {
-			fmt.Printf("接收数据错误: %v\n", err)
+			log.Printf("ERROR modbus_tcp: %v", err)
+			continue
+		}
+		read_list = append(read_list, fullConfig.Value_type{
+			Tag:   tag,            // 点位名称
+			Type:  cfg.Value_Type, // 输出类型
+			Msg:   msg,            // 状态信息
+			Time:  time.Now(),     // 读取时间
+			Value: nil,
+		})
+	}
+	// 外部映射
+	if c.Read_External_Mappings != nil {
+		c.Read_External_Mappings(read_list)
+	}
+
+	return nil
+}
+
+// 位操作（1/0 开关量）
+// ReadCoils → 01 读线圈
+// ReadDiscreteInputs → 02 读离散输入
+// WriteSingleCoil → 05 写单个线圈
+// WriteMultipleCoils → 15 写多个线圈
+// 16 位寄存器（数值）
+// ReadInputRegisters → 04 读输入寄存器
+// ReadHoldingRegisters → 03 读保持寄存器 ✅你用这个
+// WriteSingleRegister → 06 写单个寄存器
+// WriteMultipleRegisters → 16 写多个寄存器
+
+// 读取外部映射
+func (c *Modbus_Tcp) Collection_Allback() error {
+
+	return nil
+}
+
+func (c *Modbus_Tcp) analysis(packet Packet_type, results []byte) ([]fullConfig.Value_type, error) {
+	var read_list []fullConfig.Value_type
+	now := time.Now()
+	for _, tag := range packet.Tags {
+		var read fullConfig.Value_type
+		cfg, err := c.tag_points_index(tag)
+		if err != nil {
+			log.Printf("ERROR modbus_tcp: %v", err)
 			continue
 		}
 
-		a := byte_util.Convert_uint8_uint16(data, byte_util.BA)
-		if len(a) <= 2 {
-			fmt.Printf("接收数据长度不足，无法获取事务ID a[0]:%s\n", data)
-			continue
-		}
-		var data2 []byte
-		data2, err = c.conn.Receive(int(a[2]), 1*time.Second)
-		if err != nil {
-			m.err = err
-		}
-		fmt.Printf("接收append:% x  % x  % d\n", data, data2, a)
-		m.data = append(data, data2...)
+		read.Time = now
+		read.Tag = tag
+		read.Type = cfg.Value_Type
+		read.Msg = "ok"
 
-		// 1. 处理响应：唤醒等待的调用方
-		c.Mutex.Lock()
-		ch, ok := c.Affair_Data[a[0]]
-		if !ok {
-			err = tcp_udp.ErrReceiveTimeout
-			// continue
-		} else {
-			if IsTimePassed(ch.Time, time.Now(), c.Drive.Config.Response_timeout) {
-				err = tcp_udp.ErrReceiveTimeout
-			}
-		}
-		// delete(c.Affair_Data, a[0])
-		c.Mutex.Unlock()
-		if err != nil {
-			m.err = err
-		}
-		ch.XTMessage <- m
-	}
-}
-
-func (c *Connect_struct) XT_Clear() {
-	c.Mutex.Lock()
-	time := time.Now()
-	for i, v := range c.Affair_Data {
-		if IsTimePassed(v.Time, time, c.Drive.Config.Response_timeout) {
-			fmt.Printf("清理事务ID %d %s %s\n", i, v.Time, time)
-			delete(c.Affair_Data, i)
-		}
-	}
-	c.Mutex.Unlock()
-}
-
-// 发送tcp数据
-func (c *Connect_struct) tcp_data(send *[]byte) ([]byte, error) {
-	// // 线程锁
-	c.tcp_sync.Lock()
-
-	defer func() {
-		if !c.tcp_sync.TryLock() {
-			c.tcp_sync.Unlock()
-		}
-	}()
-
-	c.transaction_ID++
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{c.transaction_ID}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return []byte{}, errors.New("ERROR 事务ID长度错误")
-	}
-	(*send)[0] = Start_byte[0]
-	(*send)[1] = Start_byte[1]
-
-	Number_byte := byte_util.Convert_uint16_uint8([]uint16{uint16(len(*send) - 6)}, byte_util.BA)
-	if len(Number_byte) < 2 {
-		return []byte{}, errors.New("ERROR 数据内容长度错误")
-	}
-	(*send)[4] = Number_byte[0]
-	(*send)[5] = Number_byte[1]
-	if c.Data_Packet_Print_enable {
-		fmt.Printf("发送:% x\n", *send)
-	}
-	// 接收响应
-	receive, err := c.RT(*send)
-	if err != nil {
-		log.Printf("ERROR %v", err.Error())
-		return []byte{}, err
-	}
-
-	// 获取返回长度
-	n := byte_util.Convert_uint8_uint16([]byte{receive[4], receive[5]}, byte_util.BA)[0]
-	n = n + 6
-	if c.Data_Packet_Print_enable {
-		fmt.Printf("接收:% x\n", receive[:n])
-	}
-
-	// 判断事务元标识符是否一致
-	if !((*send)[0] == receive[0] && (*send)[1] == receive[1]) {
-		return []byte{}, errors.New("事务元标识符错误")
-	}
-	return receive[:n], err
-}
-
-// 读取  00001至09999是离散输出(线圈)
-// Start开始地址  Number个数
-func (c *Connect_struct) Read__Coils_status(Device uint8, Start uint16, Number uint16) ([]bool, error) {
-
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return []bool{}, errors.New("ERROR 事务ID长度错误")
-	}
-	Number_byte := byte_util.Convert_uint16_uint8([]uint16{Number}, byte_util.BA)
-	if len(Number_byte) < 2 {
-		return []bool{}, errors.New("ERROR 数据内容长度错误")
-	}
-
-	PDU := []byte{
-		0x00, 0x00, // 事务元标识符
-		0x00, 0x00, // 协议标识符
-		0x00, 0x06, // 长度
-		Device,                       // 设备id
-		0x01,                         // 功能码
-		Start_byte[0], Start_byte[1], // 开始地址
-		Number_byte[0], Number_byte[1], // 长度
-	}
-
-	crc := ModbusCRC16(PDU[5:])
-	PDU = append(PDU, byte(crc), byte(crc>>8))
-
-	// 读取tcp数据
-	r, err := c.tcp_data(&PDU)
-	if err != nil {
-		return []bool{}, err
-	}
-
-	// 判断设备id是否正确
-	if r[6] != Device {
-		return []bool{}, errors.New("设备id不一致")
-	}
-
-	// 异常响应报文
-	if r[7] == 0x81 {
-		switch r[8] {
-		case 0x01:
-			return []bool{}, errors.New("从站不支持该功能码")
-		case 0x02:
-			return []bool{}, errors.New("寄存器地址不存在")
-		case 0x03:
-			return []bool{}, errors.New("写入的值超出范围")
-		case 0x04:
-			return []bool{}, errors.New("设备内部错误")
+		byte_index := int(cfg.Config.Address - packet.Start_Address)
+		switch {
+		case cfg.Config.Type == "bool" && (packet.Function == 1 || packet.Function == 2):
+			read.Value = byte_util.Get_list_index(
+				byte_util.BytesToBool([]byte{byte_util.Get_list_index(results, byte_index/8, 1)[0]}),
+				byte_index%8, 1)[0]
+		case cfg.Config.Type == "bool" && (packet.Function == 3 || packet.Function == 4):
+			read.Value = byte_util.Get_list_index(
+				byte_util.BytesToBool([]byte{byte_util.Get_list_index(results, byte_index/16, 1)[0]}),
+				int(cfg.Config.Child_Address), 1)[0]
+		case cfg.Config.Type == "uint16" && (packet.Function == 3 || packet.Function == 4):
+			read.Value = byte_util.Get_list_index(
+				byte_util.BytesToUint16(
+					byte_util.Get_list_index(results, byte_index*2, 2),
+					cfg.Config.Byte_Order,
+				),
+				0, 1,
+			)[0]
+		case cfg.Config.Type == "int16" && (packet.Function == 3 || packet.Function == 4):
+			read.Value = byte_util.Get_list_index(
+				byte_util.BytesToInt16(
+					byte_util.Get_list_index(results, byte_index*2, 2),
+					cfg.Config.Byte_Order,
+				),
+				0, 1,
+			)[0]
+		case cfg.Config.Type == "uint32" && (packet.Function == 3 || packet.Function == 4):
+			read.Value = byte_util.Get_list_index(
+				byte_util.BytesToUint32(
+					byte_util.Get_list_index(results, byte_index*2, 4),
+					cfg.Config.Byte_Order,
+				),
+				0, 1,
+			)[0]
+		case cfg.Config.Type == "int32" && (packet.Function == 3 || packet.Function == 4):
+			read.Value = byte_util.Get_list_index(
+				byte_util.BytesToInt32(
+					byte_util.Get_list_index(results, byte_index*2, 4),
+					cfg.Config.Byte_Order,
+				),
+				0, 1,
+			)[0]
+		case cfg.Config.Type == "float32" && (packet.Function == 3 || packet.Function == 4):
+			read.Value = byte_util.Get_list_index(
+				byte_util.BytesToFloat32(
+					byte_util.Get_list_index(results, byte_index*2, 4),
+					cfg.Config.Byte_Order,
+				),
+				0, 1,
+			)[0]
 		default:
-			return []bool{}, fmt.Errorf("错误码：%x", r[8])
+			read.Msg = fmt.Sprintf("ERROR tag: %s, 配置类型: %s", tag, cfg.Value_Type)
 		}
-	}
-	if r[7] != 0x01 { // 判断功能码是否正确
-		return []bool{}, fmt.Errorf("功能码错误: % x\n", r[7])
-	}
+		read_list = append(read_list, read)
 
-	byte_value := r[9 : 9+int(r[8])]
-
-	var value []bool
-	for i := 0; i < len(byte_value); i++ {
-		a := byte_util.Convert_uint8_bool([]uint8{byte_value[i]}, byte_util.AB)
-		// a, err := Byte_Convert_1byte_8bool(byte_value[i])
-		// if err != nil {
-		// 	return []bool{}, err
-		// }
-		value = append(value, a[:]...)
 	}
-	Number_bool := divideCeil(int(Number), 7)
-	if len(value) < Number_bool {
-		return []bool{}, errors.New("组包数量不正确")
-	}
-
-	return value[:Number], nil
+	return read_list, nil
 }
 
-// 读取  10001至19999是离散输入(触点)
-// Start开始地址  Number个数
-func (c *Connect_struct) Read__Input_status(Device uint8, Start uint16, Number uint16) ([]bool, error) {
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return []bool{}, errors.New("ERROR 事务ID长度错误")
-	}
-	Number_byte := byte_util.Convert_uint16_uint8([]uint16{Number}, byte_util.BA)
-	if len(Number_byte) < 2 {
-		return []bool{}, errors.New("ERROR 数据内容长度错误")
-	}
-
-	PDU := []byte{
-		0x00, 0x00, // 事务元标识符
-		0x00, 0x00, // 协议标识符
-		0x00, 0x06, // 长度
-		Device,                       // 设备id
-		0x02,                         // 功能码
-		Start_byte[0], Start_byte[1], // 开始地址
-		Number_byte[0], Number_byte[1], // 长度
-	}
-
-	crc := ModbusCRC16(PDU[5:])
-	PDU = append(PDU, byte(crc), byte(crc>>8))
-
-	// 读取tcp数据
-	r, err := c.tcp_data(&PDU)
-	if err != nil {
-		return []bool{}, err
-	}
-
-	// 判断设备id是否正确
-	if r[6] != Device {
-		return []bool{}, errors.New("设备id不一致")
-	}
-
-	// 异常响应报文
-	if r[7] == 0x81 {
-		switch r[8] {
-		case 0x01:
-			return []bool{}, errors.New("从站不支持该功能码")
-		case 0x02:
-			return []bool{}, errors.New("寄存器地址不存在")
-		case 0x03:
-			return []bool{}, errors.New("写入的值超出范围")
-		case 0x04:
-			return []bool{}, errors.New("设备内部错误")
-		default:
-			return []bool{}, fmt.Errorf("错误码：%x", r[8])
-		}
-	}
-	if r[7] != 0x02 { // 判断功能码是否正确
-		return []bool{}, fmt.Errorf("功能码错误: % x\n", r[7])
-	}
-
-	byte_value := r[9 : 9+int(r[8])]
-	var value []bool
-	for i := 0; i < len(byte_value); i++ {
-		a := byte_util.Convert_uint8_bool([]uint8{byte_value[i]}, byte_util.AB)
-		value = append(value, a[:]...)
-	}
-
-	Number_bool := divideCeil(int(uint(Number)), 7)
-	if len(value) < Number_bool {
-		return []bool{}, errors.New("组包数量不正确")
-	}
-	return value[:Number], nil
-}
-
-// 读取  40001至49999是保持寄存器 03功能码
-// Start开始地址  Number个数
-func (c *Connect_struct) Read__Holding_register(Device uint8, Start uint16, Number uint16) ([]byte, error) {
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return []byte{}, errors.New("ERROR 事务ID长度错误")
-	}
-	Number_byte := byte_util.Convert_uint16_uint8([]uint16{Number}, byte_util.BA)
-	if len(Number_byte) < 2 {
-		return []byte{}, errors.New("ERROR 数据内容长度错误")
-	}
-
-	PDU := []byte{
-		0x00, 0x00, // 事务元标识符
-		0x00, 0x00, // 协议标识符
-		0x00, 0x06, // 长度
-		Device,                       // 设备id
-		0x03,                         // 功能码
-		Start_byte[0], Start_byte[1], // 开始地址
-		Number_byte[0], Number_byte[1], // 长度
-	}
-
-	// crc := ModbusCRC16(PDU[5:])
-	// PDU = append(PDU, byte(crc), byte(crc>>8))
-
-	// 读取tcp数据
-	r, err := c.tcp_data(&PDU)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	// 判断设备id是否正确
-	if r[6] != Device {
-		return []byte{}, errors.New("设备id不一致")
-	}
-
-	// 异常响应报文
-	if r[7] == 0x81 {
-		switch r[8] {
-		case 0x01:
-			return []byte{}, errors.New("从站不支持该功能码")
-		case 0x02:
-			return []byte{}, errors.New("寄存器地址不存在")
-		case 0x03:
-			return []byte{}, errors.New("写入的值超出范围")
-		case 0x04:
-			return []byte{}, errors.New("设备内部错误")
-		default:
-			return []byte{}, fmt.Errorf("错误码：%x", r[8])
-		}
-	}
-	if r[7] != 0x03 { // 判断功能码是否正确
-		return []byte{}, fmt.Errorf("功能码错误: % x\n", r[7])
-	}
-
-	return r[9:], nil
-}
-
-// 读取 30001至39999是输入寄存器(通常是模拟量输入) 04功能码
-// Start开始地址  Number个数
-func (c *Connect_struct) Read__Input_register(Device uint8, Start uint16, Number uint16) ([]byte, error) {
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return []byte{}, errors.New("ERROR 事务ID长度错误")
-	}
-	Number_byte := byte_util.Convert_uint16_uint8([]uint16{Number}, byte_util.BA)
-	if len(Number_byte) < 2 {
-		return []byte{}, errors.New("ERROR 数据内容长度错误")
-	}
-
-	PDU := []byte{
-		0x00, 0x00, // 事务元标识符
-		0x00, 0x00, // 协议标识符
-		0x00, 0x06, // 长度
-		Device,                       // 设备id
-		0x04,                         // 功能码
-		Start_byte[0], Start_byte[1], // 开始地址
-		Number_byte[0], Number_byte[1], // 长度
-	}
-
-	crc := ModbusCRC16(PDU[5:])
-	PDU = append(PDU, byte(crc), byte(crc>>8))
-
-	// 读取tcp数据
-	r, err := c.tcp_data(&PDU)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	// 判断设备id是否正确
-	if r[6] != Device {
-		return []byte{}, errors.New("设备id不一致")
-	}
-
-	// 异常响应报文
-	if r[7] == 0x81 {
-		switch r[8] {
-		case 0x01:
-			return []byte{}, errors.New("从站不支持该功能码")
-		case 0x02:
-			return []byte{}, errors.New("寄存器地址不存在")
-		case 0x03:
-			return []byte{}, errors.New("写入的值超出范围")
-		case 0x04:
-			return []byte{}, errors.New("设备内部错误")
-		default:
-			return []byte{}, fmt.Errorf("错误码：%x", r[8])
-		}
-	}
-	if r[7] != 0x04 { // 判断功能码是否正确
-		return []byte{}, fmt.Errorf("功能码错误: % x\n", r[7])
-	}
-
-	return r[9:], nil
-}
-
-// 写入单个  00001至09999是离散输出(线圈)
-// Start开始地址  Number个数
-func (c *Connect_struct) Write_single__Coils_tatus(Device uint8, Start uint16, Value bool) error {
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return errors.New("ERROR 事务ID长度错误")
-	}
-
-	send := []byte{
-		0x00, 0x01, // 事务元标识符
-		0x00, 0x00, // 协议标识符
-		0x00, 0x06, // 长度
-		Device,                       // 设备id
-		0x05,                         // 功能码
-		Start_byte[0], Start_byte[1], // 线圈地址
-		0xff, 0x00, // ​强制值。​只有 0xFF 00表示 ON，0x00 00表示 OFF。其他任何值都是非法的
-	}
-
-	if Value {
-		send[10] = 0xff
-	} else {
-		send[10] = 0x00
-	}
-
-	// 发送tcp数据
-	receive, err := c.tcp_data(&send)
-	if err != nil {
-		return err
-	}
-
-	switch {
-	case receive[6] != Device:
-		return errors.New("设备id不一致")
-	case receive[7] == 0x85 && receive[8] == 0x01:
-		return errors.New("从站不支持该功能码")
-	case receive[7] == 0x85 && receive[8] == 0x02:
-		return errors.New("寄存器地址不存在")
-	case receive[7] == 0x85 && receive[8] == 0x03:
-		return errors.New("写入的值超出范围")
-	case receive[7] == 0x85 && receive[8] == 0x04:
-		return errors.New("设备内部错误")
-	case receive[7] == 0x05 && bytes.Equal(send, receive):
-		return nil
-	}
-
-	return fmt.Errorf("错误码：% x", receive[7:])
-	// return nil
-}
-
-// 写入多个  00001至09999是离散输出(线圈)
-// Start开始地址  Number个数
-func (c *Connect_struct) Write_many__Coils_tatus(Device uint8, Start uint16, Number uint16, Value []bool) error {
-	Value = Value[:Number]
-
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return errors.New("ERROR 事务ID长度错误")
-	}
-	// 数组值长度
-	Value_Number := byte_util.Convert_int16_uint8([]int16{int16(len(Value))}, byte_util.BA)
-	if len(Value_Number) < 2 {
-		return errors.New("ERROR 数据内容长度错误")
-	}
-
-	Value_byte := byte_util.Convert_bool_byte(Value, byte_util.AB)
-
-	Value_byte_Number := len(Value_byte)
-	if Value_byte_Number > 120 {
-		return errors.New("ERROR 写值长度过大")
-	}
-
-	send := []byte{
-		0x00, 0x01, // 事务元标识符
-		0x00, 0x00, // 协议标识符
-		0x00, 0x06, // 长度
-		Device,                       // 设备id
-		0x0f,                         // 功能码
-		Start_byte[0], Start_byte[1], // 起始地址
-		Value_Number[0], Value_Number[1], // 线圈数量
-		byte(Value_byte_Number), // 字节数
-		// 0xFF, 0x00, // ​强制数据
-	}
-
-	send = append(send, Value_byte...)
-
-	// 发送tcp数据
-	receive, err := c.tcp_data(&send)
-	if err != nil {
-		return err
-	}
-
-	switch {
-	case receive[6] != Device:
-		return errors.New("设备id不一致")
-	case receive[7] == 0x8F && receive[8] == 0x01:
-		return errors.New("从站不支持该功能码")
-	case receive[7] == 0x8F && receive[8] == 0x02:
-		return errors.New("寄存器地址不存在")
-	case receive[7] == 0x8F && receive[8] == 0x03:
-		return errors.New("写入的值超出范围")
-	case receive[7] == 0x8F && receive[8] == 0x04:
-		return errors.New("设备内部错误")
-	case receive[7] == 0x0F && receive[8] == send[8] && receive[9] == send[9] && receive[10] == send[10] && receive[11] == send[11]:
-		return nil
-	}
-
-	return fmt.Errorf("错误码：% x", receive[7:])
-
-}
-
-// 写入单个 40001至49999是输入寄存器(通常是模拟量输入)
-// Start开始地址  Number个数
-func (c *Connect_struct) Write_single__Input_register(Device uint8, Start uint16, Value [2]byte) error {
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return errors.New("ERROR 事务ID长度错误")
-	}
-
-	send := []byte{
-		0x00, 0x01, // 事务元标识符
-		0x00, 0x00, // 协议标识符
-		0x00, 0x06, // 长度
-		Device,                       // 设备id
-		0x06,                         // 功能码
-		Start_byte[0], Start_byte[1], // 起始地址
-		Value[0], Value[1], // 寄存器值
-	}
-
-	// 发送tcp数据
-	receive, err := c.tcp_data(&send)
-	if err != nil {
-		return err
-	}
-
-	switch {
-	case receive[6] != Device:
-		return errors.New("设备id不一致")
-	case receive[7] == 0x86 && receive[8] == 0x01:
-		return errors.New("从站不支持该功能码")
-	case receive[7] == 0x86 && receive[8] == 0x02:
-		return errors.New("寄存器地址不存在")
-	case receive[7] == 0x86 && receive[8] == 0x03:
-		return errors.New("写入的值超出范围")
-	case receive[7] == 0x86 && receive[8] == 0x04:
-		return errors.New("设备内部错误")
-	case receive[7] == 0x06 && bytes.Equal(send, receive):
-		return nil
-	}
-
-	return fmt.Errorf("错误码：% x", receive[7:])
-
-}
-
-// 写入多个 40001至49999是输入寄存器(通常是模拟量输入)
-// Start开始地址  Number个数
-func (c *Connect_struct) Write_many__Input_register(Device uint8, Start uint16, Number uint16, Value []byte) error {
-	if len(Value)%2 != 0 {
-		return errors.New("Value数组必须是2的倍数")
-	}
-
-	Value = Value[:Number*2]
-
-	Start_byte := byte_util.Convert_uint16_uint8([]uint16{Start}, byte_util.BA)
-	if len(Start_byte) < 2 {
-		return errors.New("ERROR 事务ID长度错误")
-	}
-
-	Value_Number := byte_util.Convert_uint16_uint8([]uint16{Number}, byte_util.BA)
-	if len(Value_Number) < 2 {
-		return errors.New("ERROR 事务ID长度错误")
-	}
-
-	Value_byte_Number := len(Value)
-	if Value_byte_Number > 120 {
-		return errors.New("写值过大")
-	}
-
-	send := []byte{
-		0x00, 0x01, // 事务元标识符
-		0x00, 0x00, // 协议标识符
-		0x00, 0x06, // 长度
-		Device,                       // 设备id
-		0x10,                         // 功能码
-		Start_byte[0], Start_byte[1], // 起始地址
-		Value_Number[0], Value_Number[1], // 线圈数量
-		byte(Value_byte_Number), // 字节数
-		// 0xFF, 0x00, // ​强制数据
-	}
-
-	send = append(send, Value...)
-
-	// 发送tcp数据
-	receive, err := c.tcp_data(&send)
-	if err != nil {
-		return err
-	}
-
-	switch {
-	case receive[6] != Device:
-		return errors.New("设备id不一致")
-	case receive[7] == 0x90 && receive[8] == 0x01:
-		return errors.New("从站不支持该功能码")
-	case receive[7] == 0x90 && receive[8] == 0x02:
-		return errors.New("寄存器地址不存在")
-	case receive[7] == 0x90 && receive[8] == 0x03:
-		return errors.New("写入的值超出范围")
-	case receive[7] == 0x90 && receive[8] == 0x04:
-		return errors.New("设备内部错误")
-	case receive[7] == 0x10 && receive[8] == send[8] && receive[9] == send[9] && receive[10] == send[10] && receive[11] == send[11]:
-		return nil
-	}
-
-	return fmt.Errorf("错误码：% x", receive[7:])
-
-}
-
-type IO_Collection_Value_type struct {
-	Points_Id  uint   // 点位id
-	Msg        string // 状态
-	Value_Type string // 值类型
-
-	Value any // 值
-	Time  string
-}
-
-// 读取一个包
-func (c *Connect_struct) Read(i int) []IO_Collection_Value_type {
-	if i < 0 {
-		return []IO_Collection_Value_type{}
-	}
-	if i >= len(c.Packets) {
-		return []IO_Collection_Value_type{}
-	}
-	Packet := c.Packets[i]
-	switch Packet.Function {
-	case "01":
-		v, err := c.Read__Coils_status(Packet.SlaveID, Packet.Start_Address-1, Packet.Number_Address)
-		if err != nil {
-			value_array := c.read_status_err(err.Error(), Packet.PointsId)
-			return value_array
-		} else {
-			value_array := c.read_status_ok(v, Packet)
-			return value_array
-		}
-	case "02":
-		v, err := c.Read__Input_status(Packet.SlaveID, Packet.Start_Address-1, Packet.Number_Address)
-		if err != nil {
-			value_array := c.read_status_err(err.Error(), Packet.PointsId)
-			return value_array
-		} else {
-			value_array := c.read_status_ok(v, Packet)
-			return value_array
-		}
-	case "03":
-		v, err := c.Read__Holding_register(Packet.SlaveID, Packet.Start_Address-1, Packet.Number_Address)
-		if err != nil {
-			value_array := c.read_register_err(err.Error(), Packet.PointsId)
-			return value_array
-		} else {
-			value_array := c.read_register_ok(v, Packet)
-			return value_array
-		}
-	case "04":
-		v, err := c.Read__Input_register(Packet.SlaveID, Packet.Start_Address-1, Packet.Number_Address)
-		if err != nil {
-			value_array := c.read_register_err(err.Error(), Packet.PointsId)
-			return value_array
-		} else {
-			value_array := c.read_register_ok(v, Packet)
-			return value_array
-		}
-	default:
-
-	}
-
-	return []IO_Collection_Value_type{}
-
-}
-
-func (c *Connect_struct) Read_Continuous(Callback func([]IO_Collection_Value_type)) error {
-	log.Printf("INFO modbus_tcp 开始轮询读取: 驱动id:%d,驱动名称:%s", c.Drive.Id, c.Drive.Name)
-	var (
-		i           int
-		Packets_len int
-	)
-
-	defer func() {
-		var value_collection []IO_Collection_Value_type
-		for _, Point := range c.Points {
-			if !(Point.RW_Cancel == "W/R" || Point.RW_Cancel == "R") {
-				continue
-			}
-			value_collection = append(value_collection, IO_Collection_Value_type{
-				Points_Id:  Point.Id,         // 点位id
-				Msg:        "轮询读取结束",         // 状态
-				Value_Type: Point.Value_Type, // 值类型
-				Time:       time.Now().Format(Init.RFC_FAN),
-			})
-		}
-		Callback(value_collection)
-	}()
-
+func (c *Modbus_Tcp) polling() {
+	var i int
 	for {
-		select {
-		case <-c.Esc_collection:
-			return nil
-		default:
+		if c.conn_err == fmt.Errorf("关闭连接") {
+			log.Printf("ERROR 驱动:%s 连接未建立", c.Drive.Name)
+			return
 		}
 
-		if c.conn_err == conn_err_close {
-			return nil
+		if i < 0 || i >= len(c.packets) {
+			i = 0 // 轮询完一个周期后重置索引
 		}
-
-		Get_Value_array := c.Read(i)
-
-		Callback(Get_Value_array)
-
-		time.Sleep(c.Drive.Config.Delay_between_polls)
-
+		packet := c.packets[i]
 		i++
 
-		if i >= Packets_len {
-			Packets_len = len(c.Packets)
-			i = 0
+		time.Sleep(c.Drive.Config.Delay_between_polls) // 轮询间隔
+
+		var (
+			byte_list []byte
+			err       error
+		)
+		switch packet.Function {
+		case 1:
+			byte_list, err = (*c.conn).ReadCoils(packet.SlaveID, packet.Start_Address, packet.Number_Address)
+		case 2:
+			byte_list, err = (*c.conn).ReadDiscreteInputs(packet.SlaveID, packet.Start_Address, packet.Number_Address)
+		case 3:
+			byte_list, err = (*c.conn).ReadHoldingRegistersBytes(packet.SlaveID, packet.Start_Address, packet.Number_Address)
+		case 4:
+			byte_list, err = (*c.conn).ReadInputRegistersBytes(packet.SlaveID, packet.Start_Address, packet.Number_Address)
+		default:
+			c.Error_External_Mappings_list(packet.Tags, "Unknown function code")
+		}
+
+		if err != nil {
+			log.Printf("ERROR 设备id:%d 读取错误:%v", c.Drive.Id, err)
+			c.Error_External_Mappings_list(packet.Tags, err.Error())
 			continue
+		}
+
+		read_list, err := c.analysis(packet, byte_list)
+		if err != nil {
+			log.Printf("ERROR 设备id:%d 分析错误:%v", c.Drive.Id, err)
+			c.Error_External_Mappings_list(packet.Tags, err.Error())
+			continue
+		}
+
+		// 外部映射
+		if c.Read_External_Mappings != nil {
+			c.Read_External_Mappings(read_list)
 		}
 
 	}
 
 }
 
-/*
-************************写值************************
- */
+// 写入组包
+func (c *Modbus_Tcp) write_packet(packet Packet_type, tag_points_map map[string]fullConfig.Value_type) error {
 
-func (c *Connect_struct) Write(point_id uint, value any) (exist bool, err error) {
-	point_config, err := c.query_points_config(point_id)
-	if err != nil {
-		return false, nil
-	}
+	bool_value_address := make(map[uint16]bool) // 线圈地址与值的映射
 
-	if point_config.Id != point_id {
-		return false, nil
-	}
-
-	if point_config.Drive_Type != "modbus_tcp" {
-		log.Printf("ERROR modbus_tcp写值错误:点位设备类型, 点位id%d,驱动%s", point_id, point_config.Drive_Type)
-		return true, fmt.Errorf("ERROR modbus_tcp写值错误:点位设备类型, 点位id%d,驱动%s", point_id, point_config.Drive_Type)
-	}
-
-	if !(point_config.RW_Cancel == "W/R" || point_config.RW_Cancel == "W") {
-		log.Printf("ERROR modbus_tcp写值错误:禁止写, 点位id%d,读写模式%s", point_id, point_config.RW_Cancel)
-		return true, fmt.Errorf("ERROR modbus_tcp写值错误:禁止写, 点位id%d,读写模式%s", point_id, point_config.RW_Cancel)
-	}
-
-	// 写01功能码值
-	if point_config.Config.Function == "01" {
-		return true, c.Write_register_Coils_tatus(point_config, value)
-	}
-
-	// 写03功能码
-	if point_config.Config.Function == "03" {
-		return true, c.Write_register_Input_register(point_config, value)
-	}
-
-	log.Printf("ERROR modbus_tcp写值错误:未执行, 点位id%d,功能码%s", point_id, point_config.Config.Function)
-	return true, fmt.Errorf("功能码错误")
-
-}
-
-// 你定义的结构体（完全保留）
-type PackAddressPackages_Point_type struct {
-	PointID   uint   // 点位id 唯一的 + 不能为0 + 不能重复
-	StartAddr uint16 // 点位开始值
-	DataLen   uint16 // 点位类型长度
-	EndAddr   uint16 // 内部计算用
-}
-
-// 组包结果结构
-type PackageResult struct {
-	StartAddr uint16
-	DataLen   uint16
-	PointIDs  []uint // 改成 uint 匹配你的结构
-}
-
-// PackAddressPackages 终极修复版 → 连续地址1、2、3一定会合并！
-func PackAddressPackages(addrList []PackAddressPackages_Point_type, maxPackageLen uint16) ([]PackageResult, error) {
-	if len(addrList) == 0 {
-		return nil, errors.New("输入点位列表不能为空")
-	}
-
-	// 自动计算 EndAddr + 过滤有效点位
-	var validPoints []PackAddressPackages_Point_type
-	for _, p := range addrList {
-		if p.DataLen <= 0 {
-			fmt.Printf("跳过无效点位：PointID=%d\n", p.PointID)
-			continue
+	now := time.Now()
+	var byte_list []byte
+	for _, tag := range packet.Tags {
+		var cfg Points_Config_type
+		cfg, err := c.tag_points_index(tag)
+		if err != nil {
+			err = fmt.Errorf("设备id:%d %v", c.Drive.Id, err)
+			log.Print(err)
+			return err
 		}
-		p.EndAddr = p.StartAddr + p.DataLen - 1
-		validPoints = append(validPoints, p)
-	}
+		v, exists := tag_points_map[tag]
+		if !exists {
+			err = fmt.Errorf("ERROR modbus_tcp: 写入值不存在, tag: %s", tag)
+			log.Print(err)
+			return err
+		}
 
-	// 按起始地址排序
-	sort.Slice(validPoints, func(i, j int) bool {
-		return validPoints[i].StartAddr < validPoints[j].StartAddr
-	})
+		// 时间确认
+		if !v.Time.IsZero() {
+			duration := now.Sub(v.Time)
+			if duration >= (5*time.Second) || duration <= (5*time.Second) {
+				err = fmt.Errorf("ERROR modbus_tcp: 写入值时间间隔过长, tag: %s, 时间间隔: %s", tag, duration)
+				log.Print(err)
+				return err
 
-	var packages []PackageResult
-
-	// 核心合并逻辑（连续地址必合并）
-	for _, point := range validPoints {
-		merged := false
-
-		// 尝试合并到最后一个包
-		if len(packages) > 0 {
-			last := &packages[len(packages)-1]
-			lastEnd := last.StartAddr + last.DataLen - 1
-
-			// ==============================
-			// 关键：只要 连续 / 重叠 就合并
-			// ==============================
-			if point.StartAddr <= lastEnd+1 { // +1 兼容连续地址
-				newEnd := max(lastEnd, point.EndAddr)
-				newLen := newEnd - last.StartAddr + 1
-
-				// 不超限才合并
-				if maxPackageLen == 0 || newLen <= maxPackageLen {
-					last.DataLen = newLen
-					last.PointIDs = append(last.PointIDs, point.PointID)
-					merged = true
-				}
 			}
 		}
 
-		// 不能合并 → 新建包
-		if !merged {
-			packages = append(packages, PackageResult{
-				StartAddr: point.StartAddr,
-				DataLen:   point.DataLen,
-				PointIDs:  []uint{point.PointID},
-			})
+		// 类型确认
+		if v.Type != cfg.Value_Type {
+			err = fmt.Errorf("ERROR modbus_tcp: 配置类型与写入值类型不匹配, tag: %s, 配置类型: %s, 值类型: %s", tag, cfg.Value_Type, v.Type)
+			log.Print(err)
+			return err
+		}
+
+		index := cfg.Config.Address - packet.Start_Address // 计算相对地址索引
+		if !byte_util.Is_Type_Match(v.Value, cfg.Value_Type) {
+			err = fmt.Errorf("ERROR modbus_tcp: 写入值类型不匹配, tag: %s, 配置类型: %s, 值类型: %T", tag, cfg.Value_Type, v.Value)
+			log.Print(err)
+			return err
+		}
+
+		if !byte_util.Is_Type_Match(v.Value, cfg.Config.Type) {
+			err = fmt.Errorf("ERROR modbus_tcp: 写入值类型不匹配, tag: %s, 配置类型: %s, 值类型: %T", tag, cfg.Value_Type, v.Value)
+			log.Print(err)
+			return err
+		}
+
+		switch {
+		case cfg.Value_Type == "bool" && packet.Function == 1:
+			a := byte_util.Get_list_index(byte_list, int(index)/8, 1)
+			b := byte_util.BytesToBool(a)
+			b[index] = v.Value.(bool)
+			rb := byte_util.BoolToBytes(b)
+			byte_util.Update_List_Slice(&byte_list, int(index), rb)
+		case cfg.Value_Type == "bool" && packet.Function == 3:
+			if !bool_value_address[cfg.Config.Address] {
+				byte_list, err = (*c.conn).ReadHoldingRegistersBytes(cfg.Config.SlaveID, cfg.Config.Address, 1)
+				if err != nil {
+					log.Print(err)
+					return err
+				}
+				byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(byte_list, 0, 2))
+			}
+			a := byte_util.Get_list_index(byte_list, int(index)*2, 2)
+			bool_list := byte_util.Get_list_index(byte_util.BytesToBool(a), 0, 16)
+			if cfg.Config.Child_Address > 15 {
+				err = fmt.Errorf("ERROR modbus_tcp: 子地址超出范围, tag: %s", tag)
+				return err
+			}
+			bool_list[cfg.Config.Child_Address] = v.Value.(bool)
+			b := byte_util.Get_list_index(byte_util.BoolToBytes(bool_list), 0, 2)
+			byte_util.Update_List_Slice(&byte_list, int(index)*2, b)
+		case cfg.Value_Type == "uint16" && packet.Function == 3:
+			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
+				byte_util.Uint16ToBytes([]uint16{uint16(v.Value.(uint16))}, cfg.Config.Byte_Order),
+				0, 2))
+		case cfg.Value_Type == "int16" && packet.Function == 3:
+			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
+				byte_util.Int16ToBytes([]int16{int16(v.Value.(int16))}, cfg.Config.Byte_Order),
+				0, 2))
+		case cfg.Value_Type == "uint32" && packet.Function == 3:
+			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
+				byte_util.Uint32ToBytes([]uint32{uint32(v.Value.(uint32))}, cfg.Config.Byte_Order),
+				0, 2))
+		case cfg.Value_Type == "int32" && packet.Function == 3:
+			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
+				byte_util.Int32ToBytes([]int32{int32(v.Value.(int32))}, cfg.Config.Byte_Order),
+				0, 2))
+		case cfg.Value_Type == "float32" && packet.Function == 3:
+			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
+				byte_util.Float32ToBytes([]float32{v.Value.(float32)}, cfg.Config.Byte_Order),
+				0, 2))
+		default:
+			err = fmt.Errorf("ERROR modbus_tcp: 不支持的类型: %s, tag: %s", cfg.Value_Type, tag)
+			log.Print(err)
+			return err
+		}
+	}
+	switch packet.Function {
+	case 1:
+		a := byte_util.Get_list_index(byte_list, 0, int(packet.Number_Address))
+		return (*c.conn).WriteMultipleCoils(packet.SlaveID, packet.Start_Address, packet.Number_Address, a)
+	case 3:
+		a := byte_util.Get_list_index(byte_list, 0, int(packet.Number_Address*2))
+		return (*c.conn).WriteMultipleRegistersBytes(packet.SlaveID, packet.Start_Address, packet.Number_Address, a)
+	}
+	log.Print("ERROR 未执行")
+	return fmt.Errorf("ERROR 未执行")
+}
+
+// 写入外部映射
+func (c *Modbus_Tcp) Write(values []fullConfig.Value_type) (err error) {
+	var points []Points_Config_type
+	tag_points_map := make(map[string]fullConfig.Value_type)
+	for _, v := range values {
+		tag_points_map[v.Tag] = v
+		var cfg Points_Config_type
+		cfg, err = c.tag_points_index(v.Tag)
+		if err != nil {
+			return err
+		}
+		points = append(points, cfg)
+	}
+
+	var packets []Packet_type
+	packets, err = c.packet(points, map[string]bool{"R/W": true, "W": true})
+	if err != nil {
+		return fmt.Errorf("ERROR 组包失败: %v", err)
+	}
+
+	for _, packet := range packets {
+		err = c.write_packet(packet, tag_points_map)
+		if err != nil {
+			log.Print(err)
+			continue
 		}
 	}
 
-	return packages, nil
-}
-
-// IsTimePassed
-// a: 前面的时间
-// b: 后面的时间
-// c: 需要判断是否过去的时长
-// return: true = a在b前面 + 间隔时间 >= c；false = 不满足任一条件
-func IsTimePassed(a, b time.Time, c time.Duration) bool {
-	// 1. 必须满足：a 在前面，b 在后面
-	if !a.Before(b) {
-		return false
-	}
-
-	// 2. 计算两个时间的间隔
-	duration := b.Sub(a)
-
-	// 3. 判断间隔是否 >= 指定时长
-	return duration > c
+	return
 }

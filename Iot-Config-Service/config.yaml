@@ -5,6 +5,7 @@ APP:
   aes_passwd: "123456"
   
 API:
+  enable: true
   ip: 0.0.0.0
   post: 8102
   header:

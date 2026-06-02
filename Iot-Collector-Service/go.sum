@@ -258,6 +258,8 @@ github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/things-go/go-modbus v0.0.0-20230304015233-5e82d75ae1c4 h1:1ttICDKJT9HGQMtSKbyWWQITtUB6y/Dl8eqjutVEne0=
 github.com/things-go/go-modbus v0.0.0-20230304015233-5e82d75ae1c4/go.mod h1:UZYqAlo35jiFH9mPak6Am1WMlT+s+zjtMhb/SZRSEF0=
+github.com/thinkgos/gomodbus/v2 v2.2.2 h1:2ZkVxPShxg9ew0UCANdRxL7ZGA6anwRo66e8zifo+6w=
+github.com/thinkgos/gomodbus/v2 v2.2.2/go.mod h1:YynqZtDx2kFRhA+Ajy9qtmWOUIs5BOi3EaX6WQwH/jo=
 github.com/tiendc/go-deepcopy v1.7.2 h1:Ut2yYR7W9tWjTQitganoIue4UGxZwCcJy3orjrrIj44=
 github.com/tiendc/go-deepcopy v1.7.2/go.mod h1:4bKjNC2r7boYOkD2IOuZpYjmlDdzjbpTRyCx+goBCJQ=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=

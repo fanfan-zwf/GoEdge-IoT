@@ -283,6 +283,10 @@ func Token_User_Id(ctx *gin.Context) (User_Id uint, err error) {
 }
 
 func Web() error {
+	if !Init.Config.API.Enable {
+		log.Print("INFO ", "api", "接口服务已禁用")
+		return nil
+	}
 
 	bind := fmt.Sprintf("%s:%d", Init.Config.API.Ip, Init.Config.API.Post)
 

@@ -36,12 +36,13 @@ type Config struct {
 }
 
 type Client interface {
-	Send(data []byte) error
-	Receive(maxLen int, timeout time.Duration) ([]byte, error)
-	ClearSendQueue()
-	Close() error
-	OnConnected(at time.Duration, callback func())
-	Reconnect(newCfg *Config) error // 新增
+	Send(data []byte) error                                     // 发送数据
+	Receive(maxLen int, timeout time.Duration) ([]byte, error)  // 接收数据
+	ClearSendQueue()                                            // 清空发送队列
+	ClearRecvBuffer(discardSize int, waitTimeout time.Duration) // 清空当前连接残留接收脏数据
+	Close() error                                               // 关闭
+	OnConnected(at time.Duration, callback func())              // 连接成功后定时循环执行
+	Reconnect(newCfg *Config) error                             // 新增
 }
 
 type baseClient struct {
@@ -159,6 +160,24 @@ func (b *baseClient) ClearSendQueue() {
 	}
 }
 
+// 清空当前连接残留接收脏数据
+func (b *baseClient) ClearRecvBuffer(discardSize int, waitTimeout time.Duration) {
+	conn := b.getConn()
+	if conn == nil || discardSize <= 0 {
+		return
+	}
+	buf := make([]byte, discardSize)
+	_ = conn.SetReadDeadline(time.Now().Add(waitTimeout))
+	// 循环丢弃剩余数据
+	for {
+		_, err := conn.Read(buf)
+		if err != nil {
+			break
+		}
+	}
+	// 恢复超时
+	_ = conn.SetReadDeadline(time.Time{})
+}
 func (b *baseClient) isClose() bool {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

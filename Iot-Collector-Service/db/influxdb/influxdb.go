@@ -7,6 +7,7 @@
 package influxdb
 
 import (
+	"main/IO/manager/fullConfig"
 	"main/Init"
 	"main/db/db_point"
 
@@ -68,11 +69,11 @@ type Connect_struct struct {
 
 // 定义接口
 type Connect_interface interface {
-	Connect() error                                  // 连接
-	Close() error                                    // 关闭连接
-	Packet() error                                   // 组包
-	initInfluxDB() (err error)                       // 初始化InfluxDB客户端（程序启动时执行1次）
-	Write(data []db_point.Db_Value_type) (err error) // 批量写入函数
+	Connect() error                                 // 连接
+	Close() error                                   // 关闭连接
+	Packet() error                                  // 组包
+	initInfluxDB() (err error)                      // 初始化InfluxDB客户端（程序启动时执行1次）
+	Write(data []fullConfig.Value_type) (err error) // 批量写入函数
 
 }
 
@@ -110,7 +111,7 @@ func (c *Connect_struct) initInfluxDB() (err error) {
 }
 
 // 批量写入函数
-func (c *Connect_struct) Write(data []db_point.Db_Value_type) (err error) {
+func (c *Connect_struct) Write(data []fullConfig.Value_type) (err error) {
 	if c.client == nil || len(data) == 0 {
 		err = fmt.Errorf("客户端未连接")
 		return
@@ -267,13 +268,8 @@ func init() {
 	db_point.Update_Subscriber(a)
 }
 
-func a(value []db_point.Update_Value_type) error {
-	var db_value []db_point.Db_Value_type
-	for _, v := range value {
-		db_value = append(db_value, v.Db_Value_type)
-	}
-
-	err := c.Write(db_value)
+func a(value []fullConfig.Value_type) error {
+	err := c.Write(value)
 	if err != nil {
 		log.Print(err.Error())
 	}

@@ -76,7 +76,10 @@ type Drive_Config_Update_type struct {
 	Config string // json配置参数
 }
 type Drive_Config_type struct {
-	Drive_Config_Update_type
+	Id     uint   // 驱动id
+	Name   string // 驱动名称
+	Config string // json配置参数
+
 	Type          string    // 驱动类型
 	Points_Length uint      // 点位数量
 	Creation_Time time.Time // 创建时间

@@ -3,10 +3,10 @@ package mqtt_rpc
 import (
 	"main/Init"
 	"main/db/mysql"
-	"reflect"
 
 	"fmt"
 	"log"
+	"reflect"
 )
 
 func app_restart(req []byte) (rep []byte, err error) {
@@ -14,9 +14,19 @@ func app_restart(req []byte) (rep []byte, err error) {
 	}
 
 	return jsonWrap(req, func(r Req) (rep string, err error) {
-		log.Println("未开发")
-		rep = "未开发"
+		rep = "未开发！"
 		err = fmt.Errorf("测试错误")
+		return
+	})
+}
+
+func collector_reload(req []byte) (rep []byte, err error) {
+	type Req struct {
+	}
+
+	return jsonWrap(req, func(r Req) (rep string, err error) {
+
+		rep = "ok"
 		return
 	})
 }
@@ -297,6 +307,7 @@ func collector_synchronise_config(req []byte) (rep []byte, err error) {
 func register() {
 	M.Register(Init.Config.Mqtt_Rpc.Broker, "/Order/App/Restart", app_restart)
 	M.Register(Init.Config.Mqtt_Rpc.Broker, "/Order/Collector/Config", collector_synchronise_config)
+	M.Register(Init.Config.Mqtt_Rpc.Broker, "/Order/Collector/Reload", collector_reload)
 }
 func Collector_Info__Count(page uint, pageSize uint) (resp uint, err error) {
 	type Req struct {

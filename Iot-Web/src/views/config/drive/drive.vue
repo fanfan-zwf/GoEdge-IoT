@@ -377,10 +377,17 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
         { prop: 'Ip', label: 'IP地址', type: 'string', placeholder: '请输入设备IP地址' },
         { prop: 'Port', label: '端口', type: 'number', placeholder: '请输入设备端口，默认502' },
         { prop: 'RetryTime', label: '重试间隔', type: 'unit', unitType: 's', placeholder: '请输入重试间隔，默认12s' },
-        { prop: 'Timeout', label: '超时时间', type: 'unit', unitType: 's', placeholder: '请输入超时时间，默认3s' },
-        { prop: 'Interval', label: '间隔时间', type: 'unit', unitType: 'ms', placeholder: '请输入间隔时间，默认20ms' },
-        { prop: 'Response', label: '响应时间', type: 'unit', unitType: 'ms', placeholder: '请输入响应时间，默认200ms' },
-        { prop: 'Packet_max', label: '组包字节个数', type: 'unit', placeholder: '请输入组包字节个数，默认64' }
+        { prop: 'Timeout', label: '连接超时', type: 'unit', unitType: 's', placeholder: '请输入超时时间，默认3s' },
+        { prop: 'Interval', label: '响应超时', type: 'unit', unitType: 'ms', placeholder: '请输入间隔时间，默认20ms' },
+        { prop: 'Response', label: '轮询间隔', type: 'unit', unitType: 'ms', placeholder: '请输入响应时间，默认200ms' },
+        { prop: 'Packet_max', label: '组包字节个数', type: 'unit', placeholder: '请输入组包字节个数，默认64' },
+   {
+            prop: 'concurrency', label: '并发', type: 'select',
+            options: [
+                { label: 'true', value: 'true' },
+                { label: 'false', value: 'false' }
+            ]
+        },
     ],
     "Modbus_Rtu": [
         { prop: 'PortName', label: '串口号', type: 'string', placeholder: '请输入串口号' },

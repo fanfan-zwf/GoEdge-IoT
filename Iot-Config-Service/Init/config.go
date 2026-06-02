@@ -33,6 +33,7 @@ type Config_type struct {
 	} `yaml:"APP"` // 程序主要参数
 
 	API struct {
+		Enable bool   `yaml:"enable"`
 		Ip     string `yaml:"ip"`
 		Post   uint16 `yaml:"post"`
 		Header []struct {

@@ -2,12 +2,10 @@ package main
 
 import (
 	"log"
-	"main/IO/run"
+	"main/IO/manager"
 	"main/app/mqtt_rpc"
 	"main/db/db_point"
-	"main/db/influxdb"
-	"main/db/mysql"
-	"main/db/redis"
+	"main/web"
 
 	"os"
 	"os/signal"
@@ -24,20 +22,19 @@ func app() (err error) {
 	if err != nil {
 		log.Panic(err.Error())
 	}
+	err = web.Web()
+	if err != nil {
+		log.Panic(err.Error())
+	}
 
 	err = db_point.New()
 	if err != nil {
 		log.Panic(err.Error())
 	}
 
-	err = influxdb.New()
-	if err != nil {
-		log.Panic(err.Error())
-	}
-
 	time.Sleep(200 * time.Millisecond)
 
-	err = run.New()
+	err = manager.New()
 	if err != nil {
 		log.Panic(err.Error())
 	}
@@ -45,8 +42,6 @@ func app() (err error) {
 }
 
 func exit() {
-	mysql.DB.Close()
-	redis.Rdb.Close()
 
 }
 
