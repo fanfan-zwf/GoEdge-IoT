@@ -8,17 +8,52 @@ package mysql
 
 import (
 	"main/Init"
-	"regexp"
-	"strings"
 
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"log"
+	"regexp"
 	"slices"
-
+	"strings"
 	"time"
 )
 
+// Duration 自定义类型，只给 MySQL 用
+// JSON 还是用官方原生解析，完全不受影响！
+type Duration time.Duration
+
+// 👇 核心：MySQL 字符串 → Go time.Duration
+func (d *Duration) Scan(value any) error {
+	if value == nil {
+		*d = 0
+		return nil
+	}
+
+	var str string
+	switch v := value.(type) {
+	case []byte:
+		str = string(v)
+	case string:
+		str = v
+	}
+
+	dur, err := time.ParseDuration(str)
+	if err != nil {
+		return err
+	}
+
+	*d = Duration(dur)
+	return nil
+}
+
+// 👇 核心：Go time.Duration → MySQL 字符串
+func (d Duration) Value() (driver.Value, error) {
+	return time.Duration(d).String(), nil
+}
+func (d Duration) D() time.Duration {
+	return time.Duration(d)
+}
 func init() {
 	Init.Log__Add2 = Log__Add2
 }
@@ -36,10 +71,10 @@ type User__table_type struct {
 	Phone        string // 电话
 	Email        string // 邮箱
 
-	Refresh_Token_bits int // 刷新令牌RSA密钥长度
-	Access_Token_bits  int // 访问令牌RSA密钥长度
-	Refresh_Token_TTL  int // 刷新令牌过期时间
-	Access_Token_TTL   int // 访问令牌过期时间
+	Refresh_Token_bits int      // 刷新令牌RSA密钥长度
+	Access_Token_bits  int      // 访问令牌RSA密钥长度
+	Refresh_Token_TTL  Duration // 刷新令牌过期时间
+	Access_Token_TTL   Duration // 访问令牌过期时间
 }
 
 type User__all_table_type struct {
@@ -746,8 +781,8 @@ func User__All_Query(Page uint, Page_Size uint) (User_Array []User__table_type, 
 }
 
 type User__Query_Id__AccessTokenBits_AccessTokenTTL_type struct {
-	Access_Token_bits int           // 访问令牌RSA密钥长度
-	Access_Token_TTL  time.Duration // 访问令牌过期时间
+	Access_Token_bits int      // 访问令牌RSA密钥长度
+	Access_Token_TTL  Duration // 访问令牌过期时间
 }
 
 // 查询接口信息
@@ -2319,13 +2354,13 @@ type Api__table_type struct {
 	Id                 uint
 	User_Id            uint // 用户id
 	ApiKey             string
-	Secret             string // 秘密
-	Allow_Ip           string // ip
-	Discontinued       bool   // 是否禁用
-	Refresh_Token_bits int    // 刷新令牌RSA密钥长度
-	Access_Token_bits  int    // 访问令牌RSA密钥长度
-	Refresh_Token_TTL  int    // 刷新令牌过期时间
-	Access_Token_TTL   int    // 访问令牌过期时间
+	Secret             string   // 秘密
+	Allow_Ip           string   // ip
+	Discontinued       bool     // 是否禁用
+	Refresh_Token_bits int      // 刷新令牌RSA密钥长度
+	Access_Token_bits  int      // 访问令牌RSA密钥长度
+	Refresh_Token_TTL  Duration // 刷新令牌过期时间
+	Access_Token_TTL   Duration // 访问令牌过期时间
 }
 
 // 查询接口信息

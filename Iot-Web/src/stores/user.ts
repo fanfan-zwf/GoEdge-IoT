@@ -30,6 +30,7 @@ export const useUserStore = defineStore('user', () => {
   const setUserInfo = (value: User__table_interface) => {
     Object.assign(userState, value)
   }
+ 
 
   // 重置为初始状态（登出必备）
   const resetUserState = () => {
@@ -42,6 +43,6 @@ export const useUserStore = defineStore('user', () => {
     // 获取/设置/重置
     userInfo,
     setUserInfo,
-    resetUserState,
+    resetUserState, 
   }
 })

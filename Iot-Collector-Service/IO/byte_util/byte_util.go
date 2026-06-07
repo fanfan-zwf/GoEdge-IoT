@@ -9,7 +9,6 @@ package byte_util
 
 import (
 	"math"
-	"reflect"
 )
 
 // ==============================
@@ -405,20 +404,4 @@ func Update_List_Slice[T any](arr *[]T, startIndex int, values []T) {
 	for i := range values {
 		(*arr)[startIndex+i] = values[i]
 	}
-}
-
-// Is_Type_Match
-// 传入：
-//
-//	value any    要判断的值
-//	typeName string  类型字符串："bool"、"uint"、"uint8"、"uint16"、"uint32"、"uint64"、"int"、"int8"、"int32"、"int64"、"float32"、"float64"、"string"
-//
-// 返回：是否完全匹配
-func Is_Type_Match(value any, typeName string) bool {
-	if value == nil {
-		return false
-	}
-
-	// 获取值的真实类型名称
-	return reflect.TypeOf(value).Name() == typeName
 }

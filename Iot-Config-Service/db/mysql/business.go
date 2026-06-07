@@ -1110,7 +1110,10 @@ type Points_Config_Add_type struct {
 	Description string // 点位描述
 	RW_Cancel   string // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
 	Value_Type  string // 输出类型
-	Config      string
+	Config      string // 配置信息
+	History     string // 存储
+	Alarm       string // 报警
+	Alarm_Group int    // 报警组
 }
 
 // 点位配置更新结构体
@@ -1120,7 +1123,10 @@ type Points_Config_Update_type struct {
 	Description string // 点位描述
 	RW_Cancel   string // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
 	Value_Type  string // 输出类型
-	Config      string
+	Config      string // 配置信息
+	History     string // 存储
+	Alarm       string // 报警
+	Alarm_Group int    // 报警组
 }
 
 // 点位配置结构体
@@ -1203,6 +1209,9 @@ func Points_Config__Query_Callback(collectorId []uint, driveid []uint, page uint
 			Points_Config.RW_Cancel,
 			Points_Config.Value_Type,
 			Points_Config.Creation_Time,
+			Points_Config.History,
+			Points_Config.Alarm,
+			Points_Config.Alarm_Group,
 			Drive_Config.Id AS Drive_Id,
 			Drive_Config.Type AS Drive_Type,
 			Drive_Config.Name AS Drive_Name,
@@ -1259,6 +1268,9 @@ func Points_Config__Query_Callback(collectorId []uint, driveid []uint, page uint
 		var (
 			config      Points_Config_type
 			Description sql.NullString
+			History     sql.NullString // 存储
+			Alarm       sql.NullString // 报警
+			Alarm_Group sql.NullInt16  // 报警
 		)
 		err = rows.Scan(
 			&config.Id,
@@ -1268,6 +1280,9 @@ func Points_Config__Query_Callback(collectorId []uint, driveid []uint, page uint
 			&config.RW_Cancel,
 			&config.Value_Type,
 			&config.Creation_Time,
+			&History,
+			&Alarm,
+			&Alarm_Group,
 			&config.Drive.Id,
 			&config.Drive.Type,
 			&config.Drive.Name,
@@ -1279,8 +1294,20 @@ func Points_Config__Query_Callback(collectorId []uint, driveid []uint, page uint
 			log.Print(err.Error())
 			return err
 		}
-
 		config.Description = Description.String
+		config.History = History.String
+		if !History.Valid || History.String == "" {
+			config.History = "null"
+		} else {
+			config.History = History.String
+		}
+
+		if !Alarm.Valid || Alarm.String == "" {
+			config.Alarm = "null"
+		} else {
+			config.Alarm = Alarm.String
+		}
+		config.Alarm_Group = int(Alarm_Group.Int16)
 		callback(config)
 	}
 
@@ -1354,7 +1381,10 @@ func Points_Config__Add(configs ...Points_Config_Add_type) (err error) {
 			RW_Cancel,
 			Value_Type,
 			Config,
-			Creation_Time
+			Creation_Time,
+			History,
+			Alarm,
+			Alarm_Group
 		) VALUES
 	`
 
@@ -1369,7 +1399,7 @@ func Points_Config__Add(configs ...Points_Config_Add_type) (err error) {
 	for _, cfg := range configs {
 		ids = append(ids, cfg.Drive_Id)
 		// 占位符 8 个值
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?, ?)")
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 
 		args = append(args,
 			cfg.Id, // 👈 关键：Id=0自增，非0用传入
@@ -1380,6 +1410,18 @@ func Points_Config__Add(configs ...Points_Config_Add_type) (err error) {
 			cfg.Value_Type,
 			cfg.Config,
 			now, // 创建时间统一用当前时间
+			sql.NullString{
+				String: cfg.History,
+				Valid:  cfg.History != "" && cfg.History != "null",
+			},
+			sql.NullString{
+				String: cfg.Alarm,
+				Valid:  cfg.Alarm != "" && cfg.Alarm != "null",
+			},
+			sql.NullInt16{
+				Int16: int16(cfg.Alarm_Group),
+				Valid: cfg.Alarm_Group != 0,
+			},
 		)
 	}
 
@@ -1447,6 +1489,30 @@ func Points_Config__Update(configs ...Points_Config_Update_type) (err error) {
 		if cfg.Config != "" {
 			setClauses = append(setClauses, "`Config` = ?")
 			args = append(args, cfg.Config)
+		}
+
+		if cfg.History != "" {
+			setClauses = append(setClauses, "`History` = ?")
+			args = append(args, sql.NullString{
+				String: cfg.History,
+				Valid:  cfg.History != "null",
+			})
+		}
+
+		if cfg.Alarm != "" {
+			setClauses = append(setClauses, "`Alarm` = ?")
+			args = append(args, sql.NullString{
+				String: cfg.Alarm,
+				Valid:  cfg.Alarm != "null",
+			})
+		}
+
+		if cfg.Alarm_Group != 0 {
+			setClauses = append(setClauses, "`Alarm_Group` = ?")
+			args = append(args, sql.NullInt16{
+				Int16: int16(cfg.Alarm_Group),
+				Valid: cfg.Alarm_Group != 0,
+			})
 		}
 
 		setClauses = append(setClauses, "`Creation_Time` = ?")

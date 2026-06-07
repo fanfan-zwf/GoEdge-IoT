@@ -12,8 +12,8 @@
                 <el-table-column prop="Last_Activity_Time" label="最后活动时间" width="230" align="center" />
                 <el-table-column label="操作" width="200" fixed="right">
                     <template #default="scope">
-                               <el-button size="small" @click="reloadRow(scope)">重载</el-button>
-                        <el-button size="small" @click="synchroniseRow(scope)">同步</el-button>
+                        <!-- <el-button size="small" @click="reloadRow(scope)">重载</el-button> -->
+                        <!-- <el-button size="small" @click="synchroniseRow(scope)">同步</el-button> -->
                         <el-button size="small" @click="editRow(scope)">编辑</el-button>
                         <el-button size="small" type="danger" @click="deleteRow(scope)">删除</el-button>
                     </template>
@@ -154,7 +154,7 @@ const synchroniseRow = (scope: any) => {
     })
 }
 
-const reloadRow=(scope: any) => {
+const reloadRow = (scope: any) => {
     const Uuid: string = scope.row.Uuid ?? ""
     if (Uuid === "") {
         ElMessage.error('无效的uuid')

@@ -1,4 +1,4 @@
-package mqtt_rpc
+package mqtt
 
 import (
 	"crypto/rand"
@@ -312,18 +312,21 @@ func (m *MqttManager) Close() {
 var M *MqttManager
 
 func New() error {
+	if !Init.Config.Mqtt.Enable {
+		return nil
+	}
 	M = NewMqttManager()
-	err := M.Add(Init.Config.Mqtt_Rpc.Broker, MqttConfig{
-		Broker:            Init.Config.Mqtt_Rpc.Broker,
-		Username:          Init.Config.Mqtt_Rpc.Username,
-		Password:          Init.Config.Mqtt_Rpc.Password,
-		ClientID:          Init.Config.Mqtt_Rpc.ClientID,
-		SetCleanSession:   Init.Config.Mqtt_Rpc.SetCleanSession,
-		SetAutoReconnect:  Init.Config.Mqtt_Rpc.SetAutoReconnect,
-		SetConnectTimeout: Init.Config.Mqtt_Rpc.SetConnectTimeout,
-		SetWriteTimeout:   Init.Config.Mqtt_Rpc.SetWriteTimeout,
-		SetKeepAlive:      Init.Config.Mqtt_Rpc.SetKeepAlive,
-		ListenTopic:       Init.Config.Mqtt_Rpc.ListenTopic,
+	err := M.Add(Init.Config.Mqtt.Broker, MqttConfig{
+		Broker:            Init.Config.Mqtt.Broker,
+		Username:          Init.Config.Mqtt.Username,
+		Password:          Init.Config.Mqtt.Password,
+		ClientID:          Init.Config.Mqtt.ClientID,
+		SetCleanSession:   Init.Config.Mqtt.SetCleanSession,
+		SetAutoReconnect:  Init.Config.Mqtt.SetAutoReconnect,
+		SetConnectTimeout: Init.Config.Mqtt.SetConnectTimeout,
+		SetWriteTimeout:   Init.Config.Mqtt.SetWriteTimeout,
+		SetKeepAlive:      Init.Config.Mqtt.SetKeepAlive,
+		ListenTopic:       Init.Config.Mqtt.ListenTopic,
 	})
 	if err != nil {
 		log.Fatalf("MQTT 初始化失败: %v", err)
@@ -339,7 +342,7 @@ func New() error {
 func jsonWrap[T any, R any](req []byte, business func(req T) (R, error)) ([]byte, error) {
 	var reqData T
 	if err := json.Unmarshal(req, &reqData); err != nil {
-		log.Println("JSON 解析失败:", err)
+		log.Println("ERROR JSON 解析失败:", err)
 		return nil, err
 	}
 
@@ -360,21 +363,88 @@ func jsonCall[Req any, Resp any](
 	method string,
 	timeout time.Duration,
 ) error {
+	if !Init.Config.Mqtt.Enable {
+		return fmt.Errorf("ERROR Mqtt未启用")
+	}
 	reqBytes, err := json.Marshal(reqData)
 	if err != nil {
-		log.Println("请求打包失败:", err)
+		log.Println("ERROR 请求打包失败:", err)
 		return err
 	}
 
 	respBytes, err := M.Call(broker, topic, method, reqBytes, timeout)
 	if err != nil {
-		log.Println("RPC 调用失败:", err)
+		log.Println("ERROR RPC 调用失败:", err)
 		return err
 	}
 
 	if err := json.Unmarshal(respBytes, respData); err != nil {
-		log.Println("响应解析失败:", err, "内容:", string(respBytes))
+		log.Println("ERROR 响应解析失败:", err, "内容:", string(respBytes))
 		return err
 	}
+	return nil
+}
+
+// ====================== 自定义自由 MQTT 收发（含取消订阅）======================
+
+// Send 自定义发送：broker名称 + 目标topic + 数据
+func Send(broker string, topic string, data []byte) error {
+	M.mu.RLock()
+	inst, ok := M.inst[broker]
+	M.mu.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("mqtt 实例不存在: %s", broker)
+	}
+
+	token := inst.client.Publish(topic, 1, false, data)
+	if token.Wait() && token.Error() != nil {
+		return token.Error()
+	}
+	return nil
+}
+
+// Subscribe 自定义订阅：broker + topic + 回调函数
+func Subscribe(broker string, topic string, callback func(data []byte)) error {
+	M.mu.RLock()
+	inst, ok := M.inst[broker]
+	M.mu.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("mqtt 实例不存在: %s", broker)
+	}
+
+	token := inst.client.Subscribe(topic, 1, func(client mqtt.Client, msg mqtt.Message) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("订阅回调 panic: %v", r)
+			}
+		}()
+		callback(msg.Payload())
+	})
+	if token.Wait() && token.Error() != nil {
+		return token.Error()
+	}
+
+	log.Printf("订阅成功: broker=%s, topic=%s", broker, topic)
+	return nil
+}
+
+// Subscribe_Close 取消订阅
+func Subscribe_Close(broker string, topic string) error {
+	M.mu.RLock()
+	inst, ok := M.inst[broker]
+	M.mu.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("mqtt 实例不存在: %s", broker)
+	}
+
+	token := inst.client.Unsubscribe(topic)
+	if token.Wait() && token.Error() != nil {
+		return token.Error()
+	}
+
+	log.Printf("取消订阅成功: broker=%s, topic=%s", broker, topic)
 	return nil
 }

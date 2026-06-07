@@ -55,8 +55,8 @@ var expectTableRules = []TableRule{
 			{ColumnName: "Avatar", ColumnType: "varchar(200)", IsAutoInc: false, IsRequired: false, DefaultValue: ""},                // 头像路径
 			{ColumnName: "Refresh_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "2048"},          // 刷新令牌RSA密钥长度
 			{ColumnName: "Access_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "1024"},           // 访问令牌RSA密钥长度
-			{ColumnName: "Refresh_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "86400"}, // 刷新令牌过期时间s
-			{ColumnName: "Access_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "1800"},
+			{ColumnName: "Refresh_Token_TTL", ColumnType: "varchar(32)", IsAutoInc: false, IsRequired: true, DefaultValue: "2h"},     // 刷新令牌过期时间s
+			{ColumnName: "Access_Token_TTL", ColumnType: "varchar(32)", IsAutoInc: false, IsRequired: true, DefaultValue: "2m"},      // 访问令牌过期时间s
 		},
 	}, {
 		TableName:    "User_Terminal",
@@ -133,8 +133,8 @@ var expectTableRules = []TableRule{
 			{ColumnName: "Discontinued", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: true, DefaultValue: "0"},             // 停用
 			{ColumnName: "Refresh_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "2048"},           // 刷新令牌RSA密钥长度
 			{ColumnName: "Access_Token_bits", ColumnType: "int", IsAutoInc: false, IsRequired: true, DefaultValue: "1024"},            // 访问令牌RSA密钥长度
-			{ColumnName: "Refresh_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "86400"},  // 刷新令牌过期时间s
-			{ColumnName: "Access_Token_TTL", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: "1800"},    // 访问令牌过期时间s
+			{ColumnName: "Refresh_Token_TTL", ColumnType: "varchar(32)", IsAutoInc: false, IsRequired: true, DefaultValue: "2h"},      // 刷新令牌过期时间s
+			{ColumnName: "Access_Token_TTL", ColumnType: "varchar(32)", IsAutoInc: false, IsRequired: true, DefaultValue: "2m"},       // 访问令牌过期时间s
 		},
 	},
 }
@@ -634,7 +634,7 @@ func CheckAndFixTableStructure(tableRule TableRule) {
 		}
 	}
 
-	log.Printf("表[%s]结构完全符合预期", tableName)
+	// log.Printf("表[%s]结构完全符合预期", tableName)
 }
 
 // 辅助函数：检查表是否存在

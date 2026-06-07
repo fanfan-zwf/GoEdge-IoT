@@ -80,6 +80,10 @@ var expectTableRules = []TableRule{
 			{ColumnName: "RW_Cancel", ColumnType: "varchar(100)", IsRequired: true, DefaultValue: "N"},
 			{ColumnName: "Value_Type", ColumnType: "varchar(100)", IsRequired: true},
 			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+
+			{ColumnName: "History", ColumnType: "varchar(100)"},
+			{ColumnName: "Alarm", ColumnType: "varchar(100)"},
+			{ColumnName: "Alarm_Group", ColumnType: "tinyint unsigned"},
 		},
 	},
 }

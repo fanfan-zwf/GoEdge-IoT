@@ -5,7 +5,7 @@ APP:
   aes_passwd: "123456"
   
 API:
-  enable: true
+  enable: True
   ip: 0.0.0.0
   post: 8102
   header:
@@ -26,7 +26,7 @@ REDIS:
   database: 2
  
 LOG:
-  enable: true
+  enable: True
   path: ./logs
   cacheTTL: 30s
   flags: Ldate Lmicroseconds Llongfile
@@ -38,7 +38,8 @@ User_Service:
   secret: "123456"
   timeout: 30s 
 
-Mqtt_Rpc:
+Mqtt:
+  enable: True
   broker: tcp://127.0.0.1:1883
   username: o7aKZOj53p2PkkFJzKzM
   password: lpj4VZ4ZYFg5GmINhRat

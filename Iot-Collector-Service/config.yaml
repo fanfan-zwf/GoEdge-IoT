@@ -42,7 +42,8 @@ API:
     - key: Access-Control-Allow-Headers
       value: Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, F_Access_Token, F_Refresh_Token, F_Terminal_Uuid
 
-Mqtt_Rpc:
+Mqtt:
+  enable: true
   broker: tcp://127.0.0.1:1883
   username: o7aKZOj53p2PkkFJzKzM
   password: lpj4VZ4ZYFg5GmINhRat
@@ -56,3 +57,8 @@ Mqtt_Rpc:
   business_timeout: 5s # 业务处理超时
   listen_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000 # 监听主题
   config_service_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174001 # 配置服务主题
+
+  # 发送mqtt数据
+  point_push_value: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000/point/push/value # 点位更新
+  point_down_value: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000/point/issue/value # 点下发报警
+  point_alarm_value: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000/point/alarm/value # 点位报警

@@ -67,7 +67,8 @@ type Config_type struct {
 		Timeout time.Duration `yaml:"timeout"`
 	} `yaml:"User_Service"` // 用户服务
 
-	Mqtt_Rpc struct {
+	Mqtt struct {
+		Enable            bool          `yaml:"enable"`
 		Broker            string        `yaml:"broker"`
 		Username          string        `yaml:"username"`
 		Password          string        `yaml:"password"`
@@ -80,7 +81,7 @@ type Config_type struct {
 
 		BusinessTimeout time.Duration `yaml:"business_timeout"`
 		ListenTopic     string        `yaml:"listen_topic"`
-	} `yaml:"Mqtt_Rpc"` // mqtt版的rpc通信
+	} `yaml:"Mqtt"` // mqtt版的rpc通信
 
 }
 

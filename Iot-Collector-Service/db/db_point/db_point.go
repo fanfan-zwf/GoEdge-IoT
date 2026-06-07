@@ -23,7 +23,6 @@ var (
 
 func init() {
 	Value_Map = make(map[string]Update_Value_type)
-	Collection_Subscriber(Update_Value_Judgment_list)
 }
 
 /*
@@ -47,6 +46,7 @@ func Collection_Publisher(v []fullConfig.Value_type) error {
 		err := (*f)(v)
 		if err != nil {
 			log.Printf("ERROR IO数据采集发布失败: %s", err)
+
 		}
 	}
 
@@ -158,6 +158,9 @@ func Update_Value_Judgment_list(new_list []fullConfig.Value_type) error {
 	}
 	Update_Publisher(update_list)
 	return nil
+}
+func init() {
+	Collection_Subscriber(Update_Value_Judgment_list)
 }
 
 // 初始化

@@ -1,12 +1,14 @@
 package main
 
 import (
-	"log"
+	_ "main/Init"
+
 	"main/IO/manager"
-	"main/app/mqtt_rpc"
+	"main/app/mqtt"
 	"main/db/db_point"
 	"main/web"
 
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,7 +20,7 @@ import (
 
 func app() (err error) {
 
-	err = mqtt_rpc.New()
+	err = mqtt.New()
 	if err != nil {
 		log.Panic(err.Error())
 	}

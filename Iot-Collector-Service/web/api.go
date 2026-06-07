@@ -8,10 +8,10 @@ package web
 import (
 	"main/IO/manager/fullConfig"
 	"main/db/db_point"
+	"time"
 
 	"encoding/json"
 	"reflect"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -41,8 +41,8 @@ func api_point_write_value(ctx *gin.Context) {
 		Tag   string
 		Value json.RawMessage
 		Type  string
-		Msg   string
-		Time  time.Time
+		// Msg   string
+		// Time  time.Time
 	}
 	// 绑定JSON，只解析Type，不解析Value
 	err := ctx.BindJSON(&tempData)
@@ -68,6 +68,13 @@ func api_point_write_value(ctx *gin.Context) {
 		}
 
 		realValue = reflect.ValueOf(realValue).Convert(t).Interface()
+		jsondata = append(jsondata, fullConfig.Value_type{
+			Tag:   item.Tag,  // 点位名称
+			Value: realValue, // 点位值
+			Type:  item.Type, // 输出类型
+			// Msg:   item.Msg,  // 状态信息
+			Time: time.Now(), // 读取时间
+		})
 	}
 
 	err = db_point.Write_value_Publisher(jsondata)
@@ -79,7 +86,19 @@ func api_point_write_value(ctx *gin.Context) {
 	ctx.Set("Response", []any{200, "ok"})
 }
 
-func gui_api(r *gin.Engine) {
-	r.POST("/api/api/v1.0/point/write/value", api_point_write_value)
+func api_alarm_tatus(ctx *gin.Context) {
+	var tags []string
+	err := ctx.BindJSON(&tags)
+	if err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
 
+	r := db_point.Alarm_Config__Query_list(tags)
+	ctx.Set("Response", []any{200, "ok", r})
+
+}
+func gui_api(r *gin.Engine) {
+	r.POST("/api/v1.0/point/write/value", api_point_write_value)
+	r.POST("/api/v1.0/alarm/status", api_alarm_tatus)
 }

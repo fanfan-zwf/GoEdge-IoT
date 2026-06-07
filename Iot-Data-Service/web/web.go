@@ -220,7 +220,6 @@ func Web() error {
 
 	log.Print("INFO ", "api", bind)
 
-	gui_api(r)
 	// 前端接口
 
 	// time.Sleep(3 * time.Second)

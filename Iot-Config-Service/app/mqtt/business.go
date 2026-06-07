@@ -1,4 +1,4 @@
-package mqtt_rpc
+package mqtt
 
 import (
 	"main/Init"
@@ -142,14 +142,14 @@ func App_HeartBeat(req []byte) (rep []byte, err error) {
 }
 
 func register() {
-	M.Register(Init.Config.Mqtt_Rpc.Broker, "/V1.0/Get/Collector/Count", Collector_Info__Count)
-	M.Register(Init.Config.Mqtt_Rpc.Broker, "/V1.0/Get/Collector/Query", Collector_Info__Query)
-	M.Register(Init.Config.Mqtt_Rpc.Broker, "/V1.0/Get/Collector/Search/Field", Collector_Info__Search_Field)
-	M.Register(Init.Config.Mqtt_Rpc.Broker, "/V1.0/Get/Drive/Count", Drive_Config__Count)
-	M.Register(Init.Config.Mqtt_Rpc.Broker, "/V1.0/Get/Drive/Query", Drive_Config__Query)
-	M.Register(Init.Config.Mqtt_Rpc.Broker, "/V1.0/Get/Points/Count", Points_Config__Count)
-	M.Register(Init.Config.Mqtt_Rpc.Broker, "/V1.0/Get/Points/Query", Points_Config__Query)
-	M.Register(Init.Config.Mqtt_Rpc.Broker, "/V1.0/App/HeartBeat", App_HeartBeat) // 心跳
+	M.Register(Init.Config.Mqtt.Broker, "/Config/V1.0/Get/Collector/Count", Collector_Info__Count)
+	M.Register(Init.Config.Mqtt.Broker, "/Config/V1.0/Get/Collector/Query", Collector_Info__Query)
+	M.Register(Init.Config.Mqtt.Broker, "/Config/V1.0/Get/Collector/Search/Field", Collector_Info__Search_Field)
+	M.Register(Init.Config.Mqtt.Broker, "/Config/V1.0/Get/Drive/Count", Drive_Config__Count)
+	M.Register(Init.Config.Mqtt.Broker, "/Config/V1.0/Get/Drive/Query", Drive_Config__Query)
+	M.Register(Init.Config.Mqtt.Broker, "/Config/V1.0/Get/Points/Count", Points_Config__Count)
+	M.Register(Init.Config.Mqtt.Broker, "/Config/V1.0/Get/Points/Query", Points_Config__Query)
+	M.Register(Init.Config.Mqtt.Broker, "/Config/V1.0/App/HeartBeat", App_HeartBeat) // 心跳
 }
 
 // 重启采集服务软件
@@ -172,10 +172,10 @@ func App_Restart(uuid string) (err error) {
 
 	var resp string
 	err = jsonCall(Req{Uuid: uuid}, &resp,
-		Init.Config.Mqtt_Rpc.Broker,
+		Init.Config.Mqtt.Broker,
 		listen_topic,
-		"/Order/App/Restart",
-		Init.Config.Mqtt_Rpc.BusinessTimeout,
+		"/Config/V1.0/Order/App/Restart",
+		Init.Config.Mqtt.BusinessTimeout,
 	)
 	if err != nil {
 		err = fmt.Errorf("ERROR ：%v", err)
@@ -209,10 +209,10 @@ func Collector_Synchronise_Config(uuid string) (err error) {
 
 	var resp string
 	err = jsonCall(Req{Uuid: uuid}, &resp,
-		Init.Config.Mqtt_Rpc.Broker,
+		Init.Config.Mqtt.Broker,
 		listen_topic,
-		"/Order/Collector/Config",
-		Init.Config.Mqtt_Rpc.BusinessTimeout,
+		"/Config/V1.0/Order/Collector/Config",
+		Init.Config.Mqtt.BusinessTimeout,
 	)
 	if err != nil {
 		err = fmt.Errorf("ERROR ：%v", err)
@@ -245,10 +245,10 @@ func Collector_Reload(uuid string) (err error) {
 
 	var resp string
 	err = jsonCall(Req{}, &resp,
-		Init.Config.Mqtt_Rpc.Broker,
+		Init.Config.Mqtt.Broker,
 		listen_topic,
-		"/Order/Collector/Reload",
-		Init.Config.Mqtt_Rpc.BusinessTimeout,
+		"/Config/V1.0/Order/Collector/Reload",
+		Init.Config.Mqtt.BusinessTimeout,
 	)
 	if err != nil {
 		err = fmt.Errorf("ERROR ：%v", err)

@@ -97,16 +97,21 @@ func Write_value_Subscriber(p map[string]tag_drive_map_value, value Write_value_
 }
 
 // 变化更新 订阅 接收 mysql配置
-func Write_value_Subscriber_mysqlconfig(cfg fullConfig.FullConfig_type, value Write_value_func_type) error {
+func Write_value_Subscriber_mysqlconfig(cfg fullConfig.FullConfig_type, RW_Cancel map[string]bool, value Write_value_func_type) error {
 	p := make(map[string]tag_drive_map_value)
 	for _, v := range cfg.Points {
-		if v.RW_Cancel != "R/W" && v.RW_Cancel != "W" {
+		if !RW_Cancel[v.RW_Cancel] {
 			continue
 		}
+
 		p[v.Tag] = tag_drive_map_value{
 			Drive: v.Drive.Id,
 			Type:  v.Value_Type,
 		}
 	}
 	return Write_value_Subscriber(p, value)
+}
+
+func init() {
+
 }

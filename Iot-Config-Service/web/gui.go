@@ -7,7 +7,7 @@ package web
 
 import (
 	// "fmt"
-	"main/app/mqtt_rpc"
+	"main/app/mqtt"
 	// "main/app/user_service"
 	db_mysql "main/db/mysql"
 
@@ -474,7 +474,7 @@ func App_Restart(ctx *gin.Context) {
 		ctx.Set("Response", []any{417, "请求格式不对"})
 		return
 	}
-	err = mqtt_rpc.App_Restart(jsondata.Uuid)
+	err = mqtt.App_Restart(jsondata.Uuid)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
@@ -493,7 +493,7 @@ func Collector_Synchronise_Config(ctx *gin.Context) {
 		ctx.Set("Response", []any{417, "请求格式不对"})
 		return
 	}
-	err = mqtt_rpc.Collector_Synchronise_Config(jsondata.Uuid)
+	err = mqtt.Collector_Synchronise_Config(jsondata.Uuid)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
@@ -511,7 +511,7 @@ func Collector_Reload(ctx *gin.Context) {
 		ctx.Set("Response", []any{417, "请求格式不对"})
 		return
 	}
-	err = mqtt_rpc.Collector_Reload(jsondata.Uuid)
+	err = mqtt.Collector_Reload(jsondata.Uuid)
 	if err != nil {
 		ctx.Set("Response", []any{500, err.Error()})
 		return

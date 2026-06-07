@@ -1,7 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 // import HomeView from '../views/HomeView.vue'
-
-
+ 
 const router = createRouter({
     // 使用 Hash 模式，URL 中会包含 #，例如：http://localhost/#/user/0
     history: createWebHashHistory(),

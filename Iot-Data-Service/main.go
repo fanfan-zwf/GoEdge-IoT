@@ -2,7 +2,7 @@ package main
 
 import (
 	"log"
-	"main/IO/Rec_Yun_Cloud"
+
 	"main/db/db_point"
 	"main/db/influxdb"
 	"main/db/mysql"
@@ -32,11 +32,6 @@ func app() (err error) {
 	}
 
 	err = influxdb.New()
-	if err != nil {
-		log.Panic(err.Error())
-	}
-
-	err = Rec_Yun_Cloud.New()
 	if err != nil {
 		log.Panic(err.Error())
 	}

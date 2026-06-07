@@ -67,6 +67,34 @@
                         </el-select>
                     </el-form-item>
 
+                    <el-form-item prop="" label="报警">
+                        <el-select v-model="UpdateItem.Alarm" placeholder="请设置报警方式" style="width: 100%">
+                            <el-option label="禁用" value="null" selected />
+                            <el-option label="==0" value="==0" />
+                            <el-option label="==1" value="==1" />
+                            <el-option label="0<>1" value="0<>1" />
+                        </el-select>
+                    </el-form-item>
+
+                    <el-form-item prop="Alarm_Group" label="报警组" style="width: 100%"
+                        v-if="UpdateItem.Alarm != 'null' && UpdateItem.Alarm != ''">
+                        <el-select v-model.number="UpdateItem.Alarm_Group" placeholder="请设置报警组" style="width: 100%">
+                            <!-- 固定禁用选项 -->
+                            <!-- <el-option label="禁用" value="0" selected /> -->
+                            <!-- 循环生成 1 - 15 -->
+                            <el-option v-for="num in 15" :key="num" :label="`${num}`" :value="num" />
+                        </el-select>
+                        <span></span>
+                    </el-form-item>
+
+                    <el-form-item prop="" label="历史">
+                        <el-select v-model="UpdateItem.History" placeholder="请设置历史记录方式" style="width: 100%">
+                            <el-option label="禁用" value="null" selected />
+                            <el-option label="采集服务默认" value="Collector_Service_Default" />
+                            <el-option label="变化" value="Change" />
+                        </el-select>
+                    </el-form-item>
+
                     <el-form-item prop="Description" label="描述">
                         <el-input v-model="UpdateItem.Description" type="textarea" clearable
                             @clear="handleCustomClear" />
@@ -233,8 +261,11 @@ const UpdateItem: Points_Config__table_interface = reactive({
     Description: '', // 点位描述
     RW_Cancel: 'R', // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
     Value_Type: '', // 输出类型
-    Config: '',
-    Creation_Time: '', // 创建时间 
+    Config: '',    // 配置信息
+    Creation_Time: '', // 创建时间
+    History: 'null',  // 存储
+    Alarm: 'null',  // 报警
+    Alarm_Group: 0, // 报警组
     // 修复点：补充 Drive 对象中缺失的 Type 属性
     Drive: {
         Id: 0,
@@ -249,9 +280,9 @@ const UpdateItem: Points_Config__table_interface = reactive({
     },
 })
 
-watch(() => UpdateItem.Config, (newValue, _) => {
+watch(() => UpdateItem, (newValue, _) => {
     // 1. 按 ; 分割成数组
-    const parts = newValue.split(";");
+    const parts = newValue.Config.split(";");
     // 2. 取出最后一段（你要的内容） 
     const lastStr = (parts[parts.length - 1]) ?? '';
     switch (lastStr) {
@@ -277,6 +308,8 @@ watch(() => UpdateItem.Config, (newValue, _) => {
             break
     }
 
+    if (newValue.Alarm == "null") { UpdateItem.Alarm_Group = 0 }
+    if (newValue.Alarm_Group == 0 && newValue.Alarm == 'null') { UpdateItem.Alarm = "null" }
 }, { deep: true })
 const addNewRow = () => {
     addFormRef.value?.clearValidate();
@@ -292,13 +325,12 @@ const addNewRow = () => {
         Drive: {
             Id: drive_id.value ?? 0,
             Name: drive_name.value ?? '',
-            Type: String(route.query.drive_type) ?? '', // <--- 添加此行以匹配 Drive__Carry_interface
+            Type: String(route.query.drive_type) ?? '',
         },
         Collector: {
             Id: 0,
             Name: '',
             Uuid: '',
-            // 注意：如果 Collector 对应的接口也有必填字段缺失，请在此处一并补充
         },
     });
     showUpdateDialog.value = true;
@@ -322,7 +354,10 @@ const UpdateNewRow = () => {
                 Description: UpdateItem.Description, // 点位描述
                 RW_Cancel: UpdateItem.RW_Cancel, // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
                 Value_Type: UpdateItem.Value_Type, // 输出类型
-                Config: UpdateItem.Config
+                Config: UpdateItem.Config, // 配置信息
+                History: UpdateItem.History,  // 存储
+                Alarm: UpdateItem.Alarm,  // 报警
+                Alarm_Group: UpdateItem.Alarm_Group, // 报警组
             }).then(() => {
                 ElMessage.success('添加成功')
                 showUpdateDialog.value = false
@@ -337,7 +372,10 @@ const UpdateNewRow = () => {
                 Description: UpdateItem.Description,
                 RW_Cancel: UpdateItem.RW_Cancel,
                 Value_Type: UpdateItem.Value_Type,
-                Config: UpdateItem.Config,
+                Config: UpdateItem.Config,// 配置信息
+                History: UpdateItem.History,  // 存储
+                Alarm: UpdateItem.Alarm,  // 报警
+                Alarm_Group: UpdateItem.Alarm_Group, // 报警组
             }).then(() => {
                 ElMessage.success('修改成功')
                 showUpdateDialog.value = false
@@ -357,14 +395,16 @@ const handleCustomClear = () => {
 
 
 const formRules = {
-    Child_Address_Exist: [
+    Modbus_Child_Address_Exist: [
         { required: true, message: '请输入点位参数', trigger: 'blur' },
         {
             // 自定义校验器
             validator: (rule: any, value: any, callback: any) => {
 
                 // 1. 按 ; 分割成数组
-                const parts = UpdateItem.Config.split(";");
+                const parts = UpdateItem.Config.split(";"); 
+                const Function = (parts[1]) ?? ''; 
+
                 // 2. 取出最后一段（你要的内容） 
                 const lastStr = (parts[parts.length - 1]) ?? '';
 
@@ -376,7 +416,7 @@ const formRules = {
                     return callback(new Error('不能输入负数'));
                 }
 
-                if (isFloatEnable) {
+                if (isFloatEnable && (Function === '03' || Function === '04')) {
                     // ------------------------------
                     // 允许小数：格式 数字.0~7
                     // ------------------------------
@@ -470,7 +510,7 @@ const newItemRules = reactive({
     Siemens_S7__DB_ID: [
         { required: true, message: '请输入DB编号', trigger: 'change' },
     ],
-    Address: formRules.Child_Address_Exist,
+    Modbus_Address: formRules.Modbus_Child_Address_Exist,
     Siemens_S7__Value_Type: [
         { required: true, message: '请选择值类型', trigger: 'change' },
     ]
@@ -488,7 +528,7 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
                 { label: '04', value: '04' }
             ]
         },
-        { prop: 'Address', label: '寄存器地址', type: 'string', placeholder: '请输入寄存器地址' },
+        { prop: 'Modbus_Address', label: '寄存器地址', type: 'string', placeholder: '请输入寄存器地址' },
         {
             prop: 'Byte_Order', label: '字节序', type: 'select',
             hidden: () => {
@@ -529,7 +569,7 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
                 { label: '04', value: '04' }
             ]
         },
-        { prop: 'Address', label: '寄存器地址', type: 'string', placeholder: '请输入寄存器地址' },
+        { prop: 'Modbus_Address', label: '寄存器地址', type: 'string', placeholder: '请输入寄存器地址' },
         {
             prop: 'Byte_Order',
             label: '字节序',
@@ -594,5 +634,13 @@ const myRules: { [key: string]: DynamicFieldItem[] } = {
     margin-top: 4px;
     font-size: 12px;
     color: #909399;
+}
+
+/* 表单说明文字 */
+.el-form-item span {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 4px;
+    display: block;
 }
 </style>

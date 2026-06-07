@@ -4,16 +4,13 @@
         <div class="avatar-section">
             <!-- 修改：添加外层容器用于定位 -->
             <div class="avatar-wrapper">
-                <el-avatar
-                    :size="80"
-                    :src="User_info.Avatar"
-                    :name="User_info.Name"
-                    class="user-avatar-img"
-                >
+                <el-avatar :size="80" :src="User_info.Avatar" :name="User_info.Name" class="user-avatar-img">
                 </el-avatar>
                 <!-- 修改：头像右下角悬浮编辑图标，移入 wrapper 内 -->
                 <div class="avatar-edit-btn" @click.stop="Set_Avatar">
-                    <el-icon><Edit /></el-icon>
+                    <el-icon>
+                        <Edit />
+                    </el-icon>
                 </div>
             </div>
             <br />
@@ -120,28 +117,30 @@ const User_info: User__table_interface = reactive({
     Refresh_Token_TTL: 0, // 刷新令牌过期时间（s）
     Access_Token_TTL: 0, // 访问令牌过期时间（s）
 })
-
 // 修改：修正 watch 监听逻辑，同时监听 route.params 以确保路由变化时触发
+
+
 watch(
     () => route.params.User_Id,
     (newVal) => {
         const newId = Number(newVal) || 0
-
         // 更新 ref 值，确保内部状态与路由一致
         User_Id.value = newId
-
         if (newId == 0) {
             // 如果 ID 为 0，重定向到当前登录用户
             const targetId = UserStore.Id
-            if (targetId) {
+            // 修复：使用严格比较，避免 0 被判断为 falsy
+            if (targetId > 0) {
                 router.push({ name: 'info', params: { User_Id: targetId } })
+            } else {
+                ElMessage.error(`UserStore.Id 未初始化，值为:${targetId}`)
             }
             return
         }
 
         if (newId == UserStore.Id) {
-            // 如果是当前登录用户，直接从 Store 获取数据
-            Object.assign(User_info, toRaw(UserStore.get))
+            // 如果是当前登录用户，直接从 Store 获取数据 
+            Object.assign(User_info, toRaw(UserStore))
             return
         }
 
@@ -149,16 +148,14 @@ watch(
             return
         }
 
-        // 获取其他用户信息
+        // 获取其他用户信息 
         User__Get_Info(newId)
-            .then((User) => {
-                console.log('获取用户信息', User)
+            .then((User) => { 
                 if (User) {
                     Object.assign(User_info, User)
                 }
             })
-            .catch((err) => {
-                console.error('获取用户信息失败', err)
+            .catch((err) => { 
                 ElMessage.error('获取用户信息失败')
             })
     },
@@ -197,7 +194,19 @@ const Set_get = () => {
 
 // 修改：简化 onMounted，因为 watch 已经处理了初始化逻辑
 onMounted(() => {
-    // 仅保留必要的非路由相关初始化（如果有），此处逻辑已由 watch 覆盖
+    const newId = Number(route.params.User_Id) || 0
+    if (newId == 0) {
+        // 如果 ID 为 0，重定向到当前登录用户
+        const targetId = UserStore.Id
+        // 修复：使用严格比较，避免 0 被判断为 falsy
+        if (targetId > 0) {
+            router.push({ name: 'info', params: { User_Id: targetId } })
+        } else {
+            console.warn('UserStore.Id 未初始化，值为:', targetId)
+        }
+        return
+    }
+
 })
 
 // 设置用户名
@@ -473,7 +482,8 @@ img {
     color: #fff;
     transition: background-color 0.3s;
     z-index: 10;
-    border: 2px solid #fff; /* 增加白色边框以区分头像背景 */
+    border: 2px solid #fff;
+    /* 增加白色边框以区分头像背景 */
 }
 
 .avatar-edit-btn:hover {

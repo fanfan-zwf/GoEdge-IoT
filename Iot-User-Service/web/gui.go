@@ -118,7 +118,7 @@ func User_Login_Name(ctx *gin.Context) {
 	}
 
 	timeNow := time.Now()
-	Refresh_Token_Time := timeNow.Add(time.Duration(User.Refresh_Token_TTL) * time.Second)
+	Refresh_Token_Time := timeNow.Add(User.Refresh_Token_TTL.D())
 
 	// 生成随即刷新令牌
 	Refresh_Token, err := Create_Short_Token(
@@ -252,8 +252,8 @@ func User_Access_Token_query(ctx *gin.Context) {
 		return
 	}
 
-	timeNow := time.Now()                                                             // 当前时间
-	Access_Token_Time := timeNow.Add(time.Duration(r.Access_Token_TTL) * time.Second) // 访问令牌过期时间
+	timeNow := time.Now()                                    // 当前时间
+	Access_Token_Time := timeNow.Add(r.Access_Token_TTL.D()) // 访问令牌过期时间
 
 	// 生成随即刷新令牌
 	Access_Token, err := Create_Short_Token(

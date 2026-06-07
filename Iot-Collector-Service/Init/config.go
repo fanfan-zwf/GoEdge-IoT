@@ -73,7 +73,8 @@ type Config_type struct {
 		Secret string `yaml:"secret"`
 	} `yaml:"User_Service"` // 用户服务
 
-	Mqtt_Rpc struct {
+	Mqtt struct {
+		Enable            bool          `yaml:"enable"`
 		Broker            string        `yaml:"broker"`
 		Username          string        `yaml:"username"`
 		Password          string        `yaml:"password"`
@@ -87,7 +88,11 @@ type Config_type struct {
 		BusinessTimeout    time.Duration `yaml:"business_timeout"`
 		ListenTopic        string        `yaml:"listen_topic"`
 		ConfigServiceTopic string        `yaml:"config_service_topic"`
-	} `yaml:"Mqtt_Rpc"` // mqtt版的rpc通信
+
+		Point_Push_Value  string `yaml:"point_push_value"`  // 点更新值
+		Point_Down_value  string `yaml:"point_down_value"`  // 点下发值
+		Point_Alarm_Value string `yaml:"point_alarm_value"` // 点更新值
+	} `yaml:"Mqtt"` // mqtt版的rpc通信
 }
 
 var Config Config_type

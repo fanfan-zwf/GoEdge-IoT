@@ -365,17 +365,19 @@ func (c *Modbus_Tcp) analysis(packet Packet_type, results []byte) ([]fullConfig.
 		read.Msg = "ok"
 
 		byte_index := int(cfg.Config.Address - packet.Start_Address)
+
+		var v any
 		switch {
 		case cfg.Config.Type == "bool" && (packet.Function == 1 || packet.Function == 2):
-			read.Value = byte_util.Get_list_index(
+			v = byte_util.Get_list_index(
 				byte_util.BytesToBool([]byte{byte_util.Get_list_index(results, byte_index/8, 1)[0]}),
 				byte_index%8, 1)[0]
 		case cfg.Config.Type == "bool" && (packet.Function == 3 || packet.Function == 4):
-			read.Value = byte_util.Get_list_index(
+			v = byte_util.Get_list_index(
 				byte_util.BytesToBool([]byte{byte_util.Get_list_index(results, byte_index/16, 1)[0]}),
 				int(cfg.Config.Child_Address), 1)[0]
 		case cfg.Config.Type == "uint16" && (packet.Function == 3 || packet.Function == 4):
-			read.Value = byte_util.Get_list_index(
+			v = byte_util.Get_list_index(
 				byte_util.BytesToUint16(
 					byte_util.Get_list_index(results, byte_index*2, 2),
 					cfg.Config.Byte_Order,
@@ -383,7 +385,7 @@ func (c *Modbus_Tcp) analysis(packet Packet_type, results []byte) ([]fullConfig.
 				0, 1,
 			)[0]
 		case cfg.Config.Type == "int16" && (packet.Function == 3 || packet.Function == 4):
-			read.Value = byte_util.Get_list_index(
+			v = byte_util.Get_list_index(
 				byte_util.BytesToInt16(
 					byte_util.Get_list_index(results, byte_index*2, 2),
 					cfg.Config.Byte_Order,
@@ -391,7 +393,7 @@ func (c *Modbus_Tcp) analysis(packet Packet_type, results []byte) ([]fullConfig.
 				0, 1,
 			)[0]
 		case cfg.Config.Type == "uint32" && (packet.Function == 3 || packet.Function == 4):
-			read.Value = byte_util.Get_list_index(
+			v = byte_util.Get_list_index(
 				byte_util.BytesToUint32(
 					byte_util.Get_list_index(results, byte_index*2, 4),
 					cfg.Config.Byte_Order,
@@ -399,7 +401,7 @@ func (c *Modbus_Tcp) analysis(packet Packet_type, results []byte) ([]fullConfig.
 				0, 1,
 			)[0]
 		case cfg.Config.Type == "int32" && (packet.Function == 3 || packet.Function == 4):
-			read.Value = byte_util.Get_list_index(
+			v = byte_util.Get_list_index(
 				byte_util.BytesToInt32(
 					byte_util.Get_list_index(results, byte_index*2, 4),
 					cfg.Config.Byte_Order,
@@ -407,7 +409,7 @@ func (c *Modbus_Tcp) analysis(packet Packet_type, results []byte) ([]fullConfig.
 				0, 1,
 			)[0]
 		case cfg.Config.Type == "float32" && (packet.Function == 3 || packet.Function == 4):
-			read.Value = byte_util.Get_list_index(
+			v = byte_util.Get_list_index(
 				byte_util.BytesToFloat32(
 					byte_util.Get_list_index(results, byte_index*2, 4),
 					cfg.Config.Byte_Order,
@@ -416,6 +418,13 @@ func (c *Modbus_Tcp) analysis(packet Packet_type, results []byte) ([]fullConfig.
 			)[0]
 		default:
 			read.Msg = fmt.Sprintf("ERROR tag: %s, 配置类型: %s", tag, cfg.Value_Type)
+		}
+		var ok bool
+		read.Value, ok = byte_util.ConvertType(v, cfg.Config.Type, cfg.Value_Type)
+		if !ok {
+			err = fmt.Errorf("ERROR modbus_tcp: 读取值类型不匹配, tag: %s, 采集类型: %s, 输出类型: %s, 输出实际类型: %T", tag, cfg.Value_Type, cfg.Config.Type, v)
+			log.Print(err)
+			return []fullConfig.Value_type{}, err
 		}
 		read_list = append(read_list, read)
 
@@ -519,26 +528,23 @@ func (c *Modbus_Tcp) write_packet(packet Packet_type, tag_points_map map[string]
 		}
 
 		index := cfg.Config.Address - packet.Start_Address // 计算相对地址索引
-		if !byte_util.Is_Type_Match(v.Value, cfg.Value_Type) {
-			err = fmt.Errorf("ERROR modbus_tcp: 写入值类型不匹配, tag: %s, 配置类型: %s, 值类型: %T", tag, cfg.Value_Type, v.Value)
-			log.Print(err)
-			return err
-		}
 
-		if !byte_util.Is_Type_Match(v.Value, cfg.Config.Type) {
+		var ok bool
+		v.Value, ok = byte_util.ConvertType(v.Value, cfg.Value_Type, cfg.Config.Type)
+		if !ok {
 			err = fmt.Errorf("ERROR modbus_tcp: 写入值类型不匹配, tag: %s, 配置类型: %s, 值类型: %T", tag, cfg.Value_Type, v.Value)
 			log.Print(err)
 			return err
 		}
 
 		switch {
-		case cfg.Value_Type == "bool" && packet.Function == 1:
+		case cfg.Config.Type == "bool" && packet.Function == 1:
 			a := byte_util.Get_list_index(byte_list, int(index)/8, 1)
 			b := byte_util.BytesToBool(a)
 			b[index] = v.Value.(bool)
 			rb := byte_util.BoolToBytes(b)
 			byte_util.Update_List_Slice(&byte_list, int(index), rb)
-		case cfg.Value_Type == "bool" && packet.Function == 3:
+		case cfg.Config.Type == "bool" && packet.Function == 3:
 			if !bool_value_address[cfg.Config.Address] {
 				byte_list, err = (*c.conn).ReadHoldingRegistersBytes(cfg.Config.SlaveID, cfg.Config.Address, 1)
 				if err != nil {
@@ -556,28 +562,28 @@ func (c *Modbus_Tcp) write_packet(packet Packet_type, tag_points_map map[string]
 			bool_list[cfg.Config.Child_Address] = v.Value.(bool)
 			b := byte_util.Get_list_index(byte_util.BoolToBytes(bool_list), 0, 2)
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, b)
-		case cfg.Value_Type == "uint16" && packet.Function == 3:
+		case cfg.Config.Type == "uint16" && packet.Function == 3:
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
 				byte_util.Uint16ToBytes([]uint16{uint16(v.Value.(uint16))}, cfg.Config.Byte_Order),
 				0, 2))
-		case cfg.Value_Type == "int16" && packet.Function == 3:
+		case cfg.Config.Type == "int16" && packet.Function == 3:
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
 				byte_util.Int16ToBytes([]int16{int16(v.Value.(int16))}, cfg.Config.Byte_Order),
 				0, 2))
-		case cfg.Value_Type == "uint32" && packet.Function == 3:
+		case cfg.Config.Type == "uint32" && packet.Function == 3:
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
 				byte_util.Uint32ToBytes([]uint32{uint32(v.Value.(uint32))}, cfg.Config.Byte_Order),
 				0, 2))
-		case cfg.Value_Type == "int32" && packet.Function == 3:
+		case cfg.Config.Type == "int32" && packet.Function == 3:
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
 				byte_util.Int32ToBytes([]int32{int32(v.Value.(int32))}, cfg.Config.Byte_Order),
 				0, 2))
-		case cfg.Value_Type == "float32" && packet.Function == 3:
+		case cfg.Config.Type == "float32" && packet.Function == 3:
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
 				byte_util.Float32ToBytes([]float32{v.Value.(float32)}, cfg.Config.Byte_Order),
 				0, 2))
 		default:
-			err = fmt.Errorf("ERROR modbus_tcp: 不支持的类型: %s, tag: %s", cfg.Value_Type, tag)
+			err = fmt.Errorf("ERROR modbus_tcp: 不支持的类型: %s, tag: %s", cfg.Config.Type, tag)
 			log.Print(err)
 			return err
 		}

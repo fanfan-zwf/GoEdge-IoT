@@ -610,7 +610,10 @@ export interface Points_Config__Update_interface {
     Description: string // 点位描述
     RW_Cancel: string // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
     Value_Type: string // 输出类型
-    Config: string
+    Config: string // 配置信息
+    History: string  // 存储
+    Alarm: string  // 报警
+    Alarm_Group: number // 报警组
 }
 
 /**
