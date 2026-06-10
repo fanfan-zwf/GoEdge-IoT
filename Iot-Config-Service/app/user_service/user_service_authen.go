@@ -20,6 +20,13 @@ import (
 	"time"
 )
 
+// KeyValue 定义你传入的key-value结构体格式
+type KeyValue struct {
+	Key   string        // 对应Redis的key
+	Value string        // 对应Redis的value（已转成字符串）
+	TTL   time.Duration // 可选：单个key的过期时间
+}
+
 // 业务通用响应（可自行修改）
 type Body_Standard struct {
 	Code      int
@@ -33,6 +40,9 @@ type APIClient_struct struct {
 	ApiKey string
 	Secret string
 	mu     sync.Mutex // 防止并发重复刷新Token
+
+	Refresh_Token Authentication_Refresh_Token_type
+	Access_Token  Authentication_Access_Token_Response_type
 
 	client *http.Client
 }
@@ -94,6 +104,7 @@ type Authentication_Refresh_Token_Response_type struct {
 	Data Authentication_Refresh_Token_type
 }
 
+// 刷新令牌
 func (c *APIClient_struct) Refresh_RefreshToken() (data Authentication_Refresh_Token_Response_type, err error) {
 	// 构造刷新请求体（你要求的 4 个字段）
 
@@ -145,19 +156,9 @@ func (c *APIClient_struct) Refresh_RefreshToken() (data Authentication_Refresh_T
 
 // 存储刷新令牌
 func (c *APIClient_struct) Store_RefreshToken(data Authentication_Refresh_Token_type) (err error) {
-	var jsonData []byte
-	jsonData, err = json.Marshal(data)
-	if err != nil {
-		err = fmt.Errorf("ERROR JSON编码错误: %v", err)
-		log.Print(err)
-		return
-	}
 
-	err = p_redis.Write_Key_list(p_redis.KeyValue{
-		Key:   "F_Api_Refresh_Token",
-		Value: string(jsonData),
-		TTL:   time.Until(data.F_Api_Expires_in),
-	})
+	c.Refresh_Token = data
+
 	if err != nil {
 		err = fmt.Errorf("ERROR Redis写入失败：%v", err)
 		log.Print(err)

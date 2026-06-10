@@ -1,12 +1,13 @@
-package mqtt
+package mqttrpc
 
 import (
-	"log"
 	"main/IO/manager/fullConfig"
 	"main/Init"
+	"main/app/mqttbase"
 	"main/db/db_point"
 
 	"encoding/json"
+	"log"
 )
 
 // 点更新值
@@ -15,12 +16,12 @@ func Point_Push_Value(data []fullConfig.Value_type) error {
 	if err != nil {
 		return nil
 	}
-	return Send(Init.Config.Mqtt.Broker, Init.Config.Mqtt.Point_Push_Value, jsonBytes)
+	return mqttbase.Send(Init.Config.Mqtt_Rpc.Example, Init.Config.Mqtt_Rpc.Point_Push_Value, jsonBytes)
 }
 
 // 点下发值
 func Point_Down_value(callback func([]fullConfig.Value_type)) error {
-	return Subscribe(Init.Config.Mqtt.Broker, Init.Config.Mqtt.Point_Down_value, func(data []byte) {
+	return mqttbase.Subscribe(Init.Config.Mqtt_Rpc.Example, Init.Config.Mqtt_Rpc.Point_Down_value, func(broker string, topic string, data []byte) {
 		var down []fullConfig.Value_type
 		err := json.Unmarshal(data, &down)
 		if err != nil {
@@ -37,11 +38,11 @@ func Point_Alarm_Value(data []db_point.Alarm_type) error {
 	if err != nil {
 		return nil
 	}
-	return Send(Init.Config.Mqtt.Broker, Init.Config.Mqtt.Point_Alarm_Value, jsonBytes)
+	return mqttbase.Send(Init.Config.Mqtt_Rpc.Example, Init.Config.Mqtt_Rpc.Point_Alarm_Value, jsonBytes)
 }
 
 func init() {
-	if !Init.Config.Mqtt.Enable {
+	if !Init.Config.Mqtt_Rpc.Enable {
 		return
 	}
 	db_point.Update_Subscriber(Point_Push_Value)

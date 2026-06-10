@@ -1,10 +1,10 @@
 package main
 
 import (
-	_ "main/Init"
-
 	"main/IO/manager"
-	"main/app/mqtt"
+	_ "main/Init"
+	"main/app/mqttbase"
+	"main/app/mqttrpc"
 	"main/db/db_point"
 	"main/web"
 
@@ -19,8 +19,12 @@ import (
 )
 
 func app() (err error) {
+	err = mqttbase.New()
+	if err != nil {
+		log.Panic(err.Error())
+	}
 
-	err = mqtt.New()
+	err = mqttrpc.New()
 	if err != nil {
 		log.Panic(err.Error())
 	}

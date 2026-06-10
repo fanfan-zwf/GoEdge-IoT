@@ -4,7 +4,7 @@ import (
 	"main/IO/Modbus_Tcp"
 	"main/IO/manager/fullConfig"
 	"main/Init"
-	"main/app/mqtt"
+	"main/app/mqttrpc"
 	"main/db/db_point"
 	"main/db/mysql"
 
@@ -18,7 +18,7 @@ import (
 func InitializeDrivers() (err error) {
 	// 1. 查询采集器
 	var collectorInfos []mysql.Collector_Info_type
-	collectorInfos, err = mqtt.Collector_Info__Search_Field("Uuid", 1, Init.Config.APP.Uuid)
+	collectorInfos, err = mqttrpc.Collector_Info__Search_Field("Uuid", 1, Init.Config.APP.Uuid)
 	if err != nil {
 		return fmt.Errorf("ERROR 采集器查询失败: %w", err)
 	}
@@ -28,7 +28,7 @@ func InitializeDrivers() (err error) {
 	collectorInfo := collectorInfos[0]
 
 	// 2. 查询驱动列表
-	driveConfigs, err := mqtt.Drive_Config__Query([]uint{collectorInfo.Id}, []string{}, 0, 0)
+	driveConfigs, err := mqttrpc.Drive_Config__Query([]uint{collectorInfo.Id}, []string{}, 0, 0)
 	if err != nil {
 		return fmt.Errorf("ERROR 驱动查询失败: %w", err)
 	}
@@ -41,7 +41,7 @@ func InitializeDrivers() (err error) {
 		var fullConfig fullConfig.FullConfig_type
 		fullConfig.Drive = driveConfig
 		// 2. 支持 → 才查询点位（你要的核心优化）
-		fullConfig.Points, err = mqtt.Points_Config__Query([]uint{}, []uint{driveConfig.Id}, 0, 0)
+		fullConfig.Points, err = mqttrpc.Points_Config__Query([]uint{}, []uint{driveConfig.Id}, 0, 0)
 		if err != nil {
 			log.Printf("ERROR 点位查询失败 driveId:%d: %s", driveConfig.Id, err)
 			return

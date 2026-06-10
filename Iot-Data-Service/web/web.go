@@ -2,8 +2,8 @@ package web
 
 import (
 	"main/Init"
-	db_redis "main/db/redis"
-	"net/http"
+	"main/app/user_service"
+	"main/db/redis"
 
 	"crypto/rand"
 	"fmt"
@@ -14,10 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"github.com/xuri/excelize/v2"
-	// _ "github.com/icattlecoder/godaemon"
-	// "sync"
 )
 
 const (
@@ -66,7 +63,7 @@ func Response_Use() gin.HandlerFunc {
 			"Code":      code,
 			"Msg":       Msg,
 			"Data":      data,
-			"Timestamp": time.Now().Format(time.DateTime),
+			"Timestamp": time.Now().Format(time.RFC3339Nano),
 		})
 	}
 }
@@ -108,7 +105,7 @@ func create_token(Token_length uint) (string, error) {
 // 这里需要注意以下，还需要改正优化
 func token_use() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-
+		var ClientIP = ctx.ClientIP()
 		// 1. 先获取路径
 		FullPath := ctx.FullPath()
 		// 如果 FullPath 为空，可能是路由未匹配，尝试获取请求路径
@@ -118,53 +115,94 @@ func token_use() gin.HandlerFunc {
 		}
 
 		// 2. 检查是否是免token的路径
-		if strings.HasPrefix(FullPath, "/Gui/v1.0/Login") ||
-			strings.HasPrefix(FullPath, "/Api/v1.0/Login") {
+		if strings.HasPrefix(FullPath, "/api/gui/v1.0/login") ||
+			strings.HasPrefix(FullPath, "/api/v1.0/login") {
 			fmt.Printf("路径 %s 无需token授权\n", FullPath)
 			ctx.Next()
 			return
 		}
 
-		if strings.HasPrefix(FullPath, "/Gui/v1.0") {
+		if strings.HasPrefix(FullPath, "/api/gui/v1.0") {
 			// 3. 获取并验证token
 			accessToken := ctx.Request.Header.Get("F_Access_Token")
 			if accessToken == "" {
-				ctx.Set("Response", []any{http.StatusUnauthorized, "缺少访问令牌"})
+				ctx.Set("Response", []any{401, "缺少访问令牌"})
 				ctx.Abort()
 				return
 			}
 
-			Access_Token_redis, err := db_redis.Access_Token_Query(accessToken)
-			if err != nil {
-				log.Printf("读取redis中的F_Access_Token失败:%v F_Access_Token:%s", err, accessToken)
-				fmt.Print(err, "token无效\n")
-			}
+			Access_Token_redis, err := user_service.Cache_User_status(accessToken)
 			if err == redis.Nil {
-				ctx.Set("Response", []any{http.StatusUnauthorized, "访问令牌过期或无效"})
+				ctx.Set("Response", []any{401, "访问令牌过期或无效"})
 				ctx.Abort()
 				return
 			} else if err != nil {
 				ctx.Set("Response", []any{521, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 判断登陆ip与请求ip是否一致
+			if Access_Token_redis.Login_Ip != ClientIP && Access_Token_redis.Login_Ip != "" {
+				ctx.Set("Response", []any{401, "ip变化请重新登陆"})
+				ctx.Abort()
+				return
+			}
+
+			// 解析公钥rsa.PublicKey
+			Public_Key, err := PEMTo_Public_Key(Access_Token_redis.RSA_Public_Key)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 验证公钥
+			info_res, err := Verify_Short_Token(Public_Key, accessToken)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 获取token中的用户信息
+			token_info, err := Token_User_Info__Json_AES_Decrypt(Access_Token_redis.Salt, info_res)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 判断登陆ip与请求ip是否一致
+			if token_info.Login_Ip != ClientIP && token_info.Login_Ip != "" {
+				ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+				ctx.Abort()
+				return
+			}
+
+			// 判断id
+			if token_info.User_Id != Access_Token_redis.User_Id {
+				ctx.Set("Response", []any{500, "user_id与缓存id不一致"})
 				ctx.Abort()
 				return
 			}
 
 			ctx.Set("User_Id", Access_Token_redis.User_Id)
-			ctx.Set("Access_Token_redis", Access_Token_redis)
-			ctx.Set("Access_Token_redis", Access_Token_redis)
+			ctx.Set("Access_Token_Redis", Access_Token_redis)
+			ctx.Set("Access_Token__Token_Info", token_info)
 			ctx.Next()
-		} else if strings.HasPrefix(FullPath, "/Api/v1.0") {
+		} else if strings.HasPrefix(FullPath, "/api/v1.0") { // 接口验证逻辑
 			// 3. 获取并验证token
 			accessToken := ctx.Request.Header.Get("F_Api_Access_Token")
 			if accessToken == "" {
-				ctx.Set("Response", []any{http.StatusUnauthorized, "缺少访问令牌"})
+				ctx.Set("Response", []any{401, "缺少访问令牌"})
 				ctx.Abort()
 				return
 			}
 
-			Access_Token_redis, err := db_redis.Api_Access_Token_Query(accessToken)
+			Access_Token_redis, err := user_service.Cache_Api_status(accessToken)
 			if err == redis.Nil {
-				ctx.Set("Response", []any{http.StatusUnauthorized, "访问令牌过期或无效"})
+				ctx.Set("Response", []any{401, "访问令牌过期或无效"})
 				ctx.Abort()
 				return
 			} else if err != nil {
@@ -173,17 +211,56 @@ func token_use() gin.HandlerFunc {
 				return
 			}
 
-			var ClientIP = ctx.ClientIP()
-			if Access_Token_redis.Allow_Ip != ClientIP && ClientIP != "" {
-				ctx.Set("Response", []any{http.StatusForbidden, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+			// 判断登陆ip与请求ip是否一致
+			if Access_Token_redis.Login_Ip != ClientIP && Access_Token_redis.Login_Ip != "" {
+				ctx.Set("Response", []any{401, "ip变化请重新登陆"})
+				ctx.Abort()
 				return
 			}
 
-			ctx.Set("Api_Id", Access_Token_redis.Api_Id)
-			ctx.Set("Api_Access_Token_redis", Access_Token_redis)
+			// 解析公钥rsa.PublicKey
+			Public_Key, err := PEMTo_Public_Key(Access_Token_redis.RSA_Public_Key)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 验证公钥
+			info_res, err := Verify_Short_Token(Public_Key, accessToken)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 获取token中的用户信息
+			token_info, err := Token_Api__Info__Json_AES_Decrypt(Access_Token_redis.Salt, info_res)
+			if err != nil {
+				ctx.Set("Response", []any{500, err.Error()})
+				ctx.Abort()
+				return
+			}
+
+			// 判断登陆ip与请求ip是否一致
+			if token_info.Login_Ip != ClientIP && token_info.Login_Ip != "" {
+				ctx.Set("Response", []any{403, fmt.Sprintf("ip:%s 禁止请求", ClientIP)})
+				ctx.Abort()
+				return
+			}
+
+			// 判断id
+			if token_info.Api_Id != Access_Token_redis.Api_Id {
+				ctx.Set("Response", []any{500, "api_id与缓存id不一致"})
+				ctx.Abort()
+				return
+			}
+
+			ctx.Set("Api_Access_Token_Redis", Access_Token_redis)
+			ctx.Set("Api_Access_Token__Token_Info", token_info)
 			ctx.Next()
 		} else {
-			ctx.Set("Response", []any{http.StatusNotFound, "未知类型"})
+			ctx.Set("Response", []any{404, "未知类型"})
 			ctx.Abort()
 		}
 	}
@@ -206,6 +283,10 @@ func Token_User_Id(ctx *gin.Context) (User_Id uint, err error) {
 }
 
 func Web() error {
+	if !Init.Config.API.Enable {
+		log.Print("INFO ", "api", "接口服务已禁用")
+		return nil
+	}
 
 	bind := fmt.Sprintf("%s:%d", Init.Config.API.Ip, Init.Config.API.Post)
 
@@ -220,6 +301,7 @@ func Web() error {
 
 	log.Print("INFO ", "api", bind)
 
+	// gui_api(r)
 	// 前端接口
 
 	// time.Sleep(3 * time.Second)

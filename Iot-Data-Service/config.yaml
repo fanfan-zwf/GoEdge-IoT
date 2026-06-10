@@ -5,6 +5,7 @@ APP:
   uuid: 6599c8f9-95f2-4f8e-8095-32b887f9b7e5
 
 API:
+  enable: true
   ip: 0.0.0.0
   post: 8090
   header:
@@ -16,7 +17,7 @@ API:
       value: Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, F_Access_Token, F_Refresh_Token, F_Terminal_Uuid
 
 MYSQL:
-  dsn: "root:123456@tcp(127.0.0.1:3306)/go-db-server?charset=utf8mb4&parseTime=True&loc=Local"
+  dsn: "root:123456@tcp(127.0.0.1:3306)/iot-data-service?charset=utf8mb4&parseTime=True&loc=Local"
   
 REDIS:
   ip: 127.0.0.1
@@ -41,13 +42,37 @@ RPC:
   network: tcp,
   address: :8760
 
-
-SET:
-  User_Access_Token_Time: 3600
-  Api_Access_Token_Time: 86400
-
+ 
 user_Service:
   url: "http://127.0.0.1:8101" 
   apikey: "123456"
   secret: "123456"  
+ 
+Mqtt_Rpc:
+  example: default
+  enable: true
+  business_timeout: 5s # 业务处理超时
+  listen_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000 # 监听主题
+  config_service_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174001 # 配置服务主题
+
+  # 发送mqtt数据
+  point_push_value: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000/point/push/value # 点位更新
+  point_down_value: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000/point/issue/value # 点下发报警
+  point_alarm_value: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000/point/alarm/value # 点位报警
+
+
+Mqtt:
+  default:
+    enable: true
+    broker: tcp://127.0.0.1:1883
+    username: o7aKZOj53p2PkkFJzKzM
+    password: lpj4VZ4ZYFg5GmINhRat
+    client_id:  123e4567-e89b-12d3-a456-426614174000
+    clean_session: True # 清洁会话（重启不接收离线消息）
+    auto_reconnect: True # 自动重连
+    connect_timeout: 10s # 连接超时
+    write_timeout: 5s # 写超时
+    keep_alive: 30s # 心跳保活
+
+
  

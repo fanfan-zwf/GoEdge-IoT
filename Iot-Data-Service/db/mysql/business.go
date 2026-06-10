@@ -8,567 +8,803 @@ package mysql
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
+
 	"strings"
+	"time"
 )
+
+/*
+***************采集配置结构体***************
+ */
+
+type Collector__Carry_type struct {
+	Id   uint   // 采集器标识
+	Name string // 采集器名称
+	Uuid string // 采集器uuid
+}
+
+// 采集配置增加结构体
+type Collector_Info_Add_type struct {
+	Label   string // 标识
+	Uuid    string // Uuid
+	Name    string // 设备名称
+	User_Id uint   // 用户id
+}
+
+type Collector_Info_Update_type struct {
+	Id   uint   // 采集 Id
+	Name string // 设备名称
+}
+
+// 采集配置结构体
+type Collector_Info_type struct {
+	Id                 uint      // 采集 Id
+	Label              string    // 标识
+	Creation_Time      time.Time // 创建时间
+	Uuid               string    // Uuid (修正为 string)
+	Sn                 string    // 设备 sn
+	User_Id            uint      // 创建用户 id
+	Version            string    // 版本
+	Last_Activity_Time time.Time // 最后活动时间
+	Equipment_Id       uint      // 设备 id
+	Name               string    // 设备名称
+}
 
 /*
 ***************驱动配置结构体***************
  */
 
+type Drive__Carry_type struct {
+	Id   uint   // 驱动id唯一标识符
+	Type string // 驱动类型
+	Name string // 驱动名称
+}
+
+type Drive_Config_Add_type struct {
+	Id            uint      // 驱动id
+	Name          string    // 驱动名称
+	Config        string    // json配置参数
+	Type          string    // 驱动类型
+	Creation_Time time.Time // 创建时间
+	Collector_Id  uint      // 采集器标识
+}
+type Drive_Config_Update_type struct {
+	Id     uint   // 驱动id
+	Name   string // 驱动名称
+	Config string // json配置参数
+}
 type Drive_Config_type struct {
-	Id            uint   // 驱动id
-	Type          string // 驱动类型
-	Name          string // 驱动名称
-	Points_Length uint   // 点位数量
-	Config        string // json配置参数
+	Collector Collector__Carry_type
+
+	Drive_Config_Update_type
+	Type          string    // 驱动类型
+	Points_Length uint      // 点位数量
+	Creation_Time time.Time // 创建时间
 }
 
-// 点位-》查询配置
-// 传递: drive_type 设备类型
-// 返回: configs 配置, err 错误
-func Drive_Config__Query_DriveType(drive_type string) (configs []Drive_Config_type, err error) {
-
-	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT `Id`, `Type`, `Name`, `Config`, `Points_Length` FROM `Drive_Config` WHERE `Type` = ?"
-	// 4. 执行查询（统一处理，减少重复代码）
-	rows, err := DB.Query(baseQuery, drive_type)
-
-	// 区分无数据和查询错误，日志补充上下文便于排查
-	if err == sql.ErrNoRows {
-		// log.Printf("查询驱动配置无数据，驱动类型：%s, 分页%d/%d", driveType, page, pageSize)
-		return
-	} else if err != nil {
-		err = fmt.Errorf("ERROR 查询驱动配置失败, 错误:%v, SQL:%s, drive_type:%s", err, baseQuery, drive_type)
-		log.Print(err)
-		return
-	}
-
-	defer func(rows *sql.Rows) {
-		// 关闭rows时检查错误，避免资源泄漏且捕获隐藏错误
-		closeErr := rows.Close()
-		if closeErr != nil {
-			log.Printf("ERROR 关闭rows失败: %v", closeErr)
-		}
-	}(rows)
-
-	for rows.Next() {
-		var config Drive_Config_type
-		err = rows.Scan(
-			&config.Id,
-			&config.Type,
-			&config.Name,
-			&config.Config,
-			&config.Points_Length,
-		)
-		if err != nil {
-			log.Print(err.Error())
-			return
-		}
-
-		configs = append(configs, config)
-	}
-	return
+/*
+***************点位配置结构体***************
+ */
+// 点位配置增加结构体
+type Points_Config_Add_type struct {
+	Id          uint   // 点位id
+	Drive_Id    uint   // 驱动id唯一标识符
+	Tag         string // 点位标识
+	Description string // 点位描述
+	RW_Cancel   string // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
+	Value_Type  string // 输出类型
+	Config      string // 配置信息
+	History     string // 存储
+	Alarm       string // 报警
+	Alarm_Group int    // 报警组
 }
 
-// 驱动-》查询配置
-// 传递: driveid 驱动id
-// 返回: configs 配置, err 错误
-func Drive_Config__Query_DriveId(driveid uint) (config Drive_Config_type, err error) {
-
-	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT `Id`, `Type`, `Name`, `Config`, `Points_Length` FROM `Drive_Config` WHERE `Id` = ?"
-
-	// 2. 执行查询（统一处理，减少重复代码）
-	err = DB.QueryRow(baseQuery, driveid).Scan(
-		&config.Id,
-		&config.Type,
-		&config.Name,
-		&config.Config,
-		&config.Points_Length,
-	)
-
-	return
+// 点位配置更新结构体
+type Points_Config_Update_type struct {
+	Id          uint   // 点位id
+	Tag         string // 点位标识
+	Description string // 点位描述
+	RW_Cancel   string // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
+	Value_Type  string // 输出类型
+	Config      string // 配置信息
+	History     string // 存储
+	Alarm       string // 报警
+	Alarm_Group int    // 报警组
 }
 
-// 驱动-》查询数量
-// 传递: driveType 驱动类型, page 页码, pageSize 每页数量
-// 返回: Count 数量, err 错误
-func Drive_Config__Count(driveType string, page uint, pageSize uint) (Count uint, err error) {
+// 点位配置结构体
+type Points_Config_type struct {
+	Collector Collector__Carry_type
+	Drive     Drive__Carry_type
 
+	Points_Config_Update_type
+	Creation_Time time.Time // 创建时间
+
+}
+
+/*
+***************mqtt配置结构体***************
+ */
+
+// 结构体
+type Mqtt__type struct {
+	Id                 uint      // 点位id
+	Type               string    // 类型 私有协议、繁易
+	Example_IDentifier string    // mqtt实例标识符
+	Topic_Push         string    // 主题
+	Topic_Down         string    // 点下发值
+	Topic_Alarm        string    // 点位报警
+	Creation_Time      time.Time // 创建时间
+	Creation_User      uint      // 创建的用户id
+}
+
+type Mqtt__Add_type struct {
+	Type               string // 类型 私有协议、繁易
+	Example_IDentifier string // mqtt实例标识符
+	Topic_Push         string // 主题
+	Topic_Down         string // 点下发值
+	Topic_Alarm        string // 点位报警
+	Creation_User      uint   // 创建的用户id
+}
+
+type Mqtt__Update_type struct {
+	Id                 uint   // 点位id
+	Type               string // 类型 私有协议、繁易
+	Example_IDentifier string // mqtt实例标识符
+	Topic_Push         string // 主题
+	Topic_Down         string // 点下发值
+	Topic_Alarm        string // 点位报警
+	Creation_User      uint   // 创建的用户id
+}
+
+// Mqtt-》查询数量
+// 传递：Types 设备类型，Example_IDentifiers 设备标识符，Topics 设备主题，page 页码，pageSize 每页数量，
+// 返回：Count 数量，err 错误
+func Mqtt__Count(Types []string, Example_IDentifiers []string, Topics []string, page uint, pageSize uint) (Count uint, err error) {
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT COUNT(`Id`) FROM `Drive_Config`"
+	baseQuery := `
+		SELECT
+			COUNT(Mqtt.Id) 
+		FROM Mqtt 
+	`
 	var args []interface{} // 存储SQL参数，防止SQL注入
+	var whereConditions []string
 
-	// 2. 构建WHERE条件（统一处理，避免多个else if分支）
-	if driveType != "" {
-		baseQuery += " WHERE `Type` = ?"
-		args = append(args, driveType)
+	if len(Types) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Types)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt`.`Type` IN (%s)", placeholders))
+		for _, Type := range Types {
+			args = append(args, Type)
+		}
 	}
 
-	// 3. 构建分页条件（统一处理，避免重复逻辑）
-	if page != 0 {
-		// 分页计算：page从1开始的话，偏移量是 (page-1)*pageSize；page为0则不分页
-		offset := (page - 1) * pageSize
-		baseQuery += " LIMIT ?, ?"
-		args = append(args, offset, pageSize)
+	if len(Example_IDentifiers) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Example_IDentifiers)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt`.`Example_IDentifier` IN (%s)", placeholders))
+		for _, Example_IDentifier := range Example_IDentifiers {
+			args = append(args, Example_IDentifier)
+		}
 	}
-	// 4. 执行查询（统一处理，减少重复代码）
+
+	if len(Topics) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Topics)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt`.`Topic` IN (%s)", placeholders))
+		for _, Topic := range Topics {
+			args = append(args, Topic)
+		}
+	}
+
+	// 拼接 WHERE
+	if len(whereConditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
+	}
+
+	// ⚠️ COUNT 查询 不要 LIMIT，已删除
+	// 3. 执行查询
 	err = DB.QueryRow(baseQuery, args...).Scan(&Count)
 
 	// 区分无数据和查询错误，日志补充上下文便于排查
 	if err == sql.ErrNoRows {
-		// log.Printf("查询驱动配置无数据，驱动类型：%s, 分页%d/%d", driveType, page, pageSize)
+		log.Printf("查询点位配置无数据")
+		Count = 0
 		return
 	} else if err != nil {
-		err = fmt.Errorf("ERROR 查询驱动配置失败，错误：%v, SQL:%s, 参数:%v", err, baseQuery, args)
+		err = fmt.Errorf("ERROR 查询点位配置失败，错误：%v, SQL:%s, 参数:%v", err, baseQuery, args)
+		log.Print(err)
 		return
 	}
+
 	return
 }
 
-// 驱动-》查询配置
-// 传递: driveType 驱动类型, page 页码, pageSize 每页数量
-// 返回: configs 配置, err 错误
-func Drive_Config__Query(driveType string, page uint, pageSize uint) (configs []Drive_Config_type, err error) {
-
+// Mqtt-》查询配置（回调）
+// 传递：Types 设备类型，Example_IDentifiers 设备标识符，Topics 设备主题，page 页码，pageSize 每页数量，callback 回调函数
+// 返回：err 错误
+func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics []string, page uint, pageSize uint, callback func(Mqtt__type)) (err error) {
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
-	baseQuery := "SELECT `Id`, `Type`, `Name`, `Config`, `Points_Length` FROM `Drive_Config`"
+	baseQuery := `
+		SELECT
+			Mqtt.Id,
+			Mqtt.Type,
+			Mqtt.Example_IDentifier,
+			Mqtt.Topic_Push,
+			Mqtt.Topic_Down,
+			Mqtt.Topic_Alarm,
+			Mqtt.Creation_Time,
+			Mqtt.Creation_User
+		FROM Mqtt
+	`
+	var whereConditions []string
 	var args []interface{} // 存储SQL参数，防止SQL注入
 
-	// 2. 构建WHERE条件（统一处理，避免多个else if分支）
-	if driveType != "" {
-		baseQuery += " WHERE `Type` = ?"
-		args = append(args, driveType)
+	if len(Types) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Types)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt`.`Type` IN (%s)", placeholders))
+		for _, Type := range Types {
+			args = append(args, Type)
+		}
 	}
 
-	// 3. 构建分页条件（统一处理，避免重复逻辑）
+	if len(Example_IDentifiers) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Example_IDentifiers)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt`.`Example_IDentifier` IN (%s)", placeholders))
+		for _, Example_IDentifier := range Example_IDentifiers {
+			args = append(args, Example_IDentifier)
+		}
+	}
+
+	if len(Topics) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Topics)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt`.`Topic` IN (%s)", placeholders))
+		for _, Topic := range Topics {
+			args = append(args, Topic)
+		}
+	}
+
+	// 拼接 WHERE 条件
+	if len(whereConditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
+	}
+
+	// 3. 构建分页条件
 	if page != 0 {
-		// 分页计算：page从1开始的话，偏移量是 (page-1)*pageSize；page为0则不分页
 		offset := (page - 1) * pageSize
 		baseQuery += " LIMIT ?, ?"
 		args = append(args, offset, pageSize)
 	}
 
-	// 4. 执行查询（统一处理，减少重复代码）
+	// 4. 执行查询
 	rows, err := DB.Query(baseQuery, args...)
-
-	// 区分无数据和查询错误，日志补充上下文便于排查
-	if err == sql.ErrNoRows {
-		// log.Printf("查询驱动配置无数据，驱动类型：%s, 分页%d/%d", driveType, page, pageSize)
-		return
-	} else if err != nil {
-		err = fmt.Errorf("ERROR 查询驱动配置失败, 错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询点位配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
 		log.Print(err)
-		return
+		return err
 	}
-
-	if err == sql.ErrNoRows {
-		return
-	} else if err != nil {
-		return
-	}
-
-	defer func(rows *sql.Rows) {
-		// 关闭rows时检查错误，避免资源泄漏且捕获隐藏错误
-		closeErr := rows.Close()
-		if closeErr != nil {
-			log.Printf("ERROR 关闭rows失败: %v", closeErr)
-		}
-	}(rows)
+	defer rows.Close()
 
 	for rows.Next() {
-		var Config Drive_Config_type
+		var (
+			config        Mqtt__type
+			Creation_User uint
+			Topic_Push    string
+			Topic_Down    string
+			Topic_Alarm   string
+		)
 		err = rows.Scan(
-			&Config.Id,
-			&Config.Type,
-			&Config.Name,
-			&Config.Config,
-			&Config.Points_Length,
+			&config.Id,
+			&config.Type,
+			&config.Example_IDentifier,
+			Topic_Push,
+			Topic_Down,
+			Topic_Alarm,
+			&config.Creation_Time,
+			&Creation_User,
 		)
 		if err != nil {
 			log.Print(err.Error())
-			return
+			return err
 		}
-
-		configs = append(configs, Config)
+		config.Topic_Push = Topic_Push
+		config.Topic_Down = Topic_Down
+		config.Topic_Alarm = Topic_Alarm
+		config.Creation_User = Creation_User
+		callback(config)
 	}
+
+	err = rows.Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Mqtt-》查询配置
+// 传递：driveid 设备 id, page 页码，pageSize 每页数量
+// 返回：configs 配置，err 错误
+func Mqtt__Query(Types []string, Example_IDentifiers []string, Topics []string, page uint, pageSize uint) (configs []Mqtt__type, err error) {
+	err = Mqtt__Query_Callback(Types, Example_IDentifiers, Topics, page, pageSize, func(config Mqtt__type) {
+		configs = append(configs, config)
+	})
 	return
 }
 
-// 驱动-》增加配置
-// 传递: config 配置数组形式
-// 返回: err 错误
-func Drive_Config__Add(configs ...Drive_Config_type) (err error) {
+// Mqtt-》增加配置
+// 传递：config 配置数组形式
+// 返回：err 错误
+func Mqtt__Add(configs ...Mqtt__Add_type) (err error) {
 	// 1. 基础校验：空列表直接返回
 	if len(configs) == 0 {
-		err = fmt.Errorf("批量新增失败：待新增配置列表为空")
-		return
+		return fmt.Errorf("批量新增失败：待新增配置列表为空")
 	}
 
-	// 2. 遍历校验每个配置的参数合法性
-	for i, cfg := range configs {
-		if cfg.Id != 0 || cfg.Points_Length != 0 {
-			err = fmt.Errorf("批量新增失败：第%d条配置参数错误 Id=%d/Points_Length=%d, 必须为0 ",
-				i, cfg.Id, cfg.Points_Length)
-			return
-		}
-		// 可选：校验必填字段（Type/Name/Config非空，根据业务需求加）
-		if cfg.Type == "" || cfg.Name == "" {
-			err = fmt.Errorf("批量新增失败：第%d条配置Type/Name不能为空", i)
-			return
-		}
-	}
+	// 3. SQL 插入（包含 Id 字段）
+	baseQuery := `
+		INSERT INTO Mqtt (
+			Type,
+			Example_IDentifier,
+			Topic_Push,
+			Topic_Down,
+			Topic_Alarm,
+			Creation_Time,
+			Creation_User
+		) VALUES
+	`
 
-	// 3. 拼接批量INSERT的SQL和参数
-	baseQuery := "INSERT INTO `Drive_Config`(`Type`, `Name`, `Config`) VALUES "
-	var args []interface{}         // 存储所有参数
-	var valuePlaceholders []string // 存储每个值组的占位符 (?, ?, ?)
+	var (
+		args              []interface{}
+		valuePlaceholders []string
+	)
+	now := time.Now()
 
-	// 遍历配置列表，拼接占位符和参数
+	// 4. 构建批量参数
 	for _, cfg := range configs {
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?)")
-		args = append(args, cfg.Type, cfg.Name, cfg.Config)
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?)")
+		args = append(args,
+			cfg.Type,
+			cfg.Example_IDentifier,
+			sql.NullString{
+				String: cfg.Topic_Push,
+				Valid:  cfg.Topic_Push != "",
+			},
+			sql.NullString{
+				String: cfg.Topic_Down,
+				Valid:  cfg.Topic_Down != "",
+			},
+			sql.NullString{
+				String: cfg.Topic_Alarm,
+				Valid:  cfg.Topic_Alarm != "",
+			},
+			now,
+			sql.NullInt16{
+				Int16: int16(cfg.Creation_User),
+				Valid: cfg.Creation_User != 0,
+			},
+		)
 	}
 
-	// 拼接完整SQL
+	// 5. 拼接 SQL
 	query := baseQuery + strings.Join(valuePlaceholders, ", ")
 
-	// 4. 执行批量插入
+	// 6. 执行插入
 	_, err = DB.Exec(query, args...)
 	if err != nil {
-		err = fmt.Errorf("批量新增驱动配置失败, SQL:%s, 参数数:%d, 错误:%v", query, len(args), err)
+		return fmt.Errorf("批量插入 Points_Config 失败: %w", err)
 	}
-	return
+
+	return nil
 }
 
-// 驱动-》修改配置
-// 传递: config 配置
-// 返回: conid 获取自增的Id, err 错误
-func Drive_Config__Update(configs ...Drive_Config_type) (err error) {
+// Mqtt-》修改配置
+// 传递：config 配置
+// 返回：conid 获取自增的Id，err 错误
+func Mqtt__Update(configs ...Mqtt__Update_type) (err error) {
 	// 1. 空列表校验
 	if len(configs) == 0 {
 		err = fmt.Errorf("ERROR 待更新配置列表为空")
 		return
 	}
 
+	now := time.Now()
+
 	// 2. 遍历逐个更新
-	for idx, config := range configs {
+	for i, cfg := range configs {
 		// 2.1 单条配置参数校验
-		if config.Id == 0 {
-			err = fmt.Errorf("ERROR 第%d条配置ID(Id)不能为空", idx+1)
-			return
-		}
-		if config.Points_Length != 0 {
-			err = fmt.Errorf("ERROR 第%d条配置Points_Length不允许手动赋值 值:%d", idx, config.Points_Length)
+		if cfg.Id == 0 {
+			err = fmt.Errorf("批量新增失败：第%d条配置不能为空", i)
 			return
 		}
 
 		// 2.2 动态拼接SET子句
 		var setClauses []string
 		var args []interface{}
-		if config.Config != "" {
-			if !json.Valid([]byte(config.Config)) {
-				err = fmt.Errorf("ERROR 第%d条配置非法JSON:%s", idx+1, config.Config)
-				return
-			}
-			setClauses = append(setClauses, "`Config` = ?")
-			args = append(args, config.Config)
+		if cfg.Type != "" {
+			setClauses = append(setClauses, "`Type` = ?")
+			args = append(args, cfg.Type)
+		}
+		if cfg.Example_IDentifier != "" {
+			setClauses = append(setClauses, "`Example_IDentifier` = ?")
+			args = append(args, cfg.Example_IDentifier)
+		}
+		if cfg.Topic_Push != "null" {
+			setClauses = append(setClauses, "`Topic_Push` = ?")
+			args = append(args, sql.NullString{
+				String: cfg.Topic_Push,
+				Valid:  cfg.Topic_Push != "null" || cfg.Topic_Push == "undefined",
+			})
+		}
+		if cfg.Topic_Down != "null" {
+			setClauses = append(setClauses, "`Topic_Down` = ?")
+			args = append(args, sql.NullString{
+				String: cfg.Topic_Down,
+				Valid:  cfg.Topic_Down != "null" || cfg.Topic_Down == "undefined",
+			})
+		}
+		if cfg.Topic_Alarm != "null" {
+			setClauses = append(setClauses, "`Topic_Alarm` = ?")
+			args = append(args, sql.NullString{
+				String: cfg.Topic_Alarm,
+				Valid:  cfg.Topic_Alarm != "null" || cfg.Topic_Alarm == "undefined",
+			})
+		}
+		if cfg.Creation_User != 0 {
+			setClauses = append(setClauses, "`Creation_User` = ?")
+			args = append(args, cfg.Creation_User)
 		}
 
-		// 2.3 校验更新字段
+		setClauses = append(setClauses, "`Creation_Time` = ?")
+		args = append(args, now)
+
+		// 2.3 校验更新字段i
 		if len(setClauses) == 0 {
-			err = fmt.Errorf("ERROR 第%d条配置未指定任何更新字段 Type/Name/Config至少传一个", idx+1)
+			err = fmt.Errorf("ERROR 第%d条配置未指定任何更新字段至少传一个", i)
 			return
 		}
 
 		// 2.4 拼接SQL并执行
-		query := fmt.Sprintf("UPDATE `Drive_Config` SET %s WHERE `Id` = ?", strings.Join(setClauses, ", "))
-		args = append(args, config.Id)
+		query := fmt.Sprintf("UPDATE `Mqtt` SET %s WHERE `Id` = ?", strings.Join(setClauses, ", "))
+		args = append(args, cfg.Id)
 
 		_, err = DB.Exec(query, args...)
 		if err != nil {
-			err = fmt.Errorf("ERROR 第%d条配置更新失败, ID:%d, 错误:%v, SQL:%s, 参数:%v", idx, config.Id, err, query, args)
+			err = fmt.Errorf("ERROR 第%d条配置更新失败, ID:%d, 错误:%v, SQL:%s, 参数:%v", i, cfg.Id, err, query, args)
 			return
 		}
 	}
 
-	log.Printf("批量更新成功，共更新%d条配置", len(configs))
 	return
 }
 
-// 驱动-》删除配置
-// 传递: ids 删除的id数组
-// 返回: err 错误
-func Drive_Config__Del(ids ...uint) (err error) {
+// Mqtt-》删除配置
+// 传递：ids 删除的id数组
+// 返回：err 错误
+func Mqtt__Del(ids ...uint) (err error) {
 	// 1. 遍历逐个
 	for idx, id := range ids {
-		// 1.1 单条配置参数校验
+
 		if id == 0 {
-			err = fmt.Errorf("ERROR 第%d条配置ID(Id)不能为空", idx+1)
+			err = fmt.Errorf("ERROR 第%d条配置ID(Id)不能为空", idx)
 			return
 		}
 
-		query := "DELETE FROM `Drive_Config` WHERE `Id` = ? "
+		query := "DELETE FROM `Mqtt` WHERE `Id` = ? "
 		// 修改数据库
 		_, err = DB.Exec(query, id)
 		if err != nil {
 			err = fmt.Errorf("ERROR 第%d条配置更新失败, ID:%d, 错误:%v, SQL:%s", idx, id, err, query)
 			return
 		}
+
 	}
 	return
 }
 
 /*
-***************点位配置结构体***************
+***************mqtt配置结构体***************
  */
-type Points_Config_type struct {
+
+// 结构体
+type Mqtt_Down__type struct {
 	Id          uint   // 点位id
-	Drive_Id    uint   // 驱动id唯一标识符
-	Tag         string // 点位标识
-	Drive_Type  string // 驱动类型
-	Description string // 点位描述
-	RW_Cancel   string // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
-	Value_Type  string // 输出类型
-	Config      string
+	Mqtt_Id     uint   // MQTT id
+	Tag         string // 点位标识符
+	RW_Cancel   string // 读写方式
+	Value_Type  string // 值类型
+	History     string // 存储
+	Alarm       string // 报警
+	Alarm_Group int    // 报警组
+	Format_Path string // 格式路径
+
+	Creation_Time time.Time // 创建时间
+	Creation_User uint      // 创建的用户id
 }
 
-// 点位-》查询数量
-// 传递: driveid 设备id, page 页码, pageSize 每页数量
-// 返回: Count 数量, err 错误
-func Points_Config__Count(driveid uint, page uint, pageSize uint) (Count uint, err error) {
-	if driveid == 0 {
-		err = fmt.Errorf("ERROR driveid传递参数错误")
-		return
-	}
+type Mqtt_Down__Add_type struct {
+	Mqtt_Id     uint   // MQTT id
+	Tag         string // 点位标识符
+	RW_Cancel   string // 读写方式
+	Value_Type  string // 值类型
+	History     string // 存储
+	Alarm       string // 报警
+	Alarm_Group int    // 报警组
+	Format_Path string // 格式路径
 
+	Creation_User uint // 创建的用户id
+}
+
+type Mqtt_Down__Update_type struct {
+	Mqtt_Down__type
+}
+
+func Mqtt_Down__Count(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page uint, pageSize uint) (Count uint, err error) {
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
 	baseQuery := `
 		SELECT
-			COUNT(Points_Config.Id) 
-		FROM Points_Config
-		INNER JOIN Drive_Config ON Points_Config.Drive_Id = Drive_Config.Id
+			COUNT(Mqtt_Down.Id) 
+		FROM Mqtt 
 	`
 	var args []interface{} // 存储SQL参数，防止SQL注入
+	var whereConditions []string
 
-	// 2. 构建WHERE条件（统一处理，避免多个else if分支）
-	if driveid != 0 {
-		baseQuery += " WHERE `Points_Config`.`Drive_Id` = ?"
-		args = append(args, driveid)
+	if len(Mqtt_Ids) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Mqtt_Ids)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`Mqtt_Id` IN (%s)", placeholders))
+		for _, Mqtt_Id := range Mqtt_Ids {
+			args = append(args, Mqtt_Id)
+		}
 	}
 
-	// 3. 构建分页条件（统一处理，避免重复逻辑）
-	if page != 0 {
-		// 分页计算：page从1开始的话，偏移量是 (page-1)*pageSize；page为0则不分页
-		offset := (page - 1) * pageSize
-		baseQuery += " LIMIT ?, ?"
-		args = append(args, offset, pageSize)
+	if len(Tags) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Tags)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`Tag` IN (%s)", placeholders))
+		for _, Tag := range Tags {
+			args = append(args, Tag)
+		}
 	}
-	// 4. 执行查询（统一处理，减少重复代码）
+
+	if len(RW_Cancels) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(RW_Cancels)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`RW_Cancel` IN (%s)", placeholders))
+		for _, RW_Cancel := range RW_Cancels {
+			args = append(args, RW_Cancel)
+		}
+	}
+
+	// 拼接 WHERE
+	if len(whereConditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
+	}
+
+	// ⚠️ COUNT 查询 不要 LIMIT，已删除
+	// 3. 执行查询
 	err = DB.QueryRow(baseQuery, args...).Scan(&Count)
 
 	// 区分无数据和查询错误，日志补充上下文便于排查
 	if err == sql.ErrNoRows {
-		// log.Printf("查询驱动配置无数据，驱动类型：%s, 分页%d/%d", driveType, page, pageSize)
+		log.Printf("查询点位配置无数据")
+		Count = 0
 		return
 	} else if err != nil {
-		err = fmt.Errorf("ERROR 查询驱动配置失败，错误：%v, SQL:%s, 参数:%v", err, baseQuery, args)
+		err = fmt.Errorf("ERROR 查询点位配置失败，错误：%v, SQL:%s, 参数:%v", err, baseQuery, args)
+		log.Print(err)
 		return
 	}
+
 	return
 }
 
-// 点位-》查询配置
-// 传递: driveid 设备id, page 页码, pageSize 每页数量
-// 返回: configs 配置, err 错误
-func Points_Config__Query(driveid uint, page uint, pageSize uint) (configs []Points_Config_type, err error) {
-	if driveid == 0 {
-		err = fmt.Errorf("ERROR 配置driveid(Id)不能为空")
-		return
-	}
-
+func Mqtt_Down__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page uint, pageSize uint, callback func(Mqtt_Down__type)) (err error) {
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
 	baseQuery := `
-		SELECT 
-			Points_Config.Id,
-			Points_Config.Drive_Id,
-			Drive_Config.Type,
-			Points_Config.Tag,
-			Points_Config.Description,
-			Points_Config.Config,
-			Points_Config.RW_Cancel,
-			Points_Config.Value_Type
-		FROM Points_Config
-		INNER JOIN Drive_Config ON Points_Config.Drive_Id = Drive_Config.Id	
+		SELECT
+			Mqtt_Down.Id,
+			Mqtt_Down.Mqtt_Id,
+			Mqtt_Down.Tag,
+			Mqtt_Down.RW_Cancel,
+			Mqtt_Down.Value_Type,
+			Mqtt_Down.History,
+			Mqtt_Down.Alarm,
+			Mqtt_Down.Alarm_Group,
+			Mqtt_Down.Creation_Time,
+			Mqtt_Down.Creation_User,
+			Mqtt_Down.Format_Path
+		FROM Mqtt_Down
 	`
+	var whereConditions []string
 	var args []interface{} // 存储SQL参数，防止SQL注入
 
-	// 2. 构建WHERE条件（统一处理，避免多个else if分支）
-	if driveid != 0 {
-		baseQuery += " WHERE `Points_Config`.`Drive_Id` = ?"
-		args = append(args, driveid)
+	if len(Mqtt_Ids) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Mqtt_Ids)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`Mqtt_Id` IN (%s)", placeholders))
+		for _, Mqtt_Id := range Mqtt_Ids {
+			args = append(args, Mqtt_Id)
+		}
 	}
 
-	// 3. 构建分页条件（统一处理，避免重复逻辑）
+	if len(Tags) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Tags)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`Tag` IN (%s)", placeholders))
+		for _, Tag := range Tags {
+			args = append(args, Tag)
+		}
+	}
+
+	if len(RW_Cancels) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(RW_Cancels)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`RW_Cancel` IN (%s)", placeholders))
+		for _, RW_Cancel := range RW_Cancels {
+			args = append(args, RW_Cancel)
+		}
+	}
+
+	// 拼接 WHERE 条件
+	if len(whereConditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
+	}
+
+	// 3. 构建分页条件
 	if page != 0 {
-		// 分页计算：page从1开始的话，偏移量是 (page-1)*pageSize；page为0则不分页
 		offset := (page - 1) * pageSize
 		baseQuery += " LIMIT ?, ?"
 		args = append(args, offset, pageSize)
 	}
 
-	// 4. 执行查询（统一处理，减少重复代码）
+	// 4. 执行查询
 	rows, err := DB.Query(baseQuery, args...)
-
-	// 区分无数据和查询错误，日志补充上下文便于排查
-	if err == sql.ErrNoRows {
-		// log.Printf("查询驱动配置无数据，驱动类型：%s, 分页%d/%d", driveType, page, pageSize)
-		return
-	} else if err != nil {
-		err = fmt.Errorf("ERROR 查询驱动配置失败, 错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询点位配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
 		log.Print(err)
-		return
+		return err
 	}
-
-	if err == sql.ErrNoRows {
-		return
-	} else if err != nil {
-		return
-	}
-
-	defer func(rows *sql.Rows) {
-		// 关闭rows时检查错误，避免资源泄漏且捕获隐藏错误
-		closeErr := rows.Close()
-		if closeErr != nil {
-			log.Printf("ERROR 关闭rows失败: %v", closeErr)
-		}
-	}(rows)
+	defer rows.Close()
 
 	for rows.Next() {
-		var Config Points_Config_type
+		var (
+			config        Mqtt_Down__type
+			Creation_User uint
+			History       string
+			Alarm         string
+			Alarm_Group   int
+			Format_Path   string
+		)
 		err = rows.Scan(
-			&Config.Id,
-			&Config.Drive_Id,
-			&Config.Drive_Type,
-			&Config.Tag,
-			&Config.Description,
-			&Config.Config,
-			&Config.RW_Cancel,
-			&Config.Value_Type,
+			&config.Id,
+			&config.Mqtt_Id,
+			&config.Tag,
+			&config.RW_Cancel,
+			&config.Value_Type,
+			History,
+			Alarm,
+			Alarm_Group,
+			Format_Path,
+			&config.Creation_Time,
+			&Creation_User,
 		)
 		if err != nil {
 			log.Print(err.Error())
-			return
+			return err
 		}
-
-		configs = append(configs, Config)
+		config.History = History
+		config.Alarm = Alarm
+		config.Alarm_Group = Alarm_Group
+		config.Format_Path = Format_Path
+		config.Creation_User = Creation_User
+		callback(config)
 	}
+
+	err = rows.Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func Mqtt_Down__Query(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page uint, pageSize uint) (r []Mqtt_Down__type, err error) {
+	err = Mqtt_Down__Query_Callback(Mqtt_Ids, Tags, RW_Cancels, page, pageSize, func(config Mqtt_Down__type) {
+		r = append(r, config)
+	})
 	return
 }
 
-// 点位-》增加配置
-// 传递: config 配置数组形式
-// 返回: err 错误
-func Points_Config__Add(configs ...Points_Config_type) (err error) {
+func Mqtt_Down__Add(configs ...Mqtt_Down__Add_type) (err error) {
 	// 1. 基础校验：空列表直接返回
 	if len(configs) == 0 {
-		err = fmt.Errorf("批量新增失败：待新增配置列表为空")
-		return
+		return fmt.Errorf("批量新增失败：待新增配置列表为空")
 	}
 
-	// 2. 遍历校验每个配置的参数合法性
-	for i, cfg := range configs {
-		if cfg.Id != 0 || cfg.Drive_Id != 0 {
-			err = fmt.Errorf("批量新增失败：第%d条配置参数错误 Id=%d/Drive_Id=%d, 必须为0 ",
-				i, cfg.Id, cfg.Drive_Id)
-			return
-		}
-		// 可选：校验必填字段（Type/Name/Config非空，根据业务需求加）
-		if cfg.Tag == "" || cfg.Config == "" || cfg.RW_Cancel == "" || cfg.Value_Type == "" {
-			err = fmt.Errorf("批量新增失败：第%d条配置Tag/Config/RW_Cancel/Value_Type不能为空", i)
-			return
-		}
-	}
-
-	// 3. 拼接批量INSERT的SQL和参数
-	// baseQuery := "INSERT INTO `Drive_Config`(`Type`, `Name`, `Config`) VALUES "
+	// 3. SQL 插入（包含 Id 字段）
 	baseQuery := `
-		INSERT
-			INTO
-				Points_Config
-			(
-				Drive_Id,
-				Tag,
-				Description,
-				Config,
-				RW_Cancel,
-				Value_Type
-			)
-		VALUES
+		INSERT INTO Mqtt_Down (
+			Mqtt_Id,
+			Tag,
+			RW_Cancel,
+			Value_Type,
+			History,
+			Alarm,
+			Alarm_Group,
+			Format_Path,
+			Creation_Time,
+			Creation_User
+		) VALUES
 	`
 
-	var args []interface{}         // 存储所有参数
-	var valuePlaceholders []string // 存储每个值组的占位符 (?, ?, ?)
+	var (
+		args              []interface{}
+		valuePlaceholders []string
+	)
+	now := time.Now()
 
-	// 遍历配置列表，拼接占位符和参数
+	// 4. 构建批量参数
 	for _, cfg := range configs {
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?)")
-		args = append(
-			args,
-			cfg.Drive_Id,
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+		args = append(args,
+			cfg.Mqtt_Id,
 			cfg.Tag,
-			sql.NullString{
-				String: cfg.Description,
-				Valid:  cfg.Description != "",
-			},
-			cfg.Config,
 			cfg.RW_Cancel,
-			cfg.Value_Type)
+			cfg.Value_Type,
+			sql.NullString{
+				String: cfg.History,
+				Valid:  cfg.History != "",
+			},
+			sql.NullString{
+				String: cfg.Alarm,
+				Valid:  cfg.Alarm != "",
+			},
+			sql.NullInt64{
+				Int64: int64(cfg.Alarm_Group),
+				Valid: cfg.Alarm_Group != 0,
+			},
+			sql.NullString{
+				String: cfg.Format_Path,
+				Valid:  cfg.Format_Path != "",
+			},
+			now,
+			sql.NullInt64{
+				Int64: int64(cfg.Creation_User),
+				Valid: cfg.Creation_User != 0,
+			},
+		)
 	}
 
-	// 拼接完整SQL
+	// 5. 拼接 SQL
 	query := baseQuery + strings.Join(valuePlaceholders, ", ")
 
-	// 4. 执行批量插入
+	// 6. 执行插入
 	_, err = DB.Exec(query, args...)
 	if err != nil {
-		err = fmt.Errorf("批量新增驱动配置失败, SQL:%s, 参数数:%d, 错误:%v", query, len(args), err)
+		return fmt.Errorf("批量插入 Points_Config 失败: %w", err)
 	}
-	return
+
+	return nil
 }
 
-// 点位-》修改配置
-// 传递: config 配置
-// 返回: conid 获取自增的Id, err 错误
-func Points_Config__Update(configs ...Points_Config_type) (err error) {
+func Mqtt_Down__Update(configs ...Mqtt_Down__Update_type) (err error) {
 	// 1. 空列表校验
 	if len(configs) == 0 {
 		err = fmt.Errorf("ERROR 待更新配置列表为空")
 		return
 	}
 
+	now := time.Now()
+
 	// 2. 遍历逐个更新
 	for i, cfg := range configs {
 		// 2.1 单条配置参数校验
-		if cfg.Drive_Id == 0 {
-			err = fmt.Errorf("批量新增失败：第%d条配置参数错误 Drive_Id=%d, 必须为0 ",
-				i, cfg.Drive_Id)
-			return
-		}
-
-		// 可选：校验必填字段（Type/Name/Config非空，根据业务需求加）
-		if cfg.Tag == "" || cfg.Config == "" || cfg.RW_Cancel == "" || cfg.Value_Type == "" {
-			err = fmt.Errorf("批量新增失败：第%d条配置Tag/Config/RW_Cancel/Value_Type不能为空", i)
+		if cfg.Id == 0 {
+			err = fmt.Errorf("批量新增失败：第%d条配置不能为空", i)
 			return
 		}
 
 		// 2.2 动态拼接SET子句
 		var setClauses []string
 		var args []interface{}
-
+		if cfg.Mqtt_Id != 0 {
+			setClauses = append(setClauses, "`Mqtt_Id` = ?")
+			args = append(args, cfg.Mqtt_Id)
+		}
 		if cfg.Tag != "" {
 			setClauses = append(setClauses, "`Tag` = ?")
 			args = append(args, cfg.Tag)
@@ -581,23 +817,50 @@ func Points_Config__Update(configs ...Points_Config_type) (err error) {
 			setClauses = append(setClauses, "`Value_Type` = ?")
 			args = append(args, cfg.Value_Type)
 		}
-		if cfg.Config != "" {
-			if !json.Valid([]byte(cfg.Config)) {
-				err = fmt.Errorf("ERROR 第%d条配置非法JSON:%s", i, cfg.Config)
-				return
-			}
-			setClauses = append(setClauses, "`Config` = ?")
-			args = append(args, cfg.Config)
+		if cfg.Creation_User != 0 {
+			setClauses = append(setClauses, "`Creation_User` = ?")
+			args = append(args, cfg.Creation_User)
 		}
+		if cfg.History != "" {
+			setClauses = append(setClauses, "`History` = ?")
+			args = append(args, sql.NullString{
+				String: cfg.History,
+				Valid:  cfg.History != "",
+			})
+		}
+		if cfg.Alarm != "" {
+			setClauses = append(setClauses, "`Alarm` = ?")
+			args = append(args, sql.NullString{
+				String: cfg.Alarm,
+				Valid:  cfg.Alarm != "",
+			})
+		}
+		if cfg.Alarm_Group != 0 {
+			setClauses = append(setClauses, "`Alarm_Group` = ?")
+			args = append(args, sql.NullInt64{
+				Int64: int64(cfg.Alarm_Group),
+				Valid: cfg.Alarm_Group != 0,
+			})
+		}
+		if cfg.Format_Path != "" {
+			setClauses = append(setClauses, "`Format_Path` = ?")
+			args = append(args, sql.NullString{
+				String: cfg.Format_Path,
+				Valid:  cfg.Format_Path != "",
+			})
+		}
+
+		setClauses = append(setClauses, "`Creation_Time` = ?")
+		args = append(args, now)
 
 		// 2.3 校验更新字段i
 		if len(setClauses) == 0 {
-			err = fmt.Errorf("ERROR 第%d条配置未指定任何更新字段 Tag/Config/RW_Cancel/Value_TypeS至少传一个", i)
+			err = fmt.Errorf("ERROR 第%d条配置未指定任何更新字段至少传一个", i)
 			return
 		}
 
 		// 2.4 拼接SQL并执行
-		query := fmt.Sprintf("UPDATE `Points_Config` SET %s WHERE `Id` = ?", strings.Join(setClauses, ", "))
+		query := fmt.Sprintf("UPDATE `Mqtt_Down` SET %s WHERE `Id` = ?", strings.Join(setClauses, ", "))
 		args = append(args, cfg.Id)
 
 		_, err = DB.Exec(query, args...)
@@ -607,29 +870,26 @@ func Points_Config__Update(configs ...Points_Config_type) (err error) {
 		}
 	}
 
-	log.Printf("批量更新成功，共更新%d条配置", len(configs))
 	return
 }
 
-// 点位-》删除配置
-// 传递: ids 删除的id数组
-// 返回: err 错误
-func Points_Config__Del(ids ...uint) (err error) {
+func Mqtt_Down__Del(ids ...uint) (err error) {
 	// 1. 遍历逐个
 	for idx, id := range ids {
-		// 1.1 单条配置参数校验
+
 		if id == 0 {
 			err = fmt.Errorf("ERROR 第%d条配置ID(Id)不能为空", idx)
 			return
 		}
 
-		query := "DELETE FROM `Points_Config` WHERE `Id` = ? "
+		query := "DELETE FROM `Mqtt_Down` WHERE `Id` = ? "
 		// 修改数据库
 		_, err = DB.Exec(query, id)
 		if err != nil {
 			err = fmt.Errorf("ERROR 第%d条配置更新失败, ID:%d, 错误:%v, SQL:%s", idx, id, err, query)
 			return
 		}
+
 	}
 	return
 }

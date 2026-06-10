@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 
 	"github.com/go-yaml/yaml"
 	"github.com/google/uuid"
@@ -23,15 +24,29 @@ const (
 	Regex_URL             = `https?:\/\/[^\s]+`
 )
 
+type MqttItem struct {
+	Enable            bool          `yaml:"enable"`
+	Broker            string        `yaml:"broker"`
+	Username          string        `yaml:"username"`
+	Password          string        `yaml:"password"`
+	ClientID          string        `yaml:"client_id"`
+	SetCleanSession   bool          `yaml:"clean_session"`   // 清洁会话（重启不接收离线消息）
+	SetAutoReconnect  bool          `yaml:"auto_reconnect"`  // 自动重连（必须开）
+	SetConnectTimeout time.Duration `yaml:"connect_timeout"` // 连接超时
+	SetWriteTimeout   time.Duration `yaml:"write_timeout"`   // 写超时
+	SetKeepAlive      time.Duration `yaml:"keep_alive"`      // 心跳保活
+}
+
 type Config_type struct {
 	APP struct {
-		Version                 string    `yaml:"version"`                 // 版本号
-		SN                      string    `yaml:"sn"`                      // 设备id
-		Historical_Storage_Time uint      `yaml:"historical_storage_time"` // 历史缓存时间, 先存入redis再批量写入mysql
-		Uuid                    uuid.UUID `yaml:"uuid"`
+		Version                 string `yaml:"version"`                 // 版本号
+		SN                      string `yaml:"sn"`                      // 设备id
+		Historical_Storage_Time uint   `yaml:"historical_storage_time"` // 历史缓存时间, 先存入redis再批量写入mysql
+		Uuid                    string `yaml:"uuid"`
 	} `yaml:"APP"` // 程序主要参数
 
 	API struct {
+		Enable bool   `yaml:"enable"`
 		Ip     string `yaml:"ip"`
 		Post   uint16 `yaml:"post"`
 		Header []struct {
@@ -66,10 +81,25 @@ type Config_type struct {
 	} `yaml:"LOG"` // GPIO
 
 	User_Service struct {
-		Url    string `yaml:"url"`
-		ApiKey string `yaml:"apikey"`
-		Secret string `yaml:"secret"`
-	} `yaml:"user_Service"` // 用户服务
+		Url     string        `yaml:"url"`
+		ApiKey  string        `yaml:"apikey"`
+		Secret  string        `yaml:"secret"`
+		Timeout time.Duration `yaml:"timeout"`
+	} `yaml:"User_Service"` // 用户服务
+
+	Mqtt_Rpc struct {
+		Example            string        `yaml:"example"`
+		Enable             bool          `yaml:"enable"`
+		BusinessTimeout    time.Duration `yaml:"business_timeout"`
+		ListenTopic        string        `yaml:"listen_topic"`
+		ConfigServiceTopic string        `yaml:"config_service_topic"`
+
+		Point_Push_Value  string `yaml:"point_push_value"`  // 点更新值
+		Point_Down_value  string `yaml:"point_down_value"`  // 点下发值
+		Point_Alarm_Value string `yaml:"point_alarm_value"` // 点更新值
+	} `yaml:"Mqtt_Rpc"` // mqtt版的rpc通信
+
+	Mqtt map[string]MqttItem `yaml:"Mqtt"` // mqtt版的rpc通信
 
 }
 
@@ -102,8 +132,8 @@ func init() {
 		return
 	}
 
-	if Config.APP.Uuid == uuid.Nil {
-		Config.APP.Uuid = uuid.New()
+	if Config.APP.Uuid == "" {
+		Config.APP.Uuid = uuid.New().String()
 
 		update_data, err := yaml.Marshal(&Config)
 		if err != nil {

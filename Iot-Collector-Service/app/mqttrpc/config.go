@@ -1,4 +1,4 @@
-package mqtt
+package mqttrpc
 
 import (
 	"main/Init"
@@ -304,9 +304,9 @@ func collector_reload(req []byte) (rep []byte, err error) {
 // }
 
 func register() {
-	M.Register(Init.Config.Mqtt.Broker, "/Config/V1.0/Order/App/Restart", app_restart)
-	// M.Register(Init.Config.Mqtt.Broker, "/Order/V1.0/Collector/Config", collector_synchronise_config)
-	M.Register(Init.Config.Mqtt.Broker, "/Config/V1.0/Order/Collector/Reload", collector_reload)
+	M.Register(Init.Config.Mqtt_Rpc.Example, "/Config/V1.0/Order/App/Restart", app_restart)
+	// M.Register(Init.Config.Mqtt_Rpc.Example, "/Order/V1.0/Collector/Config", collector_synchronise_config)
+	M.Register(Init.Config.Mqtt_Rpc.Example, "/Config/V1.0/Order/Collector/Reload", collector_reload)
 }
 func Collector_Info__Count(page uint, pageSize uint) (resp uint, err error) {
 	type Req struct {
@@ -314,10 +314,10 @@ func Collector_Info__Count(page uint, pageSize uint) (resp uint, err error) {
 		PageSize uint
 	}
 	err = jsonCall(Req{Page: page, PageSize: pageSize}, &resp,
-		Init.Config.Mqtt.Broker,
-		Init.Config.Mqtt.ConfigServiceTopic,
+		Init.Config.Mqtt_Rpc.Example,
+		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/Config/V1.0/Get/Collector/Count",
-		Init.Config.Mqtt.BusinessTimeout,
+		Init.Config.Mqtt_Rpc.BusinessTimeout,
 	)
 	if err != nil {
 		log.Print(err)
@@ -332,10 +332,10 @@ func Collector_Info__Query(page uint, pageSize uint) (resp []mysql.Collector_Inf
 	}
 
 	err = jsonCall(Req{Page: page, PageSize: pageSize}, &resp,
-		Init.Config.Mqtt.Broker,
-		Init.Config.Mqtt.ConfigServiceTopic,
+		Init.Config.Mqtt_Rpc.Example,
+		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/Config/V1.0/Get/Collector/Query",
-		Init.Config.Mqtt.BusinessTimeout,
+		Init.Config.Mqtt_Rpc.BusinessTimeout,
 	)
 	if err != nil {
 		log.Print(err)
@@ -354,10 +354,10 @@ func Collector_Info__Search_Field(field string, quantity uint, vague string) (re
 	}
 
 	err = jsonCall(Req{Field: field, Quantity: quantity, Vague: vague}, &resp,
-		Init.Config.Mqtt.Broker,
-		Init.Config.Mqtt.ConfigServiceTopic,
+		Init.Config.Mqtt_Rpc.Example,
+		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/Config/V1.0/Get/Collector/Search/Field",
-		Init.Config.Mqtt.BusinessTimeout,
+		Init.Config.Mqtt_Rpc.BusinessTimeout,
 	)
 	if err != nil {
 		log.Print(err)
@@ -373,10 +373,10 @@ func Drive_Config__Count(collectorId []uint, driveType []string, page uint, page
 		PageSize    uint
 	}
 	err = jsonCall(Req{CollectorId: collectorId, DriveType: driveType, Page: page, PageSize: pageSize}, &resp,
-		Init.Config.Mqtt.Broker,
-		Init.Config.Mqtt.ConfigServiceTopic,
+		Init.Config.Mqtt_Rpc.Example,
+		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/Config/V1.0/Get/Drive/Count",
-		Init.Config.Mqtt.BusinessTimeout,
+		Init.Config.Mqtt_Rpc.BusinessTimeout,
 	)
 	if err != nil {
 		log.Print(err)
@@ -393,10 +393,10 @@ func Drive_Config__Query(collectorId []uint, driveType []string, page uint, page
 	}
 
 	err = jsonCall(Req{CollectorId: collectorId, DriveType: driveType, Page: page, PageSize: pageSize}, &resp,
-		Init.Config.Mqtt.Broker,
-		Init.Config.Mqtt.ConfigServiceTopic,
+		Init.Config.Mqtt_Rpc.Example,
+		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/Config/V1.0/Get/Drive/Query",
-		Init.Config.Mqtt.BusinessTimeout,
+		Init.Config.Mqtt_Rpc.BusinessTimeout,
 	)
 	if err != nil {
 		log.Print(err)
@@ -411,10 +411,10 @@ func Points_Config__Count(Collector_Id []uint, driveid []uint, page uint, pageSi
 		PageSize     uint
 	}
 	err = jsonCall(Req{Collector_Id: Collector_Id, Driveid: driveid, Page: page, PageSize: pageSize}, &resp,
-		Init.Config.Mqtt.Broker,
-		Init.Config.Mqtt.ConfigServiceTopic,
+		Init.Config.Mqtt_Rpc.Example,
+		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/Config/V1.0/Get/Drive/Count",
-		Init.Config.Mqtt.BusinessTimeout,
+		Init.Config.Mqtt_Rpc.BusinessTimeout,
 	)
 	if err != nil {
 		log.Print(err)
@@ -431,10 +431,10 @@ func Points_Config__Query(Collector_Id []uint, driveid []uint, page uint, pageSi
 	}
 
 	err = jsonCall(Req{Collector_Id: Collector_Id, Driveid: driveid, Page: page, PageSize: pageSize}, &resp,
-		Init.Config.Mqtt.Broker,
-		Init.Config.Mqtt.ConfigServiceTopic,
+		Init.Config.Mqtt_Rpc.Example,
+		Init.Config.Mqtt_Rpc.ConfigServiceTopic,
 		"/Config/V1.0/Get/Points/Query",
-		Init.Config.Mqtt.BusinessTimeout,
+		Init.Config.Mqtt_Rpc.BusinessTimeout,
 	)
 	if err != nil {
 		log.Print(err)
