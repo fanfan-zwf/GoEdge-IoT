@@ -8,15 +8,15 @@ import (
 
 // FullConfig 驱动全配置（驱动配置 + 该驱动下的所有点位配置）
 type FullConfig_type struct {
-	Drive  mysql.Drive_Config_type
-	Points []mysql.Points_Config_type
+	Drive  mysql.Mqtt__type
+	Points []mysql.Mqtt_Points__type
 }
 
 // 统一驱动接口（必须）
 type Driver interface {
-	LoadConfig(cfg FullConfig_type) error  // 加载配置（驱动 + 点位）
-	GetDriveInfo() mysql.Drive_Config_type // 获取驱动配置信息
-	GetPoints() []mysql.Points_Config_type // 获取点位配置信息
+	LoadConfig(cfg FullConfig_type) error // 加载配置（驱动 + 点位）
+	GetDriveInfo() mysql.Mqtt__type       // 获取驱动配置信息
+	GetPoints() []mysql.Mqtt_Points__type // 获取点位配置信息
 }
 
 type BaseDriver struct {
@@ -33,12 +33,12 @@ func (b *BaseDriver) LoadConfig(cfg FullConfig_type) error {
 }
 
 // 获取驱动配置信息
-func (b *BaseDriver) GetDriveInfo() mysql.Drive_Config_type {
+func (b *BaseDriver) GetDriveInfo() mysql.Mqtt__type {
 	return b.Config.Drive
 }
 
 // 获取点位配置信息
-func (b *BaseDriver) GetPoints() []mysql.Points_Config_type {
+func (b *BaseDriver) GetPoints() []mysql.Mqtt_Points__type {
 	return b.Config.Points
 }
 

@@ -26,10 +26,10 @@ REDIS:
   database: 2
  
 Influxdb :
-  url : "http://192.168.220.40:8086"
+  url : "http://192.168.31.151:8086"
   token : "CEL6GU0n0-lsU2SZG6TB3pLLsE6zeWbDnzce3NuIy6x1tfQdPoP63MmRJbMDL1TJxYY_LNEY8MLN5OCh1GHODw=="
   org : "group"
-  bucket : "my2"
+  bucket : "GoEdge-IoT"
 
 
 LOG:
@@ -52,13 +52,13 @@ Mqtt_Rpc:
   example: default
   enable: true
   business_timeout: 5s # 业务处理超时
-  listen_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000 # 监听主题
+  listen_topic: /GoEdge-IoT/323e4567-e89b-12d3-a456-426614174000 # 监听主题
   config_service_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174001 # 配置服务主题
 
   # 发送mqtt数据
-  point_push_value: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000/point/push/value # 点位更新
-  point_down_value: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000/point/issue/value # 点下发报警
-  point_alarm_value: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174000/point/alarm/value # 点位报警
+  point_push_value: /GoEdge-IoT/323e4567-e89b-12d3-a456-426614174000/point/push/value # 点位更新
+  point_down_value: /GoEdge-IoT/323e4567-e89b-12d3-a456-426614174000/point/issue/value # 点下发报警
+  point_alarm_value: /GoEdge-IoT/323e4567-e89b-12d3-a456-426614174000/point/alarm/value # 点位报警
 
 
 Mqtt:
@@ -67,12 +67,25 @@ Mqtt:
     broker: tcp://127.0.0.1:1883
     username: o7aKZOj53p2PkkFJzKzM
     password: lpj4VZ4ZYFg5GmINhRat
-    client_id:  123e4567-e89b-12d3-a456-426614174000
+    client_id:  323e4567-e89b-12d3-a456-426614174000
     clean_session: True # 清洁会话（重启不接收离线消息）
     auto_reconnect: True # 自动重连
     connect_timeout: 10s # 连接超时
     write_timeout: 5s # 写超时
     keep_alive: 30s # 心跳保活
+
+  njtxy:
+    enable: true
+    broker: tcp://emqx.njtxy.zwf.fan:1883
+    username: o7aKZOj53p2PkkFJzKzM
+    password: lpj4VZ4ZYFg5GmINhRat
+    client_id:  323e4567-e89b-12d3-a456-426614174000
+    clean_session: True # 清洁会话（重启不接收离线消息）
+    auto_reconnect: True # 自动重连
+    connect_timeout: 10s # 连接超时
+    write_timeout: 5s # 写超时
+    keep_alive: 30s # 心跳保活
+
 
 
  

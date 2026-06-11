@@ -3,7 +3,6 @@
 * 作者: 范范zwf
 * 作用: influxdb
  */
-
 package influxdb
 
 import (
@@ -12,23 +11,16 @@ import (
 	"main/db/db_point"
 
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 )
-
-// CEL6GU0n0-lsU2SZG6TB3pLLsE6zeWbDnzce3NuIy6x1tfQdPoP63MmRJbMDL1TJxYY_LNEY8MLN5OCh1GHODw==
-
-// 读取具体传递时间
-type Read_Specific_type struct {
-	Tag        string    // 点位标识
-	Value_Type string    // 值类型
-	Time       time.Time //  时间
-}
 
 // 读取范围传递类型
 type Read_Scope_type struct {
@@ -38,459 +30,309 @@ type Read_Scope_type struct {
 	End_Time   time.Time // 结束时间
 }
 
-type Read_Scope_Value_Data_type struct {
-	Value any
-	Msg   string
-	Time  time.Time
-}
-
-// 读取数据返回类型
-type Read_Scope_Data_type struct {
-	Tag        string // 点位标识
-	Value_Type string // 值类型
-	Data       []Read_Scope_Value_Data_type
-}
-
-/*******************驱动接口配置*******************/
-
-// 定义一个结构体
+// ===================== 连接结构体 =====================
 type Connect_struct struct {
 	client   influxdb2.Client
 	writeAPI api.WriteAPIBlocking
 
-	url    string // 地址
-	token  string // 令牌
-	org    string // 组织
-	bucket string // 存储桶
-
-	// 写入
-	write_timeout uint // 写入超时时间
+	url           string // 地址
+	token         string // 令牌
+	org           string // 组织
+	bucket        string // 存储桶
+	write_timeout uint   // 写入超时时间
 }
 
-// 定义接口
 type Connect_interface interface {
-	Connect() error                                 // 连接
-	Close() error                                   // 关闭连接
-	Packet() error                                  // 组包
-	initInfluxDB() (err error)                      // 初始化InfluxDB客户端（程序启动时执行1次）
-	Write(data []fullConfig.Value_type) (err error) // 批量写入函数
-
+	Connect() error
+	Close() error
+	Packet() error
+	initInfluxDB() (err error)
+	Write(data []fullConfig.Value_type) (err error)
 }
 
-// 初始化InfluxDB客户端（程序启动时执行1次）
+// 全局客户端实例
+var c Connect_struct
+
+// 写入缓存: key = Tag + 纳秒时间戳，防重复写入
+var writeCache sync.Map
+
+// 统一固定测量名（所有数据存在同一个measurement，不使用业务Tag）
+const fixedMeasurement = "point_data"
+
+// ===================== 初始化客户端 =====================
 func (c *Connect_struct) initInfluxDB() (err error) {
 	if c.url == "" {
-		err = fmt.Errorf("URL地址 不能为空")
-		return
+		return errors.New("URL地址 不能为空")
 	}
 	if c.token == "" {
-		err = fmt.Errorf("令牌 不能为空")
-		return
+		return errors.New("令牌 不能为空")
 	}
 	if c.org == "" {
-		err = fmt.Errorf("组织 不能为空")
-		return
+		return errors.New("组织 不能为空")
 	}
 	if c.bucket == "" {
-		err = fmt.Errorf("存储桶 不能为空")
-		return
+		return errors.New("存储桶 不能为空")
 	}
 
-	// 设置默认写入超时时间
 	if c.write_timeout == 0 {
 		c.write_timeout = 5000
 	}
 
-	// 创建客户端（全局复用，不要每次创建）
 	c.client = influxdb2.NewClient(c.url, c.token)
-	// 初始化阻塞式写入客户端（关联org和bucket）
 	c.writeAPI = c.client.WriteAPIBlocking(c.org, c.bucket)
-	// 若用异步写入：writeAPIAsync = influxClient.WriteAPI(org, bucket)
-
-	return
+	return nil
 }
 
-// 批量写入函数
-func (c *Connect_struct) Write(data []fullConfig.Value_type) (err error) {
-	if c.client == nil || len(data) == 0 {
-		err = fmt.Errorf("客户端未连接")
-		return
+func (c *Connect_struct) Connect() error { return nil }
+func (c *Connect_struct) Packet() error  { return nil }
+
+// Close 关闭连接
+func (c *Connect_struct) Close() error {
+	if c.client != nil {
+		c.client.Close()
+	}
+	return nil
+}
+
+// ===================== 批量写入 =====================
+// 入参: []Value_type
+// 规则: Tag + Time 作为唯一键，重复数据自动跳过
+func (c *Connect_struct) Write(data []fullConfig.Value_type) error {
+	if c.client == nil {
+		return errors.New("客户端未连接")
+	}
+	if len(data) == 0 {
+		return nil
 	}
 
 	var points []*write.Point
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.write_timeout)*time.Millisecond)
+	defer cancel()
 
 	for _, v := range data {
+		// 唯一键：Tag + 纳秒时间戳
+		cacheKey := fmt.Sprintf("%s_%d", v.Tag, v.Time.UnixNano())
+		if _, exists := writeCache.Load(cacheKey); exists {
+			continue
+		}
 
+		// 构造数据点：全部独立字段/标签，不做任何拼接
 		point := influxdb2.NewPoint(
-			v.Tag, // 测量名，可根据业务修改
+			fixedMeasurement, // 固定测量名
 			map[string]string{
-				"_msg": v.Msg,
-			}, // 标签：点位ID唯一标识
-			map[string]interface{}{v.Type + "_value": v.Value}, // 字段：存储int/float/string值
-			v.Time, // 时间戳
+				"tag_name":  v.Tag,  // 点位名称
+				"data_type": v.Type, // 值类型
+				"msg":       v.Msg,  // 状态信息
+			},
+			map[string]interface{}{
+				"field_value": v.Value, // 点位值
+			},
+			v.Time,
 		)
 		points = append(points, point)
+		writeCache.Store(cacheKey, struct{}{})
 	}
 
-	// 批量写入数据，设置5秒超时
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		time.Duration(c.write_timeout)*time.Millisecond,
-	)
-	defer cancel()
-	err = c.writeAPI.WritePoint(ctx, points...)
-
-	return
+	if len(points) > 0 {
+		if err := c.writeAPI.WritePoint(ctx, points...); err != nil {
+			return fmt.Errorf("写入失败: %w", err)
+		}
+	}
+	return nil
 }
 
-// 批量读取函数（严格匹配你的结构体定义）
-// 入参：Read_Scope_type数组 → 出参：Read_Scope_Data_type数组 + 全局错误
-func (c *Connect_struct) Read(scopes []Read_Scope_type) (readResults []Read_Scope_Data_type, err error) {
-	// 前置校验
+// ===================== 范围查询 =====================
+// 入参: []Read_Scope_type
+// 按 Tag + 时间范围 查询，返回 []Value_type
+func (c *Connect_struct) Read(scopes []Read_Scope_type) ([]fullConfig.Value_type, error) {
 	if c.client == nil {
-		err = fmt.Errorf("influxdb客户端未连接")
-		return
+		return nil, errors.New("客户端未连接")
 	}
 	if len(scopes) == 0 {
-		err = fmt.Errorf("读取范围数组为空")
-		return
+		return nil, errors.New("读取范围数组为空")
 	}
 
-	// 初始化返回结果集
-	// 获取InfluxDB查询API（v2必需）
 	queryAPI := c.client.QueryAPI(c.org)
+	var resultList []fullConfig.Value_type
 
-	// 遍历每个读取范围，逐个查询
 	for _, scope := range scopes {
-		// 初始化当前点位的返回结构
-		scopeResult := Read_Scope_Data_type{
-			Tag:        scope.Tag,
-			Value_Type: scope.Value_Type,
-			Data:       []Read_Scope_Value_Data_type{}, // 初始化为空切片
-		}
+		targetTag := scope.Tag
+		targetType := scope.Value_Type
+		start := scope.Start_Time.Format(time.RFC3339)
+		end := scope.End_Time.Format(time.RFC3339)
 
-		// 1. 基础参数校验
-		if scope.Tag == "" {
-			err = fmt.Errorf("点位标识Tag不能为空(某条读取范围)")
-			return
-		}
-		if scope.Value_Type == "" {
-			err = fmt.Errorf("值类型Value_Type不能为空(Tag:%s)", scope.Tag)
-			return
-		}
-		if scope.Start_Time.After(scope.End_Time) {
-			err = fmt.Errorf("开始时间晚于结束时间(Tag:%s)", scope.Tag)
-			return
-		}
-		// 校验支持的类型
-		switch scope.Value_Type {
-		case "int", "float", "string", "bool":
-		default:
-			err = fmt.Errorf("不支持的值类型：%s(Tag:%s),仅支持int/float/string/bool", scope.Value_Type, scope.Tag)
-			return
-		}
-
-		// 2. 拼接字段名（和你的写入逻辑完全匹配：Value_Type + "_value"）
-		fieldName := scope.Value_Type + "_value"
-
-		// 3. 构造Flux查询语句（InfluxDB v2标准查询语法）
-		fluxQuery := fmt.Sprintf(`
-			from(bucket: "%s")
-				|> range(start: time(v: "%s"), stop: time(v: "%s"))
-				|> filter(fn: (r) => r._measurement == "%s")
-				|> filter(fn: (r) => r._field == "%s")
-				|> sort(columns: ["_time"], desc: false) // 按时间升序排列
-				|> keep(columns: ["_time", "_value", "_msg"])    // 只保留需要的字段，提升性能
-		`,
-			c.bucket,                              // 你的InfluxDB桶名（Connect_struct需包含该字段）
-			scope.Start_Time.Format(time.RFC3339), // 标准化时间格式
-			scope.End_Time.Format(time.RFC3339),
-			scope.Tag, // 测量名 = 点位Tag（和写入一致）
-			fieldName, // 字段名 = 类型+_value（如int_value）
-		)
-
-		// 4. 执行查询
-		var result *api.QueryTableResult
-		result, err = queryAPI.Query(context.Background(), fluxQuery)
-		if err != nil {
-			err = fmt.Errorf("查询失败(Tag:%s:%w", scope.Tag, err)
-			return
-		}
-		defer result.Close() // 确保关闭结果集，释放资源
-
-		// 5. 解析查询结果到结构体
-		for result.Next() {
-			record := result.Record()
-			if record == nil {
-				continue
-			}
-
-			// 根据Value_Type做类型断言，保证值类型准确
-			var val any
-			val, err = Value_Type_Confirm(scope.Value_Type, record.Value())
-			if err != nil {
-				log.Print(err)
-				continue
-			}
-
-			// 4.1 提取_msg标签值（对应Msg字段）
-			msgVal, ok := record.ValueByKey("_msg").(string)
-			if !ok {
-				// 兼容_msg为空的情况，赋值为空字符串
-				msgVal = ""
-			}
-
-			// 追加单条数据到结果
-			scopeResult.Data = append(scopeResult.Data, Read_Scope_Value_Data_type{
-				Time:  record.Time(),
-				Value: val,
-				Msg:   msgVal,
-			})
-		}
-
-		// 6. 检查结果解析过程中的错误
-		err = result.Err()
-		if err != nil {
-			err = fmt.Errorf("解析查询结果失败(Tag:%s):%w", scope.Tag, err)
-			return
-		}
-
-		// 7. 将当前点位的结果加入总结果集
-		readResults = append(readResults, scopeResult)
-	}
-
-	return
-}
-
-// ===================== 查询最后一条数据 结构体 =====================
-// 查询最后一条数据 请求结构
-type LastQueryReq struct {
-	Tag        string // 点位标识
-	Value_Type string // 值类型
-}
-
-// 查询最后一条数据 返回结构
-type LastPointResult struct {
-	Time  time.Time // 最后写入时间
-	Value any       // 最后值
-	Type  string    // 值类型
-	Msg   string    // 消息
-}
-
-// ===================== 【新增】批量查询：每个点位的最后一条数据 =====================
-// 入参：tag+类型列表  |  返回：map[tag]LastPointResult
-func (c *Connect_struct) QueryLastPoints(reqs []LastQueryReq) (map[string]LastPointResult, error) {
-	// 校验
-	if c.client == nil {
-		return nil, fmt.Errorf("influxdb 未连接")
-	}
-	if len(reqs) == 0 {
-		return nil, fmt.Errorf("查询列表不能为空")
-	}
-
-	resultMap := make(map[string]LastPointResult)
-	queryAPI := c.client.QueryAPI(c.org)
-
-	for _, req := range reqs {
-		// 参数校验
-		if req.Tag == "" || req.Value_Type == "" {
-			return nil, fmt.Errorf("tag/type 不能为空")
-		}
-		fieldName := req.Value_Type + "_value"
-
-		// Flux：查最后一条（limit 1 + 倒序）
+		// Flux: 根据 tag_name(Tag) + data_type(Type) + 时间范围 查询
 		flux := fmt.Sprintf(`
 			from(bucket: "%s")
-			|> range(start: -10y)  // 查最近10年，保证能查到
-			|> filter(fn: (r) => r._measurement == "%s")
-			|> filter(fn: (r) => r._field == "%s")
-			|> sort(columns: ["_time"], desc: true)
-			|> limit(n:1)
-			|> keep(columns: ["_time","_value","_msg"])
-		`,
-			c.bucket,
-			req.Tag,
-			fieldName,
-		)
+			|> range(start: time(v:"%s"), stop: time(v:"%s"))
+			|> filter(fn: (r) => 
+				r._measurement == "%s" 
+				and r.tag_name == "%s" 
+				and r.data_type == "%s"
+			)
+			|> sort(columns: ["_time"])
+		`, c.bucket, start, end, fixedMeasurement, targetTag, targetType)
 
-		// 执行查询
 		res, err := queryAPI.Query(context.Background(), flux)
 		if err != nil {
-			return nil, fmt.Errorf("tag=%s 查询失败: %w", req.Tag, err)
+			return nil, fmt.Errorf("tag[%s] 查询异常: %w", targetTag, err)
 		}
 
-		// 解析结果
-		var point LastPointResult
-		found := false
+		// 解析结果组装为 Value_type
 		for res.Next() {
 			record := res.Record()
-			// 类型校验
-			val, err := Value_Type_Confirm(req.Value_Type, record.Value())
-			if err != nil {
-				continue
-			}
-
-			// 消息
-			msg, _ := record.ValueByKey("_msg").(string)
-
-			point = LastPointResult{
+			item := fullConfig.Value_type{
+				Tag:   record.ValueByKey("tag_name").(string),
+				Type:  record.ValueByKey("data_type").(string),
+				Msg:   record.ValueByKey("msg").(string),
+				Value: record.Value(),
 				Time:  record.Time(),
-				Value: val,
-				Type:  req.Value_Type,
-				Msg:   msg,
 			}
-			found = true
+			resultList = append(resultList, item)
+		}
+
+		if err := res.Err(); err != nil {
+			res.Close()
+			return nil, fmt.Errorf("tag[%s] 解析结果异常: %w", targetTag, err)
+		}
+		res.Close()
+	}
+
+	return resultList, nil
+}
+
+// ===================== 查询每个Tag 最后一条数据 =====================
+// 入参: []string 点位Tag列表
+// 返回: []Value_type（按传入tag顺序返回，无数据则不包含该条）
+func (c *Connect_struct) QueryLast(tags []string) ([]fullConfig.Value_type, error) {
+	if c.client == nil {
+		return nil, errors.New("客户端未连接")
+	}
+	if len(tags) == 0 {
+		return nil, errors.New("tag列表不能为空")
+	}
+
+	queryAPI := c.client.QueryAPI(c.org)
+	var resultList []fullConfig.Value_type
+
+	for _, tag := range tags {
+		flux := fmt.Sprintf(`
+			from(bucket: "%s")
+			|> range(start: -10y)
+			|> filter(fn: (r) => r._measurement == "%s" and r.tag_name == "%s")
+			|> sort(columns: ["_time"], desc: true)
+			|> limit(n: 1)
+		`, c.bucket, fixedMeasurement, tag)
+
+		res, err := queryAPI.Query(context.Background(), flux)
+		if err != nil {
+			return nil, fmt.Errorf("tag[%s] 查询最后一条失败: %w", tag, err)
+		}
+
+		var item fullConfig.Value_type
+		hasData := false
+		for res.Next() {
+			record := res.Record()
+			item = fullConfig.Value_type{
+				Tag:   record.ValueByKey("tag_name").(string),
+				Type:  record.ValueByKey("data_type").(string),
+				Msg:   record.ValueByKey("msg").(string),
+				Value: record.Value(),
+				Time:  record.Time(),
+			}
+			hasData = true
 		}
 		res.Close()
 
-		if found {
-			resultMap[req.Tag] = point
+		// 有数据才加入结果切片
+		if hasData {
+			resultList = append(resultList, item)
 		}
 	}
 
-	return resultMap, nil
+	return resultList, nil
 }
 
-var c Connect_struct
+// ===================== 类型校验工具函数 =====================
+func Value_Type_Confirm(Type string, Value any) (v any, err error) {
+	switch Type {
+	case "bool":
+		if val, ok := Value.(bool); ok {
+			return val, nil
+		}
+	case "int8":
+		if val, ok := Value.(int8); ok {
+			return val, nil
+		}
+	case "uint8":
+		if val, ok := Value.(uint8); ok {
+			return val, nil
+		}
+	case "int16":
+		if val, ok := Value.(int16); ok {
+			return val, nil
+		}
+	case "uint16":
+		if val, ok := Value.(uint16); ok {
+			return val, nil
+		}
+	case "int32":
+		if val, ok := Value.(int32); ok {
+			return val, nil
+		}
+	case "uint32":
+		if val, ok := Value.(uint32); ok {
+			return val, nil
+		}
+	case "int64":
+		if val, ok := Value.(int64); ok {
+			return val, nil
+		}
+	case "uint64":
+		if val, ok := Value.(uint64); ok {
+			return val, nil
+		}
+	case "int":
+		if val, ok := Value.(int); ok {
+			return val, nil
+		}
+	case "uint":
+		if val, ok := Value.(uint); ok {
+			return val, nil
+		}
+	case "float32":
+		if val, ok := Value.(float32); ok {
+			return val, nil
+		}
+	case "float", "float64":
+		if val, ok := Value.(float64); ok {
+			return val, nil
+		}
+	}
+	return nil, fmt.Errorf("值类型不匹配，期望: %s", Type)
+}
 
+// ===================== 全局回调 & 初始化 =====================
 func init() {
 	db_point.Update_Subscriber(a)
 }
 
+// 写入回调
 func a(value []fullConfig.Value_type) error {
-	err := c.Write(value)
-	if err != nil {
-		log.Print(err.Error())
+	if err := c.Write(value); err != nil {
+		log.Printf("influxdb 写入回调异常: %v", err)
 	}
-
 	return nil
 }
 
-func New() (err error) {
+// New 初始化全局InfluxDB实例
+func New() error {
 	c = Connect_struct{
-		url:    Init.Config.Influxdb.Url,
-		token:  Init.Config.Influxdb.Token,
-		org:    Init.Config.Influxdb.Org,
-		bucket: Init.Config.Influxdb.Bucket,
+		url:           Init.Config.Influxdb.Url,
+		token:         Init.Config.Influxdb.Token,
+		org:           Init.Config.Influxdb.Org,
+		bucket:        Init.Config.Influxdb.Bucket,
+		write_timeout: 5000,
 	}
-	err = c.initInfluxDB()
-
-	return
-}
-
-// 这个是把读取返回类型是any做以下确认是否和指定类型一致
-// 传入：Type：期望类型，Value：值
-// 返回：v：值，err：错误
-func Value_Type_Confirm(Type string, Value any) (v any, err error) {
-	switch Type {
-	case "bool":
-		var bool_value bool
-		bool_value, ok := Value.(bool)
-		if !ok {
-			err = fmt.Errorf("类型不是 bool")
-		} else {
-			v = bool_value
-		}
-	case "int8":
-		var int8_value int8
-		int8_value, ok := Value.(int8)
-		if !ok {
-			err = fmt.Errorf("类型不是 int8")
-		} else {
-			v = int8_value
-		}
-	case "uint8":
-		var uint8_value uint8
-		uint8_value, ok := Value.(uint8)
-		if !ok {
-			err = fmt.Errorf("类型不是 uint8")
-		} else {
-			v = uint8_value
-		}
-	case "int16":
-		var int16_value int16
-		int16_value, ok := Value.(int16)
-		if !ok {
-			err = fmt.Errorf("类型不是 int16")
-		} else {
-			v = int16_value
-		}
-	case "uint16":
-		var uint16_value uint16
-		uint16_value, ok := Value.(uint16)
-		if !ok {
-			err = fmt.Errorf("类型不是 uint16")
-		} else {
-			v = uint16_value
-			return
-		}
-	case "int32":
-		var int32_value int32
-		int32_value, ok := Value.(int32)
-		if !ok {
-			err = fmt.Errorf("类型不是 int16")
-		} else {
-			v = int32_value
-		}
-	case "uint32":
-		var uint32_value uint32
-		uint32_value, ok := Value.(uint32)
-		if !ok {
-			err = fmt.Errorf("类型不是 uint16")
-		} else {
-			v = uint32_value
-		}
-	case "int64":
-		var int64_value int64
-		int64_value, ok := Value.(int64)
-		if !ok {
-			err = fmt.Errorf("类型不是 int64")
-		} else {
-			v = int64_value
-		}
-	case "uint64":
-		var uint64_value uint64
-		uint64_value, ok := Value.(uint64)
-		if !ok {
-			err = fmt.Errorf("类型不是 uint64")
-		} else {
-			v = uint64_value
-		}
-	case "int":
-		var int_value int
-		int_value, ok := Value.(int)
-		if !ok {
-			err = fmt.Errorf("类型不是 int")
-		} else {
-			v = int_value
-		}
-	case "uint":
-		var uint_value uint
-		uint_value, ok := Value.(uint)
-		if !ok {
-			err = fmt.Errorf("类型不是 uint")
-		} else {
-			v = uint_value
-		}
-	case "float32":
-		var float32_value float32
-		float32_value, ok := Value.(float32)
-		if !ok {
-			err = fmt.Errorf("类型不是 float32")
-		} else {
-			v = float32_value
-		}
-	case "float64", "float":
-		var float64_value float64
-		float64_value, ok := Value.(float64)
-		if !ok {
-			err = fmt.Errorf("类型不是 float64")
-		} else {
-			v = float64_value
-		}
-	default:
-		err = fmt.Errorf("未知类型")
-	}
-
-	return
+	return c.initInfluxDB()
 }

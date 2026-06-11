@@ -33,17 +33,17 @@ type ColumnRule struct {
 
 // ---------------------- 2. 表级别配置 ----------------------
 type TableRule struct {
-	TableName    string       // 数据库表名（推荐小写，避免和关键字冲突）
-	TableComment string       // 表注释（写入数据库）
-	Columns      []ColumnRule // 字段列表
+	TableName string // 数据库表名（推荐小写，避免和关键字冲突）
+	// TableComment string       // 表注释（写入数据库）
+	Columns []ColumnRule // 字段列表
 }
 
 // ---------------------- 3. 程序预期的表规则（精简版） ----------------------
 // 定义程序预期的表规则（按需修改为你的实际表/字段）
 var expectTableRules = []TableRule{
 	{
-		TableName:    "User",
-		TableComment: "存储用户基础信息",
+		TableName: "User",
+		// TableComment: "存储用户基础信息",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
 			{ColumnName: "Name", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},
@@ -59,8 +59,8 @@ var expectTableRules = []TableRule{
 			{ColumnName: "Access_Token_TTL", ColumnType: "varchar(32)", IsAutoInc: false, IsRequired: true, DefaultValue: "2m"},      // 访问令牌过期时间s
 		},
 	}, {
-		TableName:    "User_Terminal",
-		TableComment: "用户终端",
+		TableName: "User_Terminal",
+		// TableComment: "用户终端",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
 			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, DefaultValue: ""},        // 用户id
@@ -69,16 +69,16 @@ var expectTableRules = []TableRule{
 			{ColumnName: "Ip", ColumnType: "varchar(80)", IsAutoInc: false, IsRequired: false, DefaultValue: ""},             // 请求的ip
 		},
 	}, {
-		TableName:    "Set",
-		TableComment: "设置",
+		TableName: "Set",
+		// TableComment: "设置",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
 			{ColumnName: "Type", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""}, //类型
 			{ColumnName: "Msg", ColumnType: "text", IsAutoInc: false, IsRequired: true, DefaultValue: ""},
 		},
 	}, {
-		TableName:    "Log",
-		TableComment: "日志",
+		TableName: "Log",
+		// TableComment: "日志",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
 			{ColumnName: "Type", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsIndex: true, DefaultValue: ""},     // login: 登录日志
@@ -87,16 +87,16 @@ var expectTableRules = []TableRule{
 			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: false, IsIndex: true, DefaultValue: ""}, // 用户id
 		},
 	}, {
-		TableName:    "Group",
-		TableComment: "用户组",
+		TableName: "Group",
+		// TableComment: "用户组",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
 			{ColumnName: "Name", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: "未命名组"}, // 组名称
 			{ColumnName: "Explain", ColumnType: "text", IsAutoInc: false, IsRequired: false, DefaultValue: ""},                         // 组说明
 		},
 	}, {
-		TableName:    "Group_User",
-		TableComment: "用户对应的用户组",
+		TableName: "Group_User",
+		// TableComment: "用户对应的用户组",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
 			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},  // 用户id
@@ -104,8 +104,8 @@ var expectTableRules = []TableRule{
 			{ColumnName: "Administrator", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: true, DefaultValue: "0"},             // 是否是管理员
 		},
 	}, {
-		TableName:    "Authority",
-		TableComment: "权限",
+		TableName: "Authority",
+		// TableComment: "权限",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
 			{ColumnName: "Name", ColumnType: "varchar(100)", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},  // 权限名称
@@ -113,8 +113,8 @@ var expectTableRules = []TableRule{
 			{ColumnName: "Explain", ColumnType: "text", IsAutoInc: false, IsRequired: false, DefaultValue: ""},                      // 说明
 		},
 	}, {
-		TableName:    "Authority_User",
-		TableComment: "用户对应的权限",
+		TableName: "Authority_User",
+		// TableComment: "用户对应的权限",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
 			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""},
@@ -122,8 +122,8 @@ var expectTableRules = []TableRule{
 			{ColumnName: "Enable", ColumnType: "tinyint(1)", IsAutoInc: false, IsRequired: true, DefaultValue: "1"}, // 使能
 		},
 	}, {
-		TableName:    "Api",
-		TableComment: "api接口授权",
+		TableName: "Api",
+		// TableComment: "api接口授权",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true, DefaultValue: ""},
 			{ColumnName: "User_Id", ColumnType: "int unsigned", IsAutoInc: false, IsRequired: true, IsUnique: true, DefaultValue: ""}, // 用户id
@@ -451,17 +451,17 @@ func createTable(tableRule TableRule) error {
 	escapedTableName := escapeKeyword(tableRule.TableName)
 	// 拼接创建表 SQL
 	createSQL := fmt.Sprintf(
-		"CREATE TABLE %s (%s) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '%s'",
+		"CREATE TABLE %s (%s) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 		escapedTableName,
 		strings.Join(colDefs, ", "),
-		escapeSingleQuote(tableRule.TableComment),
+		// escapeSingleQuote(tableRule.TableComment),
 	)
 
 	_, err := DB.Exec(createSQL)
 	if err != nil {
 		return fmt.Errorf("创建表 [%s] 失败，SQL：%s，错误：%w", tableRule.TableName, createSQL, err)
 	}
-	log.Printf("表 [%s] 创建成功，表注释：%s", tableRule.TableName, tableRule.TableComment)
+	log.Printf("表 [%s] 创建成功", tableRule.TableName)
 	return nil
 }
 
@@ -551,16 +551,16 @@ func CheckAndFixTableStructure(tableRule TableRule) {
 		return
 	}
 
-	// 2. 校验表注释
-	actualTableComment, err := getTableComment(tableName)
-	if err != nil {
-		panic(fmt.Sprintf("读取表[%s]注释失败：%v", tableName, err))
-	}
-	if actualTableComment != tableRule.TableComment {
-		if err := alterTableComment(tableName, tableRule.TableComment); err != nil {
-			panic(fmt.Sprintf("修改表[%s]注释失败：%v", tableName, err))
-		}
-	}
+	// // 2. 校验表注释
+	// actualTableComment, err := getTableComment(tableName)
+	// if err != nil {
+	// 	panic(fmt.Sprintf("读取表[%s]注释失败：%v", tableName, err))
+	// }
+	// if actualTableComment != tableRule.TableComment {
+	// 	if err := alterTableComment(tableName, tableRule.TableComment); err != nil {
+	// 		panic(fmt.Sprintf("修改表[%s]注释失败：%v", tableName, err))
+	// 	}
+	// }
 
 	// 3. 读取实际字段信息
 	actualCols, err := getTableColumns(tableName)

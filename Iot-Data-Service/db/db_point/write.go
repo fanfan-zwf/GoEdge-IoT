@@ -105,7 +105,7 @@ func Write_value_Subscriber_mysqlconfig(cfg fullConfig.FullConfig_type, RW_Cance
 		}
 
 		p[v.Tag] = tag_drive_map_value{
-			Drive: v.Drive.Id,
+			Drive: v.Mqtt_Id,
 			Type:  v.Value_Type,
 		}
 	}

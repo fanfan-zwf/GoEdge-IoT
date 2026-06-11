@@ -286,19 +286,20 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 
 	for rows.Next() {
 		var (
-			config        Mqtt__type
-			Creation_User uint
-			Topic_Push    string
-			Topic_Down    string
-			Topic_Alarm   string
+			config Mqtt__type
+
+			Creation_User sql.NullInt64
+			Topic_Push    sql.NullString
+			Topic_Down    sql.NullString
+			Topic_Alarm   sql.NullString
 		)
 		err = rows.Scan(
 			&config.Id,
 			&config.Type,
 			&config.Example_IDentifier,
-			Topic_Push,
-			Topic_Down,
-			Topic_Alarm,
+			&Topic_Push,
+			&Topic_Down,
+			&Topic_Alarm,
 			&config.Creation_Time,
 			&Creation_User,
 		)
@@ -306,10 +307,10 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 			log.Print(err.Error())
 			return err
 		}
-		config.Topic_Push = Topic_Push
-		config.Topic_Down = Topic_Down
-		config.Topic_Alarm = Topic_Alarm
-		config.Creation_User = Creation_User
+		config.Topic_Push = Topic_Push.String
+		config.Topic_Down = Topic_Down.String
+		config.Topic_Alarm = Topic_Alarm.String
+		config.Creation_User = uint(Creation_User.Int64)
 		callback(config)
 	}
 
@@ -506,7 +507,7 @@ func Mqtt__Del(ids ...uint) (err error) {
  */
 
 // 结构体
-type Mqtt_Down__type struct {
+type Mqtt_Points__type struct {
 	Id          uint   // 点位id
 	Mqtt_Id     uint   // MQTT id
 	Tag         string // 点位标识符
@@ -521,7 +522,7 @@ type Mqtt_Down__type struct {
 	Creation_User uint      // 创建的用户id
 }
 
-type Mqtt_Down__Add_type struct {
+type Mqtt_Points__Add_type struct {
 	Mqtt_Id     uint   // MQTT id
 	Tag         string // 点位标识符
 	RW_Cancel   string // 读写方式
@@ -534,15 +535,15 @@ type Mqtt_Down__Add_type struct {
 	Creation_User uint // 创建的用户id
 }
 
-type Mqtt_Down__Update_type struct {
-	Mqtt_Down__type
+type Mqtt_Points__Update_type struct {
+	Mqtt_Points__type
 }
 
-func Mqtt_Down__Count(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page uint, pageSize uint) (Count uint, err error) {
+func Mqtt_Points__Count(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page uint, pageSize uint) (Count uint, err error) {
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
 	baseQuery := `
 		SELECT
-			COUNT(Mqtt_Down.Id) 
+			COUNT(Mqtt_Points.Id) 
 		FROM Mqtt 
 	`
 	var args []interface{} // 存储SQL参数，防止SQL注入
@@ -550,7 +551,7 @@ func Mqtt_Down__Count(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page 
 
 	if len(Mqtt_Ids) > 0 {
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Mqtt_Ids)), ",")
-		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`Mqtt_Id` IN (%s)", placeholders))
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Points`.`Mqtt_Id` IN (%s)", placeholders))
 		for _, Mqtt_Id := range Mqtt_Ids {
 			args = append(args, Mqtt_Id)
 		}
@@ -558,7 +559,7 @@ func Mqtt_Down__Count(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page 
 
 	if len(Tags) > 0 {
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Tags)), ",")
-		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`Tag` IN (%s)", placeholders))
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Points`.`Tag` IN (%s)", placeholders))
 		for _, Tag := range Tags {
 			args = append(args, Tag)
 		}
@@ -566,7 +567,7 @@ func Mqtt_Down__Count(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page 
 
 	if len(RW_Cancels) > 0 {
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(RW_Cancels)), ",")
-		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`RW_Cancel` IN (%s)", placeholders))
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Points`.`RW_Cancel` IN (%s)", placeholders))
 		for _, RW_Cancel := range RW_Cancels {
 			args = append(args, RW_Cancel)
 		}
@@ -595,29 +596,29 @@ func Mqtt_Down__Count(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page 
 	return
 }
 
-func Mqtt_Down__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page uint, pageSize uint, callback func(Mqtt_Down__type)) (err error) {
+func Mqtt_Points__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page uint, pageSize uint, callback func(Mqtt_Points__type)) (err error) {
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
 	baseQuery := `
 		SELECT
-			Mqtt_Down.Id,
-			Mqtt_Down.Mqtt_Id,
-			Mqtt_Down.Tag,
-			Mqtt_Down.RW_Cancel,
-			Mqtt_Down.Value_Type,
-			Mqtt_Down.History,
-			Mqtt_Down.Alarm,
-			Mqtt_Down.Alarm_Group,
-			Mqtt_Down.Creation_Time,
-			Mqtt_Down.Creation_User,
-			Mqtt_Down.Format_Path
-		FROM Mqtt_Down
+			Mqtt_Points.Id,
+			Mqtt_Points.Mqtt_Id,
+			Mqtt_Points.Tag,
+			Mqtt_Points.RW_Cancel,
+			Mqtt_Points.Value_Type,
+			Mqtt_Points.History,
+			Mqtt_Points.Alarm,
+			Mqtt_Points.Alarm_Group,
+			Mqtt_Points.Format_Path,
+			Mqtt_Points.Creation_Time,
+			Mqtt_Points.Creation_User
+		FROM Mqtt_Points
 	`
 	var whereConditions []string
 	var args []interface{} // 存储SQL参数，防止SQL注入
 
 	if len(Mqtt_Ids) > 0 {
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Mqtt_Ids)), ",")
-		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`Mqtt_Id` IN (%s)", placeholders))
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Points`.`Mqtt_Id` IN (%s)", placeholders))
 		for _, Mqtt_Id := range Mqtt_Ids {
 			args = append(args, Mqtt_Id)
 		}
@@ -625,7 +626,7 @@ func Mqtt_Down__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []stri
 
 	if len(Tags) > 0 {
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Tags)), ",")
-		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`Tag` IN (%s)", placeholders))
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Points`.`Tag` IN (%s)", placeholders))
 		for _, Tag := range Tags {
 			args = append(args, Tag)
 		}
@@ -633,7 +634,7 @@ func Mqtt_Down__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []stri
 
 	if len(RW_Cancels) > 0 {
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(RW_Cancels)), ",")
-		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Down`.`RW_Cancel` IN (%s)", placeholders))
+		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt_Points`.`RW_Cancel` IN (%s)", placeholders))
 		for _, RW_Cancel := range RW_Cancels {
 			args = append(args, RW_Cancel)
 		}
@@ -662,12 +663,13 @@ func Mqtt_Down__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []stri
 
 	for rows.Next() {
 		var (
-			config        Mqtt_Down__type
-			Creation_User uint
-			History       string
-			Alarm         string
-			Alarm_Group   int
-			Format_Path   string
+			config Mqtt_Points__type
+
+			Creation_User sql.NullInt64
+			History       sql.NullString
+			Alarm         sql.NullString
+			Alarm_Group   sql.NullInt64
+			Format_Path   sql.NullString
 		)
 		err = rows.Scan(
 			&config.Id,
@@ -675,10 +677,10 @@ func Mqtt_Down__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []stri
 			&config.Tag,
 			&config.RW_Cancel,
 			&config.Value_Type,
-			History,
-			Alarm,
-			Alarm_Group,
-			Format_Path,
+			&History,
+			&Alarm,
+			&Alarm_Group,
+			&Format_Path,
 			&config.Creation_Time,
 			&Creation_User,
 		)
@@ -686,11 +688,11 @@ func Mqtt_Down__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []stri
 			log.Print(err.Error())
 			return err
 		}
-		config.History = History
-		config.Alarm = Alarm
-		config.Alarm_Group = Alarm_Group
-		config.Format_Path = Format_Path
-		config.Creation_User = Creation_User
+		config.History = History.String
+		config.Alarm = Alarm.String
+		config.Alarm_Group = int(Alarm_Group.Int64)
+		config.Format_Path = Format_Path.String
+		config.Creation_User = uint(Creation_User.Int64)
 		callback(config)
 	}
 
@@ -702,14 +704,14 @@ func Mqtt_Down__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []stri
 	return nil
 }
 
-func Mqtt_Down__Query(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page uint, pageSize uint) (r []Mqtt_Down__type, err error) {
-	err = Mqtt_Down__Query_Callback(Mqtt_Ids, Tags, RW_Cancels, page, pageSize, func(config Mqtt_Down__type) {
+func Mqtt_Points__Query(Mqtt_Ids []uint, Tags []string, RW_Cancels []string, page uint, pageSize uint) (r []Mqtt_Points__type, err error) {
+	err = Mqtt_Points__Query_Callback(Mqtt_Ids, Tags, RW_Cancels, page, pageSize, func(config Mqtt_Points__type) {
 		r = append(r, config)
 	})
 	return
 }
 
-func Mqtt_Down__Add(configs ...Mqtt_Down__Add_type) (err error) {
+func Mqtt_Points__Add(configs ...Mqtt_Points__Add_type) (err error) {
 	// 1. 基础校验：空列表直接返回
 	if len(configs) == 0 {
 		return fmt.Errorf("批量新增失败：待新增配置列表为空")
@@ -717,7 +719,7 @@ func Mqtt_Down__Add(configs ...Mqtt_Down__Add_type) (err error) {
 
 	// 3. SQL 插入（包含 Id 字段）
 	baseQuery := `
-		INSERT INTO Mqtt_Down (
+		INSERT INTO Mqtt_Points (
 			Mqtt_Id,
 			Tag,
 			RW_Cancel,
@@ -781,7 +783,7 @@ func Mqtt_Down__Add(configs ...Mqtt_Down__Add_type) (err error) {
 	return nil
 }
 
-func Mqtt_Down__Update(configs ...Mqtt_Down__Update_type) (err error) {
+func Mqtt_Points__Update(configs ...Mqtt_Points__Update_type) (err error) {
 	// 1. 空列表校验
 	if len(configs) == 0 {
 		err = fmt.Errorf("ERROR 待更新配置列表为空")
@@ -860,7 +862,7 @@ func Mqtt_Down__Update(configs ...Mqtt_Down__Update_type) (err error) {
 		}
 
 		// 2.4 拼接SQL并执行
-		query := fmt.Sprintf("UPDATE `Mqtt_Down` SET %s WHERE `Id` = ?", strings.Join(setClauses, ", "))
+		query := fmt.Sprintf("UPDATE `Mqtt_Points` SET %s WHERE `Id` = ?", strings.Join(setClauses, ", "))
 		args = append(args, cfg.Id)
 
 		_, err = DB.Exec(query, args...)
@@ -873,7 +875,7 @@ func Mqtt_Down__Update(configs ...Mqtt_Down__Update_type) (err error) {
 	return
 }
 
-func Mqtt_Down__Del(ids ...uint) (err error) {
+func Mqtt_Points__Del(ids ...uint) (err error) {
 	// 1. 遍历逐个
 	for idx, id := range ids {
 
@@ -882,7 +884,7 @@ func Mqtt_Down__Del(ids ...uint) (err error) {
 			return
 		}
 
-		query := "DELETE FROM `Mqtt_Down` WHERE `Id` = ? "
+		query := "DELETE FROM `Mqtt_Points` WHERE `Id` = ? "
 		// 修改数据库
 		_, err = DB.Exec(query, id)
 		if err != nil {

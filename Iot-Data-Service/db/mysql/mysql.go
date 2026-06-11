@@ -9,6 +9,11 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+const (
+	Mqtt__Type_GoEdge_IoT_Mqtt = "GoEdge-IoT-Mqtt"
+	Mqtt__Type_Flexem_Mqtt     = "Flexem_Mqtt"
+)
+
 var DB *sql.DB
 
 func Init_sql(dsn string) error {

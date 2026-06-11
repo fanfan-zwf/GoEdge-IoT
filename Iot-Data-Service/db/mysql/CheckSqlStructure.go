@@ -33,38 +33,41 @@ type ColumnRule struct {
 
 // ---------------------- 2. 表级别配置 ----------------------
 type TableRule struct {
-	TableName    string       // 数据库表名（推荐小写，避免和关键字冲突）
-	TableComment string       // 表注释（写入数据库）
-	Columns      []ColumnRule // 字段列表
+	TableName string // 数据库表名（推荐小写，避免和关键字冲突）
+	// TableComment string       // 表注释（写入数据库）
+	Columns []ColumnRule // 字段列表
 }
 
 // ---------------------- 3. 程序预期的表规则（精简版） ----------------------
 // 定义程序预期的表规则（按需修改为你的实际表/字段）
 var expectTableRules = []TableRule{
 	{
-		TableName:    "Drive_Config",
-		TableComment: "驱动配置",
+		TableName: "Mqtt",
+		// TableComment: "驱动配置",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true},
 			{ColumnName: "Type", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
-			{ColumnName: "Name", ColumnType: "varchar(100)", IsRequired: true},
-			{ColumnName: "Config", ColumnType: "varchar(200)"},
-			{ColumnName: "Points_Length", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0"},
-			{ColumnName: "Collector_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+			{ColumnName: "Example_IDentifier", ColumnType: "varchar(100)", IsRequired: true},
+			{ColumnName: "Topic_Push", ColumnType: "varchar(200)"},
+			{ColumnName: "Topic_Down", ColumnType: "varchar(200)"},
+			{ColumnName: "Topic_Alarm", ColumnType: "varchar(200)"},
 			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+			{ColumnName: "Creation_User", ColumnType: "int unsigned", IsIndex: true},
 		},
 	}, {
-		TableName:    "Points_Config",
-		TableComment: "点位配置",
+		TableName: "Mqtt_Points",
+		// TableComment: "点位配置",
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
-			{ColumnName: "Drive_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+			{ColumnName: "Mqtt_Id", ColumnType: "int unsigned"},
 			{ColumnName: "Tag", ColumnType: "varchar(300)", IsRequired: true, IsUnique: true},
-			{ColumnName: "Description", ColumnType: "varchar(300)"},
-			{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
 			{ColumnName: "RW_Cancel", ColumnType: "varchar(100)", IsRequired: true, DefaultValue: "N"},
 			{ColumnName: "Value_Type", ColumnType: "varchar(100)", IsRequired: true},
 			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+			{ColumnName: "Creation_User", ColumnType: "int unsigned", IsIndex: true},
+			{ColumnName: "History", ColumnType: "varchar(100)"},
+			{ColumnName: "Alarm", ColumnType: "varchar(100)"},
+			{ColumnName: "Alarm_Group", ColumnType: "tinyint unsigned"},
 		},
 	},
 }
@@ -294,22 +297,22 @@ func getTableColumns(tableName string) (map[string]ColumnRule, error) {
 	return actualColumns, nil
 }
 
-// 6. 读取表的实际注释
-func getTableComment(tableName string) (string, error) {
-	query := `
-		SELECT TABLE_COMMENT FROM information_schema.TABLES 
-		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
-	`
-	var comment sql.NullString
-	err := DB.QueryRow(query, tableName).Scan(&comment)
-	if err != nil {
-		return "", fmt.Errorf("读取表[%s]注释失败：%w", tableName, err)
-	}
-	if comment.Valid {
-		return comment.String, nil
-	}
-	return "", nil
-}
+// // 6. 读取表的实际注释
+// func getTableComment(tableName string) (string, error) {
+// 	query := `
+// 		SELECT TABLE_COMMENT FROM information_schema.TABLES
+// 		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+// 	`
+// 	var comment sql.NullString
+// 	err := DB.QueryRow(query, tableName).Scan(&comment)
+// 	if err != nil {
+// 		return "", fmt.Errorf("读取表[%s]注释失败：%w", tableName, err)
+// 	}
+// 	if comment.Valid {
+// 		return comment.String, nil
+// 	}
+// 	return "", nil
+// }
 
 // 7. 自动创建表（适配所有约束）
 func createTable(tableRule TableRule) error {
@@ -381,17 +384,17 @@ func createTable(tableRule TableRule) error {
 	escapedTableName := escapeKeyword(tableRule.TableName)
 	// 拼接创建表 SQL
 	createSQL := fmt.Sprintf(
-		"CREATE TABLE %s (%s) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '%s'",
+		"CREATE TABLE %s (%s) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 		escapedTableName,
 		strings.Join(colDefs, ", "),
-		escapeSingleQuote(tableRule.TableComment),
+		// escapeSingleQuote(tableRule.TableComment),
 	)
 
 	_, err := DB.Exec(createSQL)
 	if err != nil {
 		return fmt.Errorf("创建表 [%s] 失败，SQL：%s，错误：%w", tableRule.TableName, createSQL, err)
 	}
-	log.Printf("表 [%s] 创建成功，表注释：%s", tableRule.TableName, tableRule.TableComment)
+	log.Printf("表 [%s] 创建成功", tableRule.TableName)
 	return nil
 }
 
@@ -481,16 +484,16 @@ func CheckAndFixTableStructure(tableRule TableRule) {
 		return
 	}
 
-	// 2. 校验表注释
-	actualTableComment, err := getTableComment(tableName)
-	if err != nil {
-		panic(fmt.Sprintf("读取表[%s]注释失败：%v", tableName, err))
-	}
-	if actualTableComment != tableRule.TableComment {
-		if err := alterTableComment(tableName, tableRule.TableComment); err != nil {
-			panic(fmt.Sprintf("修改表[%s]注释失败：%v", tableName, err))
-		}
-	}
+	// // 2. 校验表注释
+	// actualTableComment, err := getTableComment(tableName)
+	// if err != nil {
+	// 	panic(fmt.Sprintf("读取表[%s]注释失败：%v", tableName, err))
+	// }
+	// if actualTableComment != tableRule.TableComment {
+	// 	if err := alterTableComment(tableName, tableRule.TableComment); err != nil {
+	// 		panic(fmt.Sprintf("修改表[%s]注释失败：%v", tableName, err))
+	// 	}
+	// }
 
 	// 3. 读取实际字段信息
 	actualCols, err := getTableColumns(tableName)

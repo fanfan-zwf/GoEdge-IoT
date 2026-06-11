@@ -1,26 +1,31 @@
 package main
 
 import (
-	"log"
+	_ "main/Init"
 
+	"main/IO/manager"
+	"main/app/mqttbase"
 	"main/db/db_point"
 	"main/db/influxdb"
 	"main/db/mysql"
 	"main/db/redis"
 	"main/web"
+
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
-
 	"time"
 
 	_ "github.com/icattlecoder/godaemon"
 )
 
 func app() (err error) {
+	err = mqttbase.New()
+	if err != nil {
+		log.Panic(err.Error())
+	}
 
-	// Rinit()
-	// 注入到其他包
 	err = web.Web()
 	if err != nil {
 		log.Panic(err.Error())
@@ -32,6 +37,11 @@ func app() (err error) {
 	}
 
 	err = influxdb.New()
+	if err != nil {
+		log.Panic(err.Error())
+	}
+
+	err = manager.New()
 	if err != nil {
 		log.Panic(err.Error())
 	}
