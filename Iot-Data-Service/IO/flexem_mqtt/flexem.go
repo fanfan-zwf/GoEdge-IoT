@@ -2,6 +2,7 @@ package flexem_mqtt
 
 import (
 	"fmt"
+	"main/IO/byte_util"
 	"main/IO/manager/fullConfig"
 	"main/app/mqttbase"
 	"main/db/mysql"
@@ -9,10 +10,8 @@ import (
 
 	"encoding/json"
 	"log"
-
-	"time"
-
 	"sync"
+	"time"
 )
 
 // 定义一个结构体
@@ -172,9 +171,9 @@ func (c *Flexem_Mqtt) Push() (err error) {
 			var realValue any
 			switch cfg.Value_Type {
 			case "bool":
-				var v bool
+				var v int
 				err = json.Unmarshal(map_value, &v)
-				realValue = v
+				realValue, _ = byte_util.ConvertType(v, "int", "bool")
 			case "int":
 				var v int
 				err = json.Unmarshal(map_value, &v)

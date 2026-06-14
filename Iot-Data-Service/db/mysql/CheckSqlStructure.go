@@ -53,6 +53,7 @@ var expectTableRules = []TableRule{
 			{ColumnName: "Topic_Alarm", ColumnType: "varchar(200)"},
 			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
 			{ColumnName: "Creation_User", ColumnType: "int unsigned", IsIndex: true},
+			{ColumnName: "Config", ColumnType: "varchar(200)"},
 		},
 	}, {
 		TableName: "Mqtt_Points",
@@ -68,6 +69,7 @@ var expectTableRules = []TableRule{
 			{ColumnName: "History", ColumnType: "varchar(100)"},
 			{ColumnName: "Alarm", ColumnType: "varchar(100)"},
 			{ColumnName: "Alarm_Group", ColumnType: "tinyint unsigned"},
+			{ColumnName: "Config", ColumnType: "varchar(200)"},
 		},
 	},
 }

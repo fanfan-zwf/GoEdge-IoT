@@ -138,6 +138,7 @@ type Mqtt__type struct {
 	Topic_Alarm        string    // 点位报警
 	Creation_Time      time.Time // 创建时间
 	Creation_User      uint      // 创建的用户id
+	Config             string    // 配置信息
 }
 
 type Mqtt__Add_type struct {
@@ -147,6 +148,7 @@ type Mqtt__Add_type struct {
 	Topic_Down         string // 点下发值
 	Topic_Alarm        string // 点位报警
 	Creation_User      uint   // 创建的用户id
+	Config             string // 配置信息
 }
 
 type Mqtt__Update_type struct {
@@ -157,6 +159,7 @@ type Mqtt__Update_type struct {
 	Topic_Down         string // 点下发值
 	Topic_Alarm        string // 点位报警
 	Creation_User      uint   // 创建的用户id
+	Config             string // 配置信息
 }
 
 // Mqtt-》查询数量
@@ -233,7 +236,9 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 			Mqtt.Topic_Down,
 			Mqtt.Topic_Alarm,
 			Mqtt.Creation_Time,
-			Mqtt.Creation_User
+			Mqtt.Creation_User,
+			Mqtt.Config
+		}
 		FROM Mqtt
 	`
 	var whereConditions []string
@@ -292,6 +297,7 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 			Topic_Push    sql.NullString
 			Topic_Down    sql.NullString
 			Topic_Alarm   sql.NullString
+			Config        sql.NullString
 		)
 		err = rows.Scan(
 			&config.Id,
@@ -302,6 +308,7 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 			&Topic_Alarm,
 			&config.Creation_Time,
 			&Creation_User,
+			&Config,
 		)
 		if err != nil {
 			log.Print(err.Error())
@@ -311,6 +318,7 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 		config.Topic_Down = Topic_Down.String
 		config.Topic_Alarm = Topic_Alarm.String
 		config.Creation_User = uint(Creation_User.Int64)
+		config.Config = Config.String
 		callback(config)
 	}
 
@@ -350,7 +358,8 @@ func Mqtt__Add(configs ...Mqtt__Add_type) (err error) {
 			Topic_Down,
 			Topic_Alarm,
 			Creation_Time,
-			Creation_User
+			Creation_User,
+			Config
 		) VALUES
 	`
 
@@ -362,7 +371,7 @@ func Mqtt__Add(configs ...Mqtt__Add_type) (err error) {
 
 	// 4. 构建批量参数
 	for _, cfg := range configs {
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?)")
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?, ?)")
 		args = append(args,
 			cfg.Type,
 			cfg.Example_IDentifier,
@@ -382,6 +391,10 @@ func Mqtt__Add(configs ...Mqtt__Add_type) (err error) {
 			sql.NullInt16{
 				Int16: int16(cfg.Creation_User),
 				Valid: cfg.Creation_User != 0,
+			},
+			sql.NullString{
+				String: cfg.Config,
+				Valid:  cfg.Config != "",
 			},
 		)
 	}
@@ -425,29 +438,36 @@ func Mqtt__Update(configs ...Mqtt__Update_type) (err error) {
 			setClauses = append(setClauses, "`Type` = ?")
 			args = append(args, cfg.Type)
 		}
-		if cfg.Example_IDentifier != "" {
+		if cfg.Example_IDentifier != "" && cfg.Config != "undefined" {
 			setClauses = append(setClauses, "`Example_IDentifier` = ?")
 			args = append(args, cfg.Example_IDentifier)
 		}
-		if cfg.Topic_Push != "null" {
+		if cfg.Topic_Push != "null" && cfg.Config != "undefined" {
 			setClauses = append(setClauses, "`Topic_Push` = ?")
 			args = append(args, sql.NullString{
 				String: cfg.Topic_Push,
 				Valid:  cfg.Topic_Push != "null" || cfg.Topic_Push == "undefined",
 			})
 		}
-		if cfg.Topic_Down != "null" {
+		if cfg.Topic_Down != "null" && cfg.Config != "undefined" {
 			setClauses = append(setClauses, "`Topic_Down` = ?")
 			args = append(args, sql.NullString{
 				String: cfg.Topic_Down,
 				Valid:  cfg.Topic_Down != "null" || cfg.Topic_Down == "undefined",
 			})
 		}
-		if cfg.Topic_Alarm != "null" {
+		if cfg.Topic_Alarm != "null" && cfg.Config != "undefined" {
 			setClauses = append(setClauses, "`Topic_Alarm` = ?")
 			args = append(args, sql.NullString{
 				String: cfg.Topic_Alarm,
 				Valid:  cfg.Topic_Alarm != "null" || cfg.Topic_Alarm == "undefined",
+			})
+		}
+		if cfg.Config != "null" && cfg.Config != "undefined" {
+			setClauses = append(setClauses, "`Config` = ?")
+			args = append(args, sql.NullString{
+				String: cfg.Config,
+				Valid:  cfg.Config != "null" || cfg.Config == "undefined",
 			})
 		}
 		if cfg.Creation_User != 0 {
@@ -516,7 +536,7 @@ type Mqtt_Points__type struct {
 	History     string // 存储
 	Alarm       string // 报警
 	Alarm_Group int    // 报警组
-	Format_Path string // 格式路径
+	Config      string // 配置信息
 
 	Creation_Time time.Time // 创建时间
 	Creation_User uint      // 创建的用户id
@@ -530,7 +550,7 @@ type Mqtt_Points__Add_type struct {
 	History     string // 存储
 	Alarm       string // 报警
 	Alarm_Group int    // 报警组
-	Format_Path string // 格式路径
+	Config      string // 配置信息
 
 	Creation_User uint // 创建的用户id
 }
@@ -608,7 +628,7 @@ func Mqtt_Points__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []st
 			Mqtt_Points.History,
 			Mqtt_Points.Alarm,
 			Mqtt_Points.Alarm_Group,
-			Mqtt_Points.Format_Path,
+			Mqtt_Points.Config,
 			Mqtt_Points.Creation_Time,
 			Mqtt_Points.Creation_User
 		FROM Mqtt_Points
@@ -669,7 +689,7 @@ func Mqtt_Points__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []st
 			History       sql.NullString
 			Alarm         sql.NullString
 			Alarm_Group   sql.NullInt64
-			Format_Path   sql.NullString
+			Config        sql.NullString
 		)
 		err = rows.Scan(
 			&config.Id,
@@ -680,7 +700,7 @@ func Mqtt_Points__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []st
 			&History,
 			&Alarm,
 			&Alarm_Group,
-			&Format_Path,
+			&Config,
 			&config.Creation_Time,
 			&Creation_User,
 		)
@@ -691,7 +711,7 @@ func Mqtt_Points__Query_Callback(Mqtt_Ids []uint, Tags []string, RW_Cancels []st
 		config.History = History.String
 		config.Alarm = Alarm.String
 		config.Alarm_Group = int(Alarm_Group.Int64)
-		config.Format_Path = Format_Path.String
+		config.Config = Config.String
 		config.Creation_User = uint(Creation_User.Int64)
 		callback(config)
 	}
@@ -727,7 +747,7 @@ func Mqtt_Points__Add(configs ...Mqtt_Points__Add_type) (err error) {
 			History,
 			Alarm,
 			Alarm_Group,
-			Format_Path,
+			Config,
 			Creation_Time,
 			Creation_User
 		) VALUES
@@ -760,8 +780,8 @@ func Mqtt_Points__Add(configs ...Mqtt_Points__Add_type) (err error) {
 				Valid: cfg.Alarm_Group != 0,
 			},
 			sql.NullString{
-				String: cfg.Format_Path,
-				Valid:  cfg.Format_Path != "",
+				String: cfg.Config,
+				Valid:  cfg.Config != "",
 			},
 			now,
 			sql.NullInt64{
@@ -844,11 +864,11 @@ func Mqtt_Points__Update(configs ...Mqtt_Points__Update_type) (err error) {
 				Valid: cfg.Alarm_Group != 0,
 			})
 		}
-		if cfg.Format_Path != "" {
-			setClauses = append(setClauses, "`Format_Path` = ?")
+		if cfg.Config != "null" && cfg.Config != "undefined" {
+			setClauses = append(setClauses, "`Config` = ?")
 			args = append(args, sql.NullString{
-				String: cfg.Format_Path,
-				Valid:  cfg.Format_Path != "",
+				String: cfg.Config,
+				Valid:  cfg.Config != "null" || cfg.Config == "undefined",
 			})
 		}
 
