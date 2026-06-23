@@ -18,6 +18,9 @@ import (
 	"hash/crc32"
 	"io"
 	"strconv"
+	"strings"
+
+	"github.com/andybalholm/brotli"
 )
 
 // GetPasswordHashGood 获取密码的哈希值（安全）
@@ -213,4 +216,57 @@ func Receive__CRC32_Aes_Gzip(dataBytes []byte, aesPasswd string) ([]byte, error)
 	}
 
 	return gzipData, nil
+}
+
+// 压缩：[]byte -> Brotli 压缩后的 []byte
+func Compress(data []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	writer := brotli.NewWriter(&buf)
+
+	_, err := writer.Write(data)
+	if err != nil {
+		return nil, err
+	}
+
+	err = writer.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// 解压：Brotli 压缩的 []byte -> 原始 []byte
+func Decompress(compressed []byte) ([]byte, error) {
+	reader := brotli.NewReader(bytes.NewReader(compressed))
+	return io.ReadAll(reader)
+}
+
+// GetKVValue 解析 ; 分隔的键值串，根据key查询值
+// str: 原始字符串 例:"name=张三;age=18;desc=a=b=c"
+// targetKey: 要查找的key
+// return: (对应值, 是否找到)
+func GetKVValue(str string, targetKey string) (string, bool) {
+	// 按;拆分所有片段
+	parts := strings.Split(str, ";")
+	// 遍历每一段键值
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		// 只分割第一个=
+		eqIdx := strings.Index(part, ":")
+		if eqIdx == -1 {
+			// 无等号，跳过
+			continue
+		}
+		k := strings.TrimSpace(part[:eqIdx])
+		v := strings.TrimSpace(part[eqIdx+1:])
+		if k == targetKey {
+			return v, true
+		}
+	}
+	// 没找到
+	return "", false
 }

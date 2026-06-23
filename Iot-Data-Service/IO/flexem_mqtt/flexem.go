@@ -5,6 +5,7 @@ import (
 	"main/IO/byte_util"
 	"main/IO/manager/fullConfig"
 	"main/app/mqttbase"
+	"main/cloud"
 	"main/db/mysql"
 	"main/method/timer"
 
@@ -136,7 +137,18 @@ func (c *Flexem_Mqtt) Push() (err error) {
 		if c.Config.Drive.Topic_Push != topic {
 			return
 		}
+
+		compress, ok := cloud.GetKVValue(c.Config.Drive.Config, "压缩")
+		if ok && compress != "" {
+			dataByte, err = cloud.Decompress(dataByte)
+			if err != nil {
+				log.Printf("ERROR mqtt实例名称【%s】 配置压缩【%s】算法解压错误【%s】", c.Config.Drive.Name, compress, err)
+				return
+			}
+		}
+
 		data_map := make(map[string]json.RawMessage)
+
 		// 绑定JSON，只解析Type，不解析Value
 		err := json.Unmarshal(dataByte, &data_map)
 		if err != nil {
