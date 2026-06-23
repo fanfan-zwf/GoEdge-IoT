@@ -53,82 +53,11 @@ type Connect_interface interface {
 // 全局客户端实例
 var c Connect_struct
 
-// 写入缓存: key = Tag + 纳秒时间戳，防重复写入
+// 写入缓存: key = Tag + 纳秒时间戳，防重复写入（Tag + Time 作为唯一索引）
 var writeCache sync.Map
 
 // 统一固定测量名
 const fixedMeasurement = "point_data"
-
-// 字段映射：按业务类型分配独立字段，彻底解决类型冲突
-func getFieldName(typ string) string {
-	switch typ {
-	case "bool":
-		return "bool_val"
-	case "int":
-		return "int_val"
-	case "uint":
-		return "uint_val"
-	case "string":
-		return "string_val"
-	default:
-		return "string_val"
-	}
-}
-
-// convertValue 强制类型转换 + 合法性校验
-// 规则：int系列统一转int，uint系列统一转uint，bool/string原样保留
-func convertValue(typ string, rawVal any) (any, error) {
-	switch typ {
-	case "bool":
-		val, ok := rawVal.(bool)
-		if !ok {
-			return nil, fmt.Errorf("类型不匹配，期望 bool，实际 %T", rawVal)
-		}
-		return val, nil
-
-	case "int":
-		switch v := rawVal.(type) {
-		case int:
-			return v, nil
-		case int8:
-			return int(v), nil
-		case int16:
-			return int(v), nil
-		case int32:
-			return int(v), nil
-		case int64:
-			return int(v), nil
-		default:
-			return nil, fmt.Errorf("类型不匹配，期望 int 系列，实际 %T", rawVal)
-		}
-
-	case "uint":
-		switch v := rawVal.(type) {
-		case uint:
-			return v, nil
-		case uint8:
-			return uint(v), nil
-		case uint16:
-			return uint(v), nil
-		case uint32:
-			return uint(v), nil
-		case uint64:
-			return uint(v), nil
-		default:
-			return nil, fmt.Errorf("类型不匹配，期望 uint 系列，实际 %T", rawVal)
-		}
-
-	case "string":
-		val, ok := rawVal.(string)
-		if !ok {
-			return nil, fmt.Errorf("类型不匹配，期望 string，实际 %T", rawVal)
-		}
-		return val, nil
-
-	default:
-		return nil, fmt.Errorf("不支持的数据类型: %s", typ)
-	}
-}
 
 // ===================== 初始化客户端 =====================
 func (c *Connect_struct) initInfluxDB() (err error) {
@@ -165,6 +94,109 @@ func (c *Connect_struct) Close() error {
 	return nil
 }
 
+// getFieldName 根据业务类型分配独立存储字段
+// bool/int/uint 统一存入 int_value
+// float64 存入 float_value
+// string 存入 string_value
+func getFieldName(typ string) string {
+	switch typ {
+	case "bool":
+		return "bool_value"
+	case "int":
+		return "int_value"
+	case "uint":
+		return "uint_value"
+	case "float":
+		return "float_value"
+	case "string":
+		return "string_value"
+	default:
+		return "string_value"
+	}
+}
+
+// convertValue 强类型校验 + 强制转换
+// 规则：
+// 1. bool → int(1/0)
+// 2. 所有整型(int8/int16/int32/int64) → int
+// 3. 所有无符号整型(uint8/uint16/uint32/uint64) → uint
+// 4. 浮点统一 → float64
+// 5. 字符串保持原生
+func convertValue(expectType string, rawVal any) (any, error) {
+	switch expectType {
+	case "bool":
+		if rawVal == nil {
+			return false, nil
+		}
+		b, ok := rawVal.(bool)
+		if !ok {
+			return nil, fmt.Errorf("类型不匹配，预期bool，实际类型:%T", rawVal)
+		}
+		return b, nil
+	case "int":
+		if rawVal == nil {
+			return int(0), nil
+		}
+		switch v := rawVal.(type) {
+		case int:
+			return v, nil
+		case int8:
+			return int(v), nil
+		case int16:
+			return int(v), nil
+		case int32:
+			return int(v), nil
+		case int64:
+			return int(v), nil
+		default:
+			return nil, fmt.Errorf("类型不匹配，预期int，实际类型:%T", rawVal)
+		}
+
+	case "uint":
+		if rawVal == nil {
+			return uint(0), nil
+		}
+		switch v := rawVal.(type) {
+		case uint:
+			return v, nil
+		case uint8:
+			return uint(v), nil
+		case uint16:
+			return uint(v), nil
+		case uint32:
+			return uint(v), nil
+		case uint64:
+			return uint(v), nil
+		default:
+			return nil, fmt.Errorf("类型不匹配,预期uint,实际类型:%T", rawVal)
+		}
+
+	case "float":
+		if rawVal == nil {
+			return float64(0.0), nil
+		}
+		switch v := rawVal.(type) {
+		case float64:
+			return v, nil
+		default:
+			return nil, fmt.Errorf("类型不匹配，预期float64，实际类型:%T", rawVal)
+		}
+
+	case "string":
+		if rawVal == nil {
+			return string(""), nil
+		}
+		s, ok := rawVal.(string)
+		if !ok {
+			return fmt.Sprintf("%v", rawVal), nil
+		}
+		return s, nil
+
+	default:
+		return fmt.Sprintf("%v", rawVal), nil
+	}
+}
+
 // ===================== 批量写入 =====================
 func (c *Connect_struct) Write(data []fullConfig.Value_type) error {
 	if c.client == nil {
@@ -179,26 +211,26 @@ func (c *Connect_struct) Write(data []fullConfig.Value_type) error {
 	defer cancel()
 
 	for _, v := range data {
-		// Tag + 时间 去重
+		// Tag + 时间戳 作为唯一键，防重复写入
 		cacheKey := fmt.Sprintf("%s_%d", v.Tag, v.Time.UnixNano())
 		if _, exists := writeCache.Load(cacheKey); exists {
 			continue
 		}
 
-		// 强制类型校验与转换
+		// 强制类型转换与校验
 		realVal, err := convertValue(v.Type, v.Value)
 		if err != nil {
-			log.Printf("数据转换失败 Tag=%s Type=%s Err=%v", v.Tag, v.Type, err)
+			log.Printf("数据类型转换失败 Tag:%s Type:%s Err:%v", v.Tag, v.Type, err)
 			continue
 		}
 
-		// 分配对应字段
+		// 匹配存储字段
 		fieldKey := getFieldName(v.Type)
 		fields := map[string]interface{}{
 			fieldKey: realVal,
 		}
 
-		// 构建点位：Type、Msg 作为标签
+		// 构造写入点
 		point := influxdb2.NewPoint(
 			fixedMeasurement,
 			map[string]string{
@@ -213,11 +245,17 @@ func (c *Connect_struct) Write(data []fullConfig.Value_type) error {
 		writeCache.Store(cacheKey, struct{}{})
 	}
 
-	if len(points) > 0 {
-		if err := c.writeAPI.WritePoint(ctx, points...); err != nil {
-			return fmt.Errorf("写入失败: %w", err)
-		}
+	// 批量写入
+	if len(points) == 0 {
+		return nil
 	}
+
+	err := c.writeAPI.WritePoint(ctx, points...)
+	if err != nil {
+		log.Printf("写入失败: %v", err)
+		return fmt.Errorf("写入失败: %w", err)
+	}
+
 	return nil
 }
 
@@ -276,7 +314,6 @@ func (c *Connect_struct) Read(scopes []Read_Scope_type) ([]fullConfig.Value_type
 		}
 		res.Close()
 	}
-
 	return resultList, nil
 }
 
@@ -292,60 +329,44 @@ func (c *Connect_struct) QueryLast(tags []string) ([]fullConfig.Value_type, erro
 	queryAPI := c.client.QueryAPI(c.org)
 	var resultList []fullConfig.Value_type
 
-	// 枚举所有业务字段，查询当前tag最新一条数据
-	allFields := []string{"bool_val", "int_val", "uint_val", "string_val"}
-
 	for _, tag := range tags {
+		flux := fmt.Sprintf(`
+			from(bucket: "%s")
+			|> range(start: -10y)
+			|> filter(fn: (r) => 
+				r._measurement == "%s" 
+				and r.tag_name == "%s"
+				and (r._field == "bool_value" or r._field == "int_value" or r._field == "uint_value" or r._field == "float_value" or r._field == "string_value")
+			)
+			|> sort(columns: ["_time"], desc: true)
+			|> limit(n: 1)
+		`, c.bucket, fixedMeasurement, tag)
+
+		res, err := queryAPI.Query(context.Background(), flux)
+		if err != nil {
+			return nil, fmt.Errorf("tag[%s] 查询最后一条失败: %w", tag, err)
+		}
+
 		var item fullConfig.Value_type
 		hasData := false
-
-		for _, field := range allFields {
-			flux := fmt.Sprintf(`
-				from(bucket: "%s")
-				|> range(start: -10y)
-				|> filter(fn: (r) => 
-					r._measurement == "%s" 
-					and r.tag_name == "%s"
-					and r._field == "%s"
-				)
-				|> sort(columns: ["_time"], desc: true)
-				|> limit(n: 1)
-			`, c.bucket, fixedMeasurement, tag, field)
-
-			res, err := queryAPI.Query(context.Background(), flux)
-			if err != nil {
-				log.Printf("tag[%s] 字段%s 查询异常: %v", tag, field, err)
-				continue
+		for res.Next() {
+			record := res.Record()
+			item = fullConfig.Value_type{
+				Tag:   record.ValueByKey("tag_name").(string),
+				Type:  record.ValueByKey("data_type").(string),
+				Msg:   record.ValueByKey("msg").(string),
+				Value: record.Value(),
+				Time:  record.Time(),
 			}
-
-			for res.Next() {
-				record := res.Record()
-				item = fullConfig.Value_type{
-					Tag:   record.ValueByKey("tag_name").(string),
-					Type:  record.ValueByKey("data_type").(string),
-					Msg:   record.ValueByKey("msg").(string),
-					Value: record.Value(),
-					Time:  record.Time(),
-				}
-				hasData = true
-			}
-			res.Close()
-
-			if hasData {
-				break
-			}
+			hasData = true
 		}
+		res.Close()
 
 		if hasData {
 			resultList = append(resultList, item)
 		}
 	}
 	return resultList, nil
-}
-
-// ===================== 类型校验工具函数 =====================
-func Value_Type_Confirm(Type string, Value any) (v any, err error) {
-	return convertValue(Type, Value)
 }
 
 // ===================== 全局回调 & 初始化 =====================
@@ -357,11 +378,11 @@ func init() {
 func a(value []fullConfig.Value_type) error {
 	index := len(value)
 	value = append(value, fullConfig.Value_type{
-		Tag:   "//APP//data/influxdb/write_quantity", // 点位名称
-		Value: index,                                 // 点位值
-		Type:  "int",                                 // 输出类型
-		Msg:   "ok",                                  // 状态信息
-		Time:  time.Now(),                            // 读取时间
+		Tag:   Init.Config.Influxdb.Write_Quantity_Tag,
+		Value: index,
+		Type:  "int",
+		Msg:   "ok",
+		Time:  time.Now(),
 	})
 
 	err := c.Write(value)

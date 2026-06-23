@@ -23,8 +23,17 @@ type MqttConfig struct {
 	SetKeepAlive      time.Duration
 }
 
+// subscription 记录订阅信息
+type subscription struct {
+	Topic    string
+	QoS      byte
+	Callback func(broker string, topic string, data []byte)
+}
+
 type mqttInstance struct {
-	client mqtt.Client
+	client        mqtt.Client
+	subscriptions map[string]*subscription // key: topic
+	subMu         sync.RWMutex
 }
 
 // Manager MQTT连接管理器
@@ -55,15 +64,52 @@ func (m *Manager) Add(name string, cfg MqttConfig) error {
 	opts.SetWriteTimeout(cfg.SetWriteTimeout)
 	opts.SetKeepAlive(cfg.SetKeepAlive)
 
+	// 创建实例并保存引用，以便在回调中使用
+	instance := &mqttInstance{
+		subscriptions: make(map[string]*subscription),
+	}
+
+	// 设置连接丢失处理器
 	opts.SetConnectionLostHandler(func(_ mqtt.Client, err error) {
 		log.Printf("MQTT[%s] 连接断开: %v", name, err)
 	})
+
+	// 设置重连处理器
 	opts.SetReconnectingHandler(func(_ mqtt.Client, _ *mqtt.ClientOptions) {
 		log.Printf("MQTT[%s] 尝试重连...", name)
 	})
 
+	// 设置连接成功处理器 - 重连成功后重新订阅
 	opts.SetOnConnectHandler(func(_ mqtt.Client) {
 		log.Printf("MQTT[%s] 连接成功", name)
+
+		// 重新订阅所有已订阅的主题
+		instance.subMu.RLock()
+		subs := make(map[string]*subscription)
+		for topic, sub := range instance.subscriptions {
+			subs[topic] = sub
+		}
+		instance.subMu.RUnlock()
+
+		if len(subs) > 0 {
+			log.Printf("MQTT[%s] 开始重新订阅 %d 个主题...", name, len(subs))
+			for topic, sub := range subs {
+				token := instance.client.Subscribe(topic, sub.QoS, func(client mqtt.Client, msg mqtt.Message) {
+					defer func() {
+						if r := recover(); r != nil {
+							log.Printf("订阅回调 panic: %v", r)
+						}
+					}()
+					sub.Callback(name, msg.Topic(), msg.Payload())
+				})
+
+				if token.WaitTimeout(5*time.Second) && token.Error() == nil {
+					log.Printf("MQTT[%s] 重新订阅成功: %s", name, topic)
+				} else {
+					log.Printf("MQTT[%s] 重新订阅失败: %s, err=%v", name, topic, token.Error())
+				}
+			}
+		}
 	})
 
 	client := mqtt.NewClient(opts)
@@ -72,7 +118,8 @@ func (m *Manager) Add(name string, cfg MqttConfig) error {
 		return token.Error()
 	}
 
-	m.inst[name] = &mqttInstance{client: client}
+	instance.client = client
+	m.inst[name] = instance
 	log.Printf("MQTT[%s] 初始化完成", name)
 	return nil
 }
@@ -171,18 +218,48 @@ func Subscribe(broker string, topic string, callback func(broker string, topic s
 		return fmt.Errorf("mqtt 实例不存在: %s", broker)
 	}
 
+	// 保存订阅信息，用于重连后重新订阅
+	sub := &subscription{
+		Topic:    topic,
+		QoS:      1,
+		Callback: callback,
+	}
+
+	inst.subMu.Lock()
+	inst.subscriptions[topic] = sub
+	inst.subMu.Unlock()
+
 	token := inst.client.Subscribe(topic, 1, func(client mqtt.Client, msg mqtt.Message) {
 		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("订阅回调 panic: %v", r)
+			r := recover()
+			if r != nil {
+				log.Printf("订阅回调 %v", r)
 			}
 		}()
 		callback(broker, msg.Topic(), msg.Payload())
 	})
-	if token.Wait() && token.Error() != nil {
-		return token.Error()
+
+	// 1. 限时等待订阅完成（3s 超时，避免无限阻塞）
+	const subTimeout = 3 * time.Second
+	if !token.WaitTimeout(subTimeout) {
+		// 超时则移除订阅记录
+		inst.subMu.Lock()
+		delete(inst.subscriptions, topic)
+		inst.subMu.Unlock()
+		return fmt.Errorf("订阅超时，broker=%s, topic=%s", broker, topic)
 	}
 
+	// 2. 等待结束后，再判断是否有业务错误
+	if err := token.Error(); err != nil {
+		// 失败则移除订阅记录
+		inst.subMu.Lock()
+		delete(inst.subscriptions, topic)
+		inst.subMu.Unlock()
+		log.Printf("订阅失败: broker=%s, topic=%s, err=%v", broker, topic, err)
+		return err
+	}
+
+	// 3. 全部正常，再打印成功日志
 	log.Printf("订阅成功: broker=%s, topic=%s", broker, topic)
 	return nil
 }
@@ -204,6 +281,11 @@ func Subscribe_Close(broker string, topic string) error {
 	if token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
+
+	// 移除订阅记录
+	inst.subMu.Lock()
+	delete(inst.subscriptions, topic)
+	inst.subMu.Unlock()
 
 	log.Printf("取消订阅成功: broker=%s, topic=%s", broker, topic)
 	return nil

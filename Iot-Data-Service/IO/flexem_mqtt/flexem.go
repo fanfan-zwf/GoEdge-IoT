@@ -37,13 +37,14 @@ type Connect_interface interface {
 
 func (c *Flexem_Mqtt) New() (err error) {
 	if c.Push_finally_time_timeout == 0 {
-		c.Push_finally_time_timeout = 120 * time.Minute
+		c.Push_finally_time_timeout = 10 * time.Second
 	}
-	c.push_finally_time_map = make(map[string]time.Time)
+
 	c.points_config_map = make(map[string]int)
+	c.push_finally_time_map = make(map[string]time.Time)
 	for i, v := range c.Config.Points {
-		c.push_finally_time_map_W(v.Tag, time.Now())
 		c.points_config_map_W(v.Tag, i)
+		c.push_finally_time_map_W(v.Tag, time.Now())
 	}
 	c.timer = timer.NewTimerTask()
 	c.timer.Start(c.Push_finally_time_timeout, c.timer_msg)
@@ -59,18 +60,22 @@ func (c *Flexem_Mqtt) timer_msg(callTime time.Time) {
 	var value_list []fullConfig.Value_type
 	for _, cfg := range c.Config.Points {
 		var msg string
-		time_v, ok := c.push_finally_time_map_R(cfg.Tag)
+		t, ok := c.push_finally_time_map_R(cfg.Tag)
 		if !ok {
 			msg = "不存在的点位"
-		} else if time.Since(time_v) >= c.Push_finally_time_timeout {
-			msg = fmt.Sprintf("超时 最后时间:%s", time_v)
+		} else if t.IsZero() {
+			msg = "无首次最后时间"
+		} else if time.Since(t) >= c.Push_finally_time_timeout {
+			msg = fmt.Sprintf("超时 最后时间:%s", t)
 		} else {
+			fmt.Printf("mqtt 点位【%s】正常在线 \n", cfg.Tag)
 			continue
 		}
+		fmt.Printf("mqtt 点位【%s】异常【%s】\n", cfg.Tag, msg)
 
 		value_list = append(value_list, fullConfig.Value_type{
 			Tag:   cfg.Tag,        // 点位名称
-			Value: cfg.Value_Type, // 点位值
+			Value: nil,            // 点位值
 			Type:  cfg.Value_Type, // 输出类型
 			Msg:   msg,            // 状态信息
 			Time:  callTime,       // 读取时间
@@ -105,16 +110,16 @@ func (c *Flexem_Mqtt) points_config_map_R(tag string) (mysql.Mqtt_Points__type, 
 	return c.Config.Points[index], true
 }
 
-func (c *Flexem_Mqtt) push_finally_time_map_W(tag string, v time.Time) {
+func (c *Flexem_Mqtt) push_finally_time_map_W(tag string, t time.Time) {
 	c.push_finally_time_RWMu.Lock()
 	defer c.push_finally_time_RWMu.Unlock()
-	c.push_finally_time_map[tag] = v
+	c.push_finally_time_map[tag] = t
 }
 func (c *Flexem_Mqtt) push_finally_time_map_R(tag string) (time.Time, bool) {
 	c.push_finally_time_RWMu.RLock()
 	defer c.push_finally_time_RWMu.RUnlock()
-	v, ok := c.push_finally_time_map[tag]
-	return v, ok
+	t, ok := c.push_finally_time_map[tag]
+	return t, ok
 }
 
 // 推送
@@ -159,6 +164,10 @@ func (c *Flexem_Mqtt) Push() (err error) {
 				continue
 			}
 
+			if string(map_value) == "null" {
+				continue
+			}
+
 			cfg, ok := c.points_config_map_R(map_key)
 			if !ok {
 				continue
@@ -171,9 +180,9 @@ func (c *Flexem_Mqtt) Push() (err error) {
 			var realValue any
 			switch cfg.Value_Type {
 			case "bool":
-				var v int
+				var v any
 				err = json.Unmarshal(map_value, &v)
-				realValue, _ = byte_util.ConvertType(v, "int", "bool")
+				realValue, _ = byte_util.ConvBool(v, byte_util.ValueType(v))
 			case "int":
 				var v int
 				err = json.Unmarshal(map_value, &v)
@@ -190,6 +199,8 @@ func (c *Flexem_Mqtt) Push() (err error) {
 				var v string
 				err = json.Unmarshal(map_value, &v)
 				realValue = v
+			default:
+				continue
 			}
 
 			if err != nil {

@@ -131,6 +131,7 @@ type Points_Config_type struct {
 // 结构体
 type Mqtt__type struct {
 	Id                 uint      // 点位id
+	Name               string    // 名称
 	Type               string    // 类型 私有协议、繁易
 	Example_IDentifier string    // mqtt实例标识符
 	Topic_Push         string    // 主题
@@ -142,6 +143,7 @@ type Mqtt__type struct {
 }
 
 type Mqtt__Add_type struct {
+	Name               string // 名称
 	Type               string // 类型 私有协议、繁易
 	Example_IDentifier string // mqtt实例标识符
 	Topic_Push         string // 主题
@@ -153,6 +155,7 @@ type Mqtt__Add_type struct {
 
 type Mqtt__Update_type struct {
 	Id                 uint   // 点位id
+	Name               string // 名称
 	Type               string // 类型 私有协议、繁易
 	Example_IDentifier string // mqtt实例标识符
 	Topic_Push         string // 主题
@@ -230,6 +233,7 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 	baseQuery := `
 		SELECT
 			Mqtt.Id,
+			Mqtt.Name,
 			Mqtt.Type,
 			Mqtt.Example_IDentifier,
 			Mqtt.Topic_Push,
@@ -238,7 +242,6 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 			Mqtt.Creation_Time,
 			Mqtt.Creation_User,
 			Mqtt.Config
-		}
 		FROM Mqtt
 	`
 	var whereConditions []string
@@ -301,6 +304,7 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 		)
 		err = rows.Scan(
 			&config.Id,
+			&config.Name,
 			&config.Type,
 			&config.Example_IDentifier,
 			&Topic_Push,
@@ -352,6 +356,7 @@ func Mqtt__Add(configs ...Mqtt__Add_type) (err error) {
 	// 3. SQL 插入（包含 Id 字段）
 	baseQuery := `
 		INSERT INTO Mqtt (
+			Name,
 			Type,
 			Example_IDentifier,
 			Topic_Push,
@@ -371,8 +376,9 @@ func Mqtt__Add(configs ...Mqtt__Add_type) (err error) {
 
 	// 4. 构建批量参数
 	for _, cfg := range configs {
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?, ?)")
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?, ?, ?)")
 		args = append(args,
+			cfg.Name,
 			cfg.Type,
 			cfg.Example_IDentifier,
 			sql.NullString{
@@ -434,6 +440,11 @@ func Mqtt__Update(configs ...Mqtt__Update_type) (err error) {
 		// 2.2 动态拼接SET子句
 		var setClauses []string
 		var args []interface{}
+
+		if cfg.Name != "" {
+			setClauses = append(setClauses, "`Name` = ?")
+			args = append(args, cfg.Name)
+		}
 		if cfg.Type != "" {
 			setClauses = append(setClauses, "`Type` = ?")
 			args = append(args, cfg.Type)

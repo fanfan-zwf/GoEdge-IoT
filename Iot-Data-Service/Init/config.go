@@ -71,6 +71,7 @@ type Config_type struct {
 		Token  string `yaml:"token"`
 		Org    string `yaml:"org"`
 		Bucket string `yaml:"bucket"`
+		Write_Quantity_Tag string `yaml:"write_quantity_tag"`
 	} `yaml:"Influxdb"` // 时序数据库
 
 	LOG struct {

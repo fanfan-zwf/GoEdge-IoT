@@ -63,11 +63,11 @@ func InitializeDrivers() (err error) {
 				return
 			}
 			flexem_mqtt_struct.Push_External_Mappings = db_point.Collection_Publisher
-			// err = db_point.Write_value_Subscriber_mysqlconfig(fullConfig, map[string]bool{"R/W": true, "W": true}, modbus_tcp_struct.Write)
-			// if err != nil {
-			// 	log.Printf("ERROR 订阅写点位失败 driveId:%d: %s", driveConfig.Id, err)
-			// 	return
-			// }
+			err = db_point.Write_value_Subscriber_mysqlconfig(fullConfig, map[string]bool{"R/W": true, "W": true}, flexem_mqtt_struct.Down)
+			if err != nil {
+				log.Printf("ERROR 订阅写点位失败 driveId:%d: %s", driveConfig.Id, err)
+				return
+			}
 		default:
 			log.Printf("WARN 未知驱动类型: %s, 驱动ID: %d", driveConfig.Type, driveConfig.Id)
 		}

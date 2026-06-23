@@ -169,10 +169,10 @@ func New() error {
 }
 
 func init() {
-	Update_Subscriber(func(v []fullConfig.Value_type) error {
-		for _, val := range v {
-			fmt.Printf("数据更新 Tag: %s, Value: %v, Msg: %s, Time: %s\n", val.Tag, val.Value, val.Msg, val.Time.Format(time.RFC3339))
-		}
-		return nil
-	})
+	// Update_Subscriber(func(v []fullConfig.Value_type) error {
+	// 	for _, val := range v {
+	// 		fmt.Printf("数据更新 Tag: %s, Value: %v, Msg: %s, Time: %s\n", val.Tag, val.Value, val.Msg, val.Time.Format(time.RFC3339))
+	// 	}
+	// 	return nil
+	// })
 }

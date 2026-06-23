@@ -5,6 +5,41 @@ import (
 	"strconv"
 )
 
+func ValueType(v any) string {
+	switch v.(type) {
+	case bool:
+		return "bool"
+	case uint8:
+		return "uint8"
+	case int8:
+		return "int8"
+	case uint16:
+		return "uint16"
+	case int16:
+		return "int16"
+	case uint32:
+		return "uint32"
+	case int32:
+		return "int32"
+	case uint64:
+		return "uint64"
+	case int64:
+		return "int64"
+	case uint:
+		return "uint"
+	case int:
+		return "int"
+	case float32:
+		return "float32"
+	case float64:
+		return "float64"
+	case string:
+		return "string"
+	default:
+		return "unknown"
+	}
+}
+
 func ConvBool(v any, to string) (bool, bool) {
 	switch to {
 	case "bool":
