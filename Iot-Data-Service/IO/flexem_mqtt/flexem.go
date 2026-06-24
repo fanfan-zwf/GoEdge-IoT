@@ -142,7 +142,7 @@ func (c *Flexem_Mqtt) Push() (err error) {
 		if ok && compress != "" {
 			dataByte, err = cloud.Decompress(dataByte)
 			if err != nil {
-				log.Printf("ERROR mqtt实例名称【%s】 配置压缩【%s】算法解压错误【%s】", c.Config.Drive.Name, compress, err)
+				log.Printf("ERROR mqtt实例名称【%s】 配置压缩【%s】算法解压错误", c.Config.Drive.Name, compress)
 				return
 			}
 		}
@@ -152,7 +152,7 @@ func (c *Flexem_Mqtt) Push() (err error) {
 		// 绑定JSON，只解析Type，不解析Value
 		err := json.Unmarshal(dataByte, &data_map)
 		if err != nil {
-			log.Printf("ERROR 响应解析失败: %v, content: %s", err, string(dataByte))
+			log.Printf("ERROR 响应解析失败: %v", err)
 			return
 		}
 		var Time time.Time
@@ -161,7 +161,7 @@ func (c *Flexem_Mqtt) Push() (err error) {
 			var unix int64
 			err = json.Unmarshal(t, &unix)
 			if err != nil {
-				log.Printf("ERROR flexem_timestamp响应解析失败,以及转化当前时间: %v, content: %s", err, string(dataByte))
+				log.Printf("ERROR flexem_timestamp响应解析失败,以及转化当前时间: %v", err)
 				Time = time.Now()
 			} else {
 				Time = time.Unix(unix, 0)

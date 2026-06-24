@@ -67,10 +67,10 @@ type Config_type struct {
 	} `yaml:"REDIS"` // 数据库
 
 	Influxdb struct {
-		Url    string `yaml:"url"`
-		Token  string `yaml:"token"`
-		Org    string `yaml:"org"`
-		Bucket string `yaml:"bucket"`
+		Url                string `yaml:"url"`
+		Token              string `yaml:"token"`
+		Org                string `yaml:"org"`
+		Bucket             string `yaml:"bucket"`
 		Write_Quantity_Tag string `yaml:"write_quantity_tag"`
 	} `yaml:"Influxdb"` // 时序数据库
 
