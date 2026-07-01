@@ -130,39 +130,27 @@ type Points_Config_type struct {
 
 // 结构体
 type Mqtt__type struct {
-	Id                 uint      // 点位id
-	Name               string    // 名称
-	Type               string    // 类型 私有协议、繁易
-	Example_IDentifier string    // mqtt实例标识符
-	Topic_Push         string    // 主题
-	Topic_Down         string    // 点下发值
-	Topic_Alarm        string    // 点位报警
-	Creation_Time      time.Time // 创建时间
-	Creation_User      uint      // 创建的用户id
-	Config             string    // 配置信息
+	Id            uint      // 点位id
+	Name          string    // 名称
+	Type          string    // 类型 私有协议、繁易
+	Creation_Time time.Time // 创建时间
+	Creation_User uint      // 创建的用户id
+	Config        string    // 配置信息
 }
 
 type Mqtt__Add_type struct {
-	Name               string // 名称
-	Type               string // 类型 私有协议、繁易
-	Example_IDentifier string // mqtt实例标识符
-	Topic_Push         string // 主题
-	Topic_Down         string // 点下发值
-	Topic_Alarm        string // 点位报警
-	Creation_User      uint   // 创建的用户id
-	Config             string // 配置信息
+	Name          string // 名称
+	Type          string // 类型 私有协议、繁易
+	Creation_User uint   // 创建的用户id
+	Config        string // 配置信息
 }
 
 type Mqtt__Update_type struct {
-	Id                 uint   // 点位id
-	Name               string // 名称
-	Type               string // 类型 私有协议、繁易
-	Example_IDentifier string // mqtt实例标识符
-	Topic_Push         string // 主题
-	Topic_Down         string // 点下发值
-	Topic_Alarm        string // 点位报警
-	Creation_User      uint   // 创建的用户id
-	Config             string // 配置信息
+	Id            uint   // 点位id
+	Name          string // 名称
+	Type          string // 类型 私有协议、繁易
+	Creation_User uint   // 创建的用户id
+	Config        string // 配置信息
 }
 
 // Mqtt-》查询数量
@@ -228,17 +216,13 @@ func Mqtt__Count(Types []string, Example_IDentifiers []string, Topics []string, 
 // Mqtt-》查询配置（回调）
 // 传递：Types 设备类型，Example_IDentifiers 设备标识符，Topics 设备主题，page 页码，pageSize 每页数量，callback 回调函数
 // 返回：err 错误
-func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics []string, page uint, pageSize uint, callback func(Mqtt__type)) (err error) {
+func Mqtt__Query_Callback(Types []string, page uint, pageSize uint, callback func(Mqtt__type)) (err error) {
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
 	baseQuery := `
 		SELECT
 			Mqtt.Id,
 			Mqtt.Name,
 			Mqtt.Type,
-			Mqtt.Example_IDentifier,
-			Mqtt.Topic_Push,
-			Mqtt.Topic_Down,
-			Mqtt.Topic_Alarm,
 			Mqtt.Creation_Time,
 			Mqtt.Creation_User,
 			Mqtt.Config
@@ -252,22 +236,6 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt`.`Type` IN (%s)", placeholders))
 		for _, Type := range Types {
 			args = append(args, Type)
-		}
-	}
-
-	if len(Example_IDentifiers) > 0 {
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Example_IDentifiers)), ",")
-		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt`.`Example_IDentifier` IN (%s)", placeholders))
-		for _, Example_IDentifier := range Example_IDentifiers {
-			args = append(args, Example_IDentifier)
-		}
-	}
-
-	if len(Topics) > 0 {
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(Topics)), ",")
-		whereConditions = append(whereConditions, fmt.Sprintf("`Mqtt`.`Topic` IN (%s)", placeholders))
-		for _, Topic := range Topics {
-			args = append(args, Topic)
 		}
 	}
 
@@ -297,19 +265,12 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 			config Mqtt__type
 
 			Creation_User sql.NullInt64
-			Topic_Push    sql.NullString
-			Topic_Down    sql.NullString
-			Topic_Alarm   sql.NullString
 			Config        sql.NullString
 		)
 		err = rows.Scan(
 			&config.Id,
 			&config.Name,
 			&config.Type,
-			&config.Example_IDentifier,
-			&Topic_Push,
-			&Topic_Down,
-			&Topic_Alarm,
 			&config.Creation_Time,
 			&Creation_User,
 			&Config,
@@ -318,9 +279,6 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 			log.Print(err.Error())
 			return err
 		}
-		config.Topic_Push = Topic_Push.String
-		config.Topic_Down = Topic_Down.String
-		config.Topic_Alarm = Topic_Alarm.String
 		config.Creation_User = uint(Creation_User.Int64)
 		config.Config = Config.String
 		callback(config)
@@ -337,8 +295,8 @@ func Mqtt__Query_Callback(Types []string, Example_IDentifiers []string, Topics [
 // Mqtt-》查询配置
 // 传递：driveid 设备 id, page 页码，pageSize 每页数量
 // 返回：configs 配置，err 错误
-func Mqtt__Query(Types []string, Example_IDentifiers []string, Topics []string, page uint, pageSize uint) (configs []Mqtt__type, err error) {
-	err = Mqtt__Query_Callback(Types, Example_IDentifiers, Topics, page, pageSize, func(config Mqtt__type) {
+func Mqtt__Query(Types []string, page uint, pageSize uint) (configs []Mqtt__type, err error) {
+	err = Mqtt__Query_Callback(Types, page, pageSize, func(config Mqtt__type) {
 		configs = append(configs, config)
 	})
 	return
@@ -358,10 +316,6 @@ func Mqtt__Add(configs ...Mqtt__Add_type) (err error) {
 		INSERT INTO Mqtt (
 			Name,
 			Type,
-			Example_IDentifier,
-			Topic_Push,
-			Topic_Down,
-			Topic_Alarm,
 			Creation_Time,
 			Creation_User,
 			Config
@@ -376,23 +330,10 @@ func Mqtt__Add(configs ...Mqtt__Add_type) (err error) {
 
 	// 4. 构建批量参数
 	for _, cfg := range configs {
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?, ?, ?)")
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?)")
 		args = append(args,
 			cfg.Name,
 			cfg.Type,
-			cfg.Example_IDentifier,
-			sql.NullString{
-				String: cfg.Topic_Push,
-				Valid:  cfg.Topic_Push != "",
-			},
-			sql.NullString{
-				String: cfg.Topic_Down,
-				Valid:  cfg.Topic_Down != "",
-			},
-			sql.NullString{
-				String: cfg.Topic_Alarm,
-				Valid:  cfg.Topic_Alarm != "",
-			},
 			now,
 			sql.NullInt16{
 				Int16: int16(cfg.Creation_User),
@@ -448,31 +389,6 @@ func Mqtt__Update(configs ...Mqtt__Update_type) (err error) {
 		if cfg.Type != "" {
 			setClauses = append(setClauses, "`Type` = ?")
 			args = append(args, cfg.Type)
-		}
-		if cfg.Example_IDentifier != "" && cfg.Config != "undefined" {
-			setClauses = append(setClauses, "`Example_IDentifier` = ?")
-			args = append(args, cfg.Example_IDentifier)
-		}
-		if cfg.Topic_Push != "null" && cfg.Config != "undefined" {
-			setClauses = append(setClauses, "`Topic_Push` = ?")
-			args = append(args, sql.NullString{
-				String: cfg.Topic_Push,
-				Valid:  cfg.Topic_Push != "null" || cfg.Topic_Push == "undefined",
-			})
-		}
-		if cfg.Topic_Down != "null" && cfg.Config != "undefined" {
-			setClauses = append(setClauses, "`Topic_Down` = ?")
-			args = append(args, sql.NullString{
-				String: cfg.Topic_Down,
-				Valid:  cfg.Topic_Down != "null" || cfg.Topic_Down == "undefined",
-			})
-		}
-		if cfg.Topic_Alarm != "null" && cfg.Config != "undefined" {
-			setClauses = append(setClauses, "`Topic_Alarm` = ?")
-			args = append(args, sql.NullString{
-				String: cfg.Topic_Alarm,
-				Valid:  cfg.Topic_Alarm != "null" || cfg.Topic_Alarm == "undefined",
-			})
 		}
 		if cfg.Config != "null" && cfg.Config != "undefined" {
 			setClauses = append(setClauses, "`Config` = ?")

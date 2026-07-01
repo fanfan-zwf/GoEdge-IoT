@@ -12,6 +12,7 @@ import (
 const (
 	Mqtt__Type_GoEdge_IoT_Mqtt = "GoEdge-IoT-Mqtt"
 	Mqtt__Type_Flexem_Mqtt     = "Flexem_Mqtt"
+	Mqtt__Type_Flexem_FlexEm   = "Flexem_FlexEm"
 )
 
 var DB *sql.DB

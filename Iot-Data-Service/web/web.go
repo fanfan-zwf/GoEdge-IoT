@@ -114,6 +114,11 @@ func token_use() gin.HandlerFunc {
 			return
 		}
 
+		if IsAPIActive(FullPath) {
+			ctx.Next()
+			return
+		}
+
 		// 2. 检查是否是免token的路径
 		if strings.HasPrefix(FullPath, "/api/gui/v1.0/login") ||
 			strings.HasPrefix(FullPath, "/api/v1.0/login") {
@@ -282,6 +287,8 @@ func Token_User_Id(ctx *gin.Context) (User_Id uint, err error) {
 	return
 }
 
+var R *gin.Engine
+
 func Web() error {
 	if !Init.Config.API.Enable {
 		log.Print("INFO ", "api", "接口服务已禁用")
@@ -291,15 +298,21 @@ func Web() error {
 	bind := fmt.Sprintf("%s:%d", Init.Config.API.Ip, Init.Config.API.Post)
 
 	// gin.SetMode(gin.ReleaseMode)
-	r := gin.Default()
+	R := gin.Default()
+	
+	// 设置全局 Gin 引擎引用，支持后续动态路由注册
+	SetGlobalRouter(R)
+	
 	// 注册中间件
-	r.Use(allowAllCors())              // 跨域问题
-	r.Use(Response_Use(), token_use()) // 全局启用token验证、全局注册标准相应
+	R.Use(allowAllCors())              // 跨域问题
+	R.Use(Response_Use(), token_use()) // 全局启用token验证、全局注册标准相应
 
 	// r.Use(static.ServeRoot("/", "../vue"))
 	// r.Use(static.ServeRoot("/assets", "../vue/assets"))
 
 	log.Print("INFO ", "api", bind)
+
+	ExecuteRegistrations(R)
 
 	// gui_api(r)
 	// 前端接口
@@ -307,7 +320,7 @@ func Web() error {
 	// time.Sleep(3 * time.Second)
 
 	go func() {
-		err := r.Run(bind)
+		err := R.Run(bind)
 		if err != nil {
 			log.Panic(err.Error())
 		}

@@ -54,30 +54,37 @@ func Alarm_Config__Query_list(tag []string) (r []Alarm_Config_type) {
 
 // 增加配置
 func Alarm_Config__Add(configs []Alarm_Config_type) error {
+	// 优化：批量操作，只在循环外加一次锁，避免N次锁开销
+	Alarm_Config_RWMu.Lock()
+	defer Alarm_Config_RWMu.Unlock()
+	
 	for _, config := range configs {
-		Alarm_Config_RWMu.Lock()
 		Alarm_Config[config.Tag] = config
-		Alarm_Config_RWMu.Unlock()
 	}
 	return nil
 }
 
 // 修改状态
-func Alarm_Config__Status_Update(tag string, status string, time time.Time) error {
-	Alarm_Config_RWMu.RLock()
-	defer Alarm_Config_RWMu.RUnlock()
+func Alarm_Config__Status_Update(tag string, status string, t time.Time) error {
+	// 修复Bug: 修改数据必须使用写锁 Lock()，而不是读锁 RLock()
+	Alarm_Config_RWMu.Lock()
+	defer Alarm_Config_RWMu.Unlock()
+	
 	v, ok := Alarm_Config[tag]
 	if !ok {
 		return errors.New("tag not found")
 	}
 	v.Status = status
-	v.Time = time
+	v.Time = t
 	Alarm_Config[tag] = v
 	return nil
 }
 
 // 变化更新 订阅 接收 mysql配置
 func Alarm_Config_Subscriber_mysqlconfig(cfg fullConfig.FullConfig_type) error {
+	// 优化：先收集所有需要更新的配置，然后批量加锁更新
+	updates := make(map[string]Alarm_Config_type)
+	
 	for _, v := range cfg.Points {
 		if v.Alarm == "" || v.Alarm == "null" {
 			continue
@@ -92,15 +99,24 @@ func Alarm_Config_Subscriber_mysqlconfig(cfg fullConfig.FullConfig_type) error {
 			continue
 		}
 
-		Alarm_Config_RWMu.Lock()
-		Alarm_Config[v.Tag] = Alarm_Config_type{
+		// 先在局部变量中构建数据
+		updates[v.Tag] = Alarm_Config_type{
 			Tag:    v.Tag,         // 点位标签
 			Config: v.Alarm,       // 配置
 			Group:  v.Alarm_Group, // 组
 			Status: "正常",
 		}
+	}
+	
+	// 优化：批量更新，只加一次锁
+	if len(updates) > 0 {
+		Alarm_Config_RWMu.Lock()
+		for tag, config := range updates {
+			Alarm_Config[tag] = config
+		}
 		Alarm_Config_RWMu.Unlock()
 	}
+	
 	return nil
 }
 
@@ -175,7 +191,7 @@ func Alarm_Judgment(new fullConfig.Value_type) (Alarm_type, bool) {
 
 	v, ok := byte_util.ConvBool(new.Value, new.Type)
 	if !ok {
-		err := fmt.Errorf("ERROR modbus_tcp: 读取值类型不匹配, tag: %s, 配置类型: %s, 值类型: %t", new.Tag, new.Value, v)
+		err := fmt.Errorf("ERROR modbus_tcp: 读取值类型不匹配, tag: %s, 配置类型: %s, 值类型: %t", new.Tag, new.Type, v)
 		log.Print(err)
 		return Alarm_type{}, false
 	}
@@ -209,7 +225,9 @@ func Alarm_Judgment(new fullConfig.Value_type) (Alarm_type, bool) {
 }
 
 func Alarm_Judgment_list(new_list []fullConfig.Value_type) error {
-	var alarm_list []Alarm_type
+	// 优化：预分配切片容量，避免多次扩容
+	alarm_list := make([]Alarm_type, 0, len(new_list))
+	
 	for _, new := range new_list {
 		a, ok := Alarm_Judgment(new)
 		if !ok {
@@ -217,6 +235,12 @@ func Alarm_Judgment_list(new_list []fullConfig.Value_type) error {
 		}
 		alarm_list = append(alarm_list, a)
 	}
+	
+	// 只在有报警数据时才发布
+	if len(alarm_list) == 0 {
+		return nil
+	}
+	
 	return Alarm_Publisher(alarm_list)
 }
 

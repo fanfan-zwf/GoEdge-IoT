@@ -47,10 +47,6 @@ var expectTableRules = []TableRule{
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true},
 			{ColumnName: "Type", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
-			{ColumnName: "Example_IDentifier", ColumnType: "varchar(100)", IsRequired: true},
-			{ColumnName: "Topic_Push", ColumnType: "varchar(200)"},
-			{ColumnName: "Topic_Down", ColumnType: "varchar(200)"},
-			{ColumnName: "Topic_Alarm", ColumnType: "varchar(200)"},
 			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
 			{ColumnName: "Creation_User", ColumnType: "int unsigned", IsIndex: true},
 			{ColumnName: "Config", ColumnType: "varchar(200)"},

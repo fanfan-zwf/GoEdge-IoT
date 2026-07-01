@@ -2,6 +2,7 @@ package manager
 
 import (
 	"log"
+	"main/IO/flexem_flexem"
 	"main/IO/flexem_mqtt"
 	"main/IO/manager/fullConfig"
 	"main/db/db_point"
@@ -14,7 +15,7 @@ func InitializeDrivers() (err error) {
 	// 1. 查询采集器
 	var mqttConfigs []mysql.Mqtt__type
 
-	mqttConfigs, err = mysql.Mqtt__Query([]string{}, []string{}, []string{}, 0, 0)
+	mqttConfigs, err = mysql.Mqtt__Query([]string{}, 0, 0)
 	if err != nil {
 		return
 	}
@@ -68,6 +69,17 @@ func InitializeDrivers() (err error) {
 				log.Printf("ERROR 订阅写点位失败 driveId:%d: %s", driveConfig.Id, err)
 				return
 			}
+		case mysql.Mqtt__Type_Flexem_FlexEm:
+			flexem_flexem_struct, ok := driver.(*flexem_flexem.Flexem_FlexEm)
+			if !ok {
+				continue
+			}
+			err = flexem_flexem_struct.Start()
+			if err != nil {
+				log.Printf("ERROR 初始化驱动失败 :%d: %s", driveConfig.Id, err)
+				return
+			}
+			flexem_flexem_struct.Push_External_Mappings = db_point.Collection_Publisher
 		default:
 			log.Printf("WARN 未知驱动类型: %s, 驱动ID: %d", driveConfig.Type, driveConfig.Id)
 		}

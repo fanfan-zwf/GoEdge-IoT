@@ -57,16 +57,21 @@ func History_Config__Query_list(tag []string) (r []History_Config_type) {
 
 // 增加配置
 func History_Config__Add(configs []History_Config_type) error {
+	// 优化：批量操作，只在循环外加一次锁，避免N次锁开销
+	History_Config_RWMu.Lock()
+	defer History_Config_RWMu.Unlock()
+	
 	for _, config := range configs {
-		History_Config_RWMu.Lock()
 		History_Config[config.Tag] = config
-		History_Config_RWMu.Unlock()
 	}
 	return nil
 }
 
 // 变化更新 订阅 接收 mysql配置
 func History_Config_Subscriber_mysqlconfig(cfg fullConfig.FullConfig_type) error {
+	// 优化：先收集所有需要更新的配置，然后批量加锁更新
+	updates := make(map[string]History_Config_type)
+	
 	for _, v := range cfg.Points {
 		if v.History != "Change" {
 			continue
@@ -77,13 +82,22 @@ func History_Config_Subscriber_mysqlconfig(cfg fullConfig.FullConfig_type) error
 			continue
 		}
 
-		History_Config_RWMu.Lock()
-		History_Config[v.Tag] = History_Config_type{
+		// 先在局部变量中构建数据
+		updates[v.Tag] = History_Config_type{
 			Tag:    v.Tag,     // 点位标签
 			Config: v.History, // 配置
 		}
+	}
+	
+	// 优化：批量更新，只加一次锁
+	if len(updates) > 0 {
+		History_Config_RWMu.Lock()
+		for tag, config := range updates {
+			History_Config[tag] = config
+		}
 		History_Config_RWMu.Unlock()
 	}
+	
 	return nil
 }
 
@@ -143,7 +157,7 @@ func History_Judgment(new fullConfig.Value_type) (History_Value_type, bool) {
 
 	v, ok := byte_util.ConvBool(new.Value, new.Type)
 	if !ok {
-		err := fmt.Errorf("ERROR modbus_tcp: 读取值类型不匹配, tag: %s, 配置类型: %s, 值类型: %t", new.Tag, new.Value, v)
+		err := fmt.Errorf("ERROR modbus_tcp: 读取值类型不匹配, tag: %s, 配置类型: %s, 值类型: %t", new.Tag, new.Type, v)
 		log.Print(err)
 		return History_Value_type{}, false
 	}
@@ -161,7 +175,9 @@ func History_Judgment(new fullConfig.Value_type) (History_Value_type, bool) {
 }
 
 func History_Judgment_list(new_list []fullConfig.Value_type) error {
-	var History_list []History_Value_type
+	// 优化：预分配切片容量，避免多次扩容
+	History_list := make([]History_Value_type, 0, len(new_list))
+	
 	for _, new := range new_list {
 		a, ok := History_Judgment(new)
 		if !ok {
@@ -169,6 +185,12 @@ func History_Judgment_list(new_list []fullConfig.Value_type) error {
 		}
 		History_list = append(History_list, a)
 	}
+	
+	// 优化：只在有历史数据时才发布
+	if len(History_list) == 0 {
+		return nil
+	}
+	
 	return History_Publisher(History_list)
 }
 

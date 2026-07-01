@@ -6,9 +6,11 @@
 package influxdb
 
 import (
+	"encoding/json"
 	"main/IO/manager/fullConfig"
 	"main/Init"
 	"main/db/db_point"
+	"main/db/redis"
 
 	"context"
 	"errors"
@@ -40,6 +42,15 @@ type Connect_struct struct {
 	org           string // 组织
 	bucket        string // 存储桶
 	write_timeout uint   // 写入超时时间
+
+	// 批量写入缓冲区
+	bufferMu      sync.Mutex
+	buffer        []fullConfig.Value_type
+	bufferSize    int           // 缓冲区大小阈值
+	flushInterval time.Duration // 刷新间隔
+	lastFlushTime time.Time     // 上次刷新时间
+	stopChan      chan struct{} // 停止信号
+	isRunning     bool          // 后台刷新协程是否运行
 }
 
 type Connect_interface interface {
@@ -78,8 +89,20 @@ func (c *Connect_struct) initInfluxDB() (err error) {
 		c.write_timeout = 5000
 	}
 
+	// 设置批量写入缓冲区参数
+	if c.bufferSize == 0 {
+		c.bufferSize = 100 // 默认缓冲区大小：100条数据
+	}
+	if c.flushInterval == 0 {
+		c.flushInterval = 2 * time.Second // 默认刷新间隔：2秒
+	}
+
 	c.client = influxdb2.NewClient(c.url, c.token)
 	c.writeAPI = c.client.WriteAPIBlocking(c.org, c.bucket)
+
+	// 启动后台定时刷新协程
+	c.startBackgroundFlush()
+
 	return nil
 }
 
@@ -88,10 +111,98 @@ func (c *Connect_struct) Packet() error  { return nil }
 
 // Close 关闭连接
 func (c *Connect_struct) Close() error {
+	// 停止后台刷新协程
+	c.stopBackgroundFlush()
+
+	// 刷新剩余数据
+	c.flushBuffer()
+
 	if c.client != nil {
 		c.client.Close()
 	}
 	return nil
+}
+
+// startBackgroundFlush 启动后台定时刷新协程
+func (c *Connect_struct) startBackgroundFlush() {
+	c.bufferMu.Lock()
+	if c.isRunning {
+		c.bufferMu.Unlock()
+		return
+	}
+	c.isRunning = true
+	c.stopChan = make(chan struct{})
+	c.lastFlushTime = time.Now()
+	c.bufferMu.Unlock()
+
+	go func() {
+		ticker := time.NewTicker(c.flushInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				c.flushBuffer()
+			case <-c.stopChan:
+				return
+			}
+		}
+	}()
+}
+
+// stopBackgroundFlush 停止后台刷新协程
+func (c *Connect_struct) stopBackgroundFlush() {
+	c.bufferMu.Lock()
+	if !c.isRunning {
+		c.bufferMu.Unlock()
+		return
+	}
+	close(c.stopChan)
+	c.isRunning = false
+	c.bufferMu.Unlock()
+}
+
+// flushBuffer 刷新缓冲区，将数据批量写入 InfluxDB
+func (c *Connect_struct) flushBuffer() error {
+	c.bufferMu.Lock()
+	if len(c.buffer) == 0 {
+		c.bufferMu.Unlock()
+		return nil
+	}
+
+	// 取出缓冲区数据
+	data := make([]fullConfig.Value_type, len(c.buffer))
+	copy(data, c.buffer)
+	c.buffer = c.buffer[:0] // 清空缓冲区
+	c.lastFlushTime = time.Now()
+	c.bufferMu.Unlock()
+
+	// 执行实际写入
+	if err := c.doWrite(data); err != nil {
+		log.Printf("InfluxDB 批量写入失败，数据量: %d, 错误: %v", len(data), err)
+		// 写入失败时，将数据重新放回缓冲区（可选策略）
+		c.bufferMu.Lock()
+		c.buffer = append(c.buffer, data...)
+		c.bufferMu.Unlock()
+		return err
+	}
+
+	return nil
+}
+
+// addToBuffer 添加数据到缓冲区，达到阈值时自动刷新
+func (c *Connect_struct) addToBuffer(data []fullConfig.Value_type) {
+	c.bufferMu.Lock()
+	c.buffer = append(c.buffer, data...)
+
+	// 检查是否达到缓冲区大小阈值
+	shouldFlush := len(c.buffer) >= c.bufferSize
+	c.bufferMu.Unlock()
+
+	// 如果达到阈值，立即刷新
+	if shouldFlush {
+		c.flushBuffer()
+	}
 }
 
 // getFieldName 根据业务类型分配独立存储字段
@@ -199,6 +310,30 @@ func convertValue(expectType string, rawVal any) (any, error) {
 
 // ===================== 批量写入 =====================
 func (c *Connect_struct) Write(data []fullConfig.Value_type) error {
+	if c.client == nil {
+		return errors.New("客户端未连接")
+	}
+
+	dataNum := len(data)
+	if dataNum == 0 {
+		return nil
+	}
+
+	data = append(data, fullConfig.Value_type{
+		Tag:   Init.Config.Influxdb.Write_Quantity_Tag,
+		Value: dataNum,
+		Type:  "int",
+		Msg:   "ok",
+		Time:  time.Now(),
+	})
+
+	// 使用缓冲区机制，将数据添加到缓冲区
+	c.addToBuffer(data)
+	return nil
+}
+
+// doWrite 实际执行批量写入操作（内部方法）
+func (c *Connect_struct) doWrite(data []fullConfig.Value_type) error {
 	if c.client == nil {
 		return errors.New("客户端未连接")
 	}
@@ -369,37 +504,115 @@ func (c *Connect_struct) QueryLast(tags []string) ([]fullConfig.Value_type, erro
 	return resultList, nil
 }
 
-// ===================== 全局回调 & 初始化 =====================
-func init() {
-	db_point.Update_Subscriber(a)
-}
-
-// 写入回调
-func a(value []fullConfig.Value_type) error {
-	index := len(value)
-	value = append(value, fullConfig.Value_type{
-		Tag:   Init.Config.Influxdb.Write_Quantity_Tag,
-		Value: index,
-		Type:  "int",
-		Msg:   "ok",
-		Time:  time.Now(),
-	})
-
-	err := c.Write(value)
-	if err != nil {
-		log.Printf("influxdb 写入回调异常: %v", err)
-	}
-	return nil
-}
-
 // New 初始化全局InfluxDB实例
 func New() error {
-	c = Connect_struct{
-		url:           Init.Config.Influxdb.Url,
-		token:         Init.Config.Influxdb.Token,
-		org:           Init.Config.Influxdb.Org,
-		bucket:        Init.Config.Influxdb.Bucket,
-		write_timeout: 5000,
+	cfg := Init.Config.Influxdb
+	if cfg.Url == "" || cfg.Token == "" || cfg.Org == "" || cfg.Bucket == "" || cfg.Write_Quantity_Tag == "" {
+		log.Panic("ERROR InfluxDB 配置不完整，请检查配置文件")
 	}
-	return c.initInfluxDB()
+
+	if cfg.Write_Timeout == 0 {
+		cfg.Write_Timeout = 5000 // 默认写入超时时间：5秒
+	}
+
+	if cfg.BufferSize == 0 {
+		cfg.BufferSize = 100 // 默认缓冲区大小：100条数据
+	}
+
+	if cfg.FlushInterval == 0 {
+		cfg.FlushInterval = 2 // 默认刷新间隔：2秒
+	}
+	c = Connect_struct{
+		url:           cfg.Url,
+		token:         cfg.Token,
+		org:           cfg.Org,
+		bucket:        cfg.Bucket,
+		write_timeout: cfg.Write_Timeout, // 写入超时：单位：毫秒
+		bufferSize:    cfg.BufferSize,    // 缓冲区大小：100条数据
+		flushInterval: cfg.FlushInterval, // 刷新间隔：2秒
+	}
+	err := c.initInfluxDB()
+	if err != nil {
+		log.Panicf("ERROR 初始化InfluxDB异常: %v", err)
+	}
+
+	if cfg.Redis_Cache_Enable {
+		if cfg.Redis_Cache_Key == "" {
+			cfg.Redis_Cache_Key = "influxdb_cache"
+		}
+
+		// key: Redis队列的key名称
+		// maxSize: 消息队列长度阈值，达到此数量时触发回调（0表示无限制）
+		// flushInterval: 定时刷新间隔，到时间后触发回调（0表示不启用）
+		// maxReadSize: 每次读取的最大长度（0表示无限制，读取全部）
+		// defaultCallback: 默认回调函数（可为nil，为nil时需手动调用Flush并传入回调）
+		cache, err := redis.QueueNew(cfg.Redis_Cache_Key,
+			cfg.Redis_Cache_maxSize,
+			cfg.Redis_Cache_flushInterval,
+			cfg.Redis_Cache_maxReadSize,
+			func(v []string) {
+				// 优化：预分配切片容量，避免多次扩容
+				items := make([]fullConfig.Value_type, 0, len(v))
+
+				for _, s := range v {
+					item, err := db_point.Json_struct_to(s)
+					if err != nil {
+						log.Printf("influxdb JSON解析异常: %v", err)
+						continue
+					}
+					items = append(items, item)
+				}
+
+				// 只在有有效数据时才写入
+				if len(items) > 0 {
+					err := c.Write(items)
+					if err != nil {
+						log.Printf("influxdb 写入失败: %v", err)
+					}
+				}
+			})
+		if err != nil {
+			log.Panicf("ERROR 初始化Redis队列异常: %v", err)
+		}
+
+		db_point.Update_Subscriber(func(v []fullConfig.Value_type) error {
+			if len(v) == 0 {
+				return nil
+			}
+
+			// 优化：预分配切片容量，避免动态扩容
+			josn_str_list := make([]string, 0, len(v))
+
+			for _, item := range v {
+				josn_str, err := json.Marshal(item)
+				if err != nil {
+					log.Printf("ERROR json序列化异常: %v", err)
+					continue
+				}
+				josn_str_list = append(josn_str_list, string(josn_str))
+			}
+
+			// 只在有数据时才批量写入
+			if len(josn_str_list) > 0 {
+				err := cache.WriteBatch(josn_str_list)
+				if err != nil {
+					log.Printf("ERROR redis写入失败: %v", err)
+				}
+			}
+			return nil
+		})
+	} else {
+		db_point.Update_Subscriber(func(v []fullConfig.Value_type) error {
+			if len(v) == 0 {
+				return nil
+			}
+			err := c.Write(v)
+			if err != nil {
+				log.Printf("influxdb 写入失败: %v", err)
+			}
+			return nil
+		})
+	}
+
+	return nil
 }

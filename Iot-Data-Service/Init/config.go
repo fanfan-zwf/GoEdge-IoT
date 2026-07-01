@@ -67,11 +67,23 @@ type Config_type struct {
 	} `yaml:"REDIS"` // 数据库
 
 	Influxdb struct {
-		Url                string `yaml:"url"`
-		Token              string `yaml:"token"`
-		Org                string `yaml:"org"`
-		Bucket             string `yaml:"bucket"`
-		Write_Quantity_Tag string `yaml:"write_quantity_tag"`
+		Enable        bool          `yaml:"enable"`
+		Url           string        `yaml:"url"`
+		Token         string        `yaml:"token"`
+		Org           string        `yaml:"org"`
+		Bucket        string        `yaml:"bucket"`
+		Write_Timeout uint          `yaml:"write_timeout"`  // 写入超时 毫秒
+		BufferSize    int           `yaml:"buffer_size"`    // 缓冲区大小
+		FlushInterval time.Duration `yaml:"flush_interval"` // 刷新间隔
+
+		Write_Quantity_Tag string `yaml:"write_quantity_tag"` // 写入时序数据库的点数量
+
+		Redis_Cache_Enable        bool          `yaml:"redis_cache_enable"`         // 是否启用redis缓存
+		Redis_Cache_Key           string        `yaml:"redis_cache_key"`            // redis缓存key
+		Redis_Cache_maxSize       int           `yaml:"redis_cache_buffer_size"`    // 最大缓存大小
+		Redis_Cache_flushInterval time.Duration `yaml:"redis_cache_flush_interval"` // 刷新间隔
+		Redis_Cache_maxReadSize   int           `yaml:"redis_cache_max_read_size"`  // 每次读取的最大长度
+
 	} `yaml:"Influxdb"` // 时序数据库
 
 	LOG struct {

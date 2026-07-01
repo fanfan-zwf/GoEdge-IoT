@@ -31,13 +31,18 @@ func Init_rdb(Addr string, Passwd string, Database int) {
 }
 
 func init() {
-	Config := Init.Config
+	Config := Init.Config.REDIS
 
-	Init_rdb(
-		fmt.Sprintf("%s:%d", Config.REDIS.Ip, Config.REDIS.Post),
-		Config.REDIS.Passwd,
-		Config.REDIS.Database,
-	)
+	Rdb = redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%d", Config.Ip, Config.Post),
+		Password: Config.Passwd,   // 密码为空
+		DB:       Config.Database, // 使用默认数据库
+	})
+
+	ctx := context.Background()
+	if _, err := Rdb.Ping(ctx).Result(); err != nil {
+		panic("连接失败: " + err.Error())
+	}
 }
 
 // key搜索

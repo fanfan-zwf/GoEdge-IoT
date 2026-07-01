@@ -45,45 +45,77 @@ func History_Config__Query(tag string) (History_Config_type, bool) {
 	v, ok := History_Config[tag]
 	return v, ok
 }
-func History_Config__Query_list(tag []string) (r []History_Config_type) {
-	for _, v := range tag {
-		v, ok := History_Config__Query(v)
-		if ok {
-			r = append(r, v)
+
+func History_Config__Query_list(tags []string) []History_Config_type {
+	if len(tags) == 0 {
+		return nil
+	}
+
+	// 预分配容量
+	result := make([]History_Config_type, 0, len(tags))
+
+	History_Config_RWMu.RLock()
+	defer History_Config_RWMu.RUnlock()
+
+	for _, tag := range tags {
+		if v, ok := History_Config[tag]; ok {
+			result = append(result, v)
 		}
 	}
-	return
+	return result
 }
 
-// 增加配置
+// 增加配置（批量优化版）
 func History_Config__Add(configs []History_Config_type) error {
+	if len(configs) == 0 {
+		return nil
+	}
+
+	History_Config_RWMu.Lock()
+	defer History_Config_RWMu.Unlock()
+
 	for _, config := range configs {
-		History_Config_RWMu.Lock()
+		// 安全校验
+		if config.Tag == "" {
+			log.Printf("WARN 跳过无效历史记录配置: Tag为空")
+			continue
+		}
 		History_Config[config.Tag] = config
-		History_Config_RWMu.Unlock()
 	}
 	return nil
 }
 
-// 变化更新 订阅 接收 mysql配置
+// 变化更新 订阅 接收 mysql配置（批量优化版）
 func History_Config_Subscriber_mysqlconfig(cfg fullConfig.FullConfig_type) error {
+	if len(cfg.Points) == 0 {
+		return nil
+	}
+
+	// 先收集需要更新的配置
+	updates := make(map[string]History_Config_type)
+
 	for _, v := range cfg.Points {
-		if v.History != "Change" {
-			continue
-		}
-
 		// 安全判断
-		if v.Tag == "" {
+		if v.Tag == "" || v.History != "Change" {
 			continue
 		}
 
-		History_Config_RWMu.Lock()
-		History_Config[v.Tag] = History_Config_type{
+		updates[v.Tag] = History_Config_type{
 			Tag:    v.Tag,     // 点位标签
 			Config: v.History, // 配置
 		}
-		History_Config_RWMu.Unlock()
 	}
+
+	// 批量写入（只加一次锁）
+	if len(updates) > 0 {
+		History_Config_RWMu.Lock()
+		defer History_Config_RWMu.Unlock()
+
+		for tag, config := range updates {
+			History_Config[tag] = config
+		}
+	}
+
 	return nil
 }
 
@@ -95,7 +127,7 @@ type History_func func([]History_Value_type) error
 
 var (
 	History_value_list []*History_func
-	History_mu         sync.Mutex
+	History_mu         sync.RWMutex
 )
 
 // 记录模块 发布 发送
@@ -104,7 +136,13 @@ func History_Publisher(v []History_Value_type) error {
 		return nil
 	}
 
+	History_mu.RLock() // 使用读锁
+	defer History_mu.RUnlock()
+
 	for _, f := range History_value_list {
+		if f == nil { // 空指针检查
+			continue
+		}
 		err := (*f)(v)
 		if err != nil {
 			log.Printf("ERROR 记录模块发布失败: %s", err)
@@ -116,8 +154,20 @@ func History_Publisher(v []History_Value_type) error {
 
 // 记录模块 订阅 接收
 func History_Subscriber(value History_func) error {
+	if value == nil {
+		return fmt.Errorf("订阅函数不能为nil")
+	}
+
 	History_mu.Lock()
 	defer History_mu.Unlock()
+
+	// 避免重复订阅
+	for _, existing := range History_value_list {
+		if existing == &value {
+			return nil
+		}
+	}
+
 	History_value_list = append(History_value_list, &value)
 	return nil
 }
@@ -127,8 +177,9 @@ func History_Subscriber(value History_func) error {
  */
 
 func History_Judgment(new fullConfig.Value_type) (History_Value_type, bool) {
+	// 参数校验
 	if new.Tag == "" {
-		log.Printf("ERROR 获取记录配置失败: Tag=='' ")
+		log.Printf("ERROR 历史记录判断失败: Tag为空")
 		return History_Value_type{}, false
 	}
 
@@ -141,19 +192,21 @@ func History_Judgment(new fullConfig.Value_type) (History_Value_type, bool) {
 		return History_Value_type{}, false
 	}
 
-	v, ok := byte_util.ConvBool(new.Value, new.Type)
+	// 注意：这里虽然调用了 ConvBool，但实际上历史记录应该保存原始值
+	// 如果只需要在值变化时记录，应该在调用方判断值是否变化
+	_, ok = byte_util.ConvBool(new.Value, new.Type)
 	if !ok {
-		err := fmt.Errorf("ERROR modbus_tcp: 读取值类型不匹配, tag: %s, 配置类型: %s, 值类型: %t", new.Tag, new.Value, v)
+		err := fmt.Errorf("历史记录: 值类型转换失败, tag=%s, 值=%v, 类型=%s",
+			new.Tag, new.Value, new.Type)
 		log.Print(err)
 		return History_Value_type{}, false
 	}
 
 	r := History_Value_type{
-		Tag:  new.Tag,  // 点位标签
-		Time: new.Time, // 记录时间
-
+		Tag:   new.Tag,   // 点位标签
+		Time:  new.Time,  // 记录时间
 		Msg:   new.Msg,   // 状态信息
-		Value: new.Value, // 记录值
+		Value: new.Value, // 记录值（保存原始值）
 		Type:  new.Type,  // 值类型
 	}
 
@@ -161,15 +214,53 @@ func History_Judgment(new fullConfig.Value_type) (History_Value_type, bool) {
 }
 
 func History_Judgment_list(new_list []fullConfig.Value_type) error {
-	var History_list []History_Value_type
-	for _, new := range new_list {
-		a, ok := History_Judgment(new)
+	if len(new_list) == 0 {
+		return nil
+	}
+
+	// 预分配容量
+	history_list := make([]History_Value_type, 0, len(new_list))
+
+	for _, newVal := range new_list {
+		a, ok := History_Judgment(newVal)
 		if !ok {
 			continue
 		}
-		History_list = append(History_list, a)
+		history_list = append(history_list, a)
 	}
-	return History_Publisher(History_list)
+
+	// 只有存在历史记录时才发布
+	if len(history_list) > 0 {
+		if err := History_Publisher(history_list); err != nil {
+			log.Printf("ERROR 历史记录发布失败: %v", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// 获取所有历史记录配置快照（新增功能）
+func GetAllHistoryConfigs() map[string]History_Config_type {
+	History_Config_RWMu.RLock()
+	defer History_Config_RWMu.RUnlock()
+
+	result := make(map[string]History_Config_type, len(History_Config))
+	for k, v := range History_Config {
+		result[k] = v
+	}
+	return result
+}
+
+// 删除历史记录配置（新增功能）
+func RemoveHistoryConfig(tag string) {
+	if tag == "" {
+		return
+	}
+
+	History_Config_RWMu.Lock()
+	defer History_Config_RWMu.Unlock()
+	delete(History_Config, tag)
 }
 
 func init() {

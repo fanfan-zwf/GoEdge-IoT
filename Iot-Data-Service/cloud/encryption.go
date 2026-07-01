@@ -243,30 +243,46 @@ func Decompress(compressed []byte) ([]byte, error) {
 }
 
 // GetKVValue 解析 ; 分隔的键值串，根据key查询值
-// str: 原始字符串 例:"name=张三;age=18;desc=a=b=c"
+// str: 原始字符串 例:"name:张三;age:18"
 // targetKey: 要查找的key
 // return: (对应值, 是否找到)
 func GetKVValue(str string, targetKey string) (string, bool) {
+	// 去除首尾空格
+	str = strings.TrimSpace(str)
+
+	// 如果字符串为空，直接返回
+	if str == "" {
+		return "", false
+	}
+
 	// 按;拆分所有片段
 	parts := strings.Split(str, ";")
-	// 遍历每一段键值
+
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
 		}
-		// 只分割第一个=
+
+		// 找到第一个 :
 		eqIdx := strings.Index(part, ":")
 		if eqIdx == -1 {
-			// 无等号，跳过
 			continue
 		}
+
 		k := strings.TrimSpace(part[:eqIdx])
 		v := strings.TrimSpace(part[eqIdx+1:])
-		if k == targetKey {
+
+		// 大小写不敏感匹配（可选）
+		if strings.EqualFold(k, targetKey) {
 			return v, true
 		}
+
+		// 精确匹配（默认）
+		// if k == targetKey {
+		//     return v, true
+		// }
 	}
-	// 没找到
+
 	return "", false
 }

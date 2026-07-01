@@ -7,9 +7,11 @@
 package manager
 
 import (
+	"main/IO/flexem_flexem"
 	"main/IO/flexem_mqtt"
 	"main/IO/manager/fullConfig"
 	"main/db/mysql"
+
 	"sync"
 
 	"errors"
@@ -38,6 +40,8 @@ func (m *DriverManager) CreateDriver(cfg fullConfig.FullConfig_type) (fullConfig
 	switch cfg.Drive.Type {
 	case mysql.Mqtt__Type_Flexem_Mqtt:
 		driver = &flexem_mqtt.Flexem_Mqtt{}
+	case mysql.Mqtt__Type_Flexem_FlexEm:
+		driver = &flexem_flexem.Flexem_FlexEm{}
 	default:
 		return nil, errors.New("不支持的驱动类型: " + cfg.Drive.Type)
 	}

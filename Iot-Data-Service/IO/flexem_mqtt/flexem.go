@@ -21,11 +21,18 @@ type Flexem_Mqtt struct {
 	timer                 *timer.TimerTask
 	// Drive                 mysql.Mqtt__type        // 通信参数结构体
 	// Points                []mysql.Mqtt_Points__type //  // 点位结构体
+
+	// 点位标志与配置下标
 	points_config_RWMu sync.RWMutex
 	points_config_map  map[string]int // 点位配置下标
 
+	// 推送key值
+	push_key_map_RWMu sync.RWMutex
+	push_key_map      map[string]int
+
+	// 设备最后一次推送时间
 	push_finally_time_RWMu    sync.RWMutex
-	push_finally_time_map     map[string]time.Time // 点位状态
+	push_finally_time         time.Time // 设备最后一次推送时间
 	Push_finally_time_timeout time.Duration
 
 	Push_External_Mappings func([]fullConfig.Value_type) error
@@ -36,20 +43,38 @@ type Connect_interface interface {
 	New() error
 }
 
-func (c *Flexem_Mqtt) New() (err error) {
+func (c *Flexem_Mqtt) New() error {
 	if c.Push_finally_time_timeout == 0 {
 		c.Push_finally_time_timeout = 10 * time.Second
 	}
 
+	// 初始化点位配置映射
 	c.points_config_map = make(map[string]int)
-	c.push_finally_time_map = make(map[string]time.Time)
+	c.push_key_map = make(map[string]int)
+
 	for i, v := range c.Config.Points {
-		c.points_config_map_W(v.Tag, i)
-		c.push_finally_time_map_W(v.Tag, time.Now())
+		// 构建点位标签到索引的映射
+		c.points_config_RWMu.Lock()
+		c.points_config_map[v.Tag] = i
+		c.points_config_RWMu.Unlock()
+
+		// 构建MQTT变量名称到索引的映射
+		mqttName, ok := cloud.GetKVValue(v.Config, "MQTT变量名称")
+		if !ok || mqttName == "" {
+			log.Printf("ERROR 点位【%s】 MQTT变量名称配置缺失", v.Tag)
+			continue
+		}
+		
+		c.push_key_map_RWMu.Lock()
+		c.push_key_map[mqttName] = i
+		c.push_key_map_RWMu.Unlock()
 	}
+
+	// 启动定时器任务
 	c.timer = timer.NewTimerTask()
 	c.timer.Start(c.Push_finally_time_timeout, c.timer_msg)
-	return
+	
+	return nil
 }
 
 // 关闭连接
@@ -58,46 +83,45 @@ func (c *Flexem_Mqtt) Close() {
 }
 
 func (c *Flexem_Mqtt) timer_msg(callTime time.Time) {
+	// 检查最后一次推送时间
+	c.push_finally_time_RWMu.RLock()
+	t := c.push_finally_time
+	c.push_finally_time_RWMu.RUnlock()
+
+	var msg string
+	if t.IsZero() {
+		return // 从未收到过数据，不触发超时
+	} else if time.Since(t) >= c.Push_finally_time_timeout {
+		msg = fmt.Sprintf("驱动超时 最后时间:%v", t)
+	} else {
+		return // 未超时
+	}
+
+	// 重置推送时间（使用写锁）
+	c.push_finally_time_RWMu.Lock()
+	c.push_finally_time = time.Time{}
+	c.push_finally_time_RWMu.Unlock()
+
+	// 构建超时状态的值列表
 	var value_list []fullConfig.Value_type
 	for _, cfg := range c.Config.Points {
-		var msg string
-		t, ok := c.push_finally_time_map_R(cfg.Tag)
-		if !ok {
-			msg = "不存在的点位"
-		} else if t.IsZero() {
-			msg = "无首次最后时间"
-		} else if time.Since(t) >= c.Push_finally_time_timeout {
-			msg = fmt.Sprintf("超时 最后时间:%s", t)
-		} else {
-			fmt.Printf("mqtt 点位【%s】正常在线 \n", cfg.Tag)
-			continue
-		}
-		fmt.Printf("mqtt 点位【%s】异常【%s】\n", cfg.Tag, msg)
-
 		value_list = append(value_list, fullConfig.Value_type{
-			Tag:   cfg.Tag,        // 点位名称
-			Value: nil,            // 点位值
-			Type:  cfg.Value_Type, // 输出类型
-			Msg:   msg,            // 状态信息
-			Time:  callTime,       // 读取时间
+			Tag:   cfg.Tag,
+			Value: nil,
+			Type:  cfg.Value_Type,
+			Msg:   msg,
+			Time:  callTime,
 		})
 	}
 
-	if c.Push_External_Mappings == nil {
-		c.timer.Stop()
+	if len(value_list) == 0 || c.Push_External_Mappings == nil {
 		return
 	}
 
-	if len(value_list) != 0 {
-		c.Push_External_Mappings(value_list)
-	}
+	c.Push_External_Mappings(value_list)
 }
 
-func (c *Flexem_Mqtt) points_config_map_W(tag string, i int) {
-	c.points_config_RWMu.Lock()
-	defer c.points_config_RWMu.Unlock()
-	c.points_config_map[tag] = i
-}
+// 获取点位配置下标
 func (c *Flexem_Mqtt) points_config_map_R(tag string) (mysql.Mqtt_Points__type, bool) {
 	c.points_config_RWMu.RLock()
 	defer c.points_config_RWMu.RUnlock()
@@ -111,38 +135,55 @@ func (c *Flexem_Mqtt) points_config_map_R(tag string) (mysql.Mqtt_Points__type, 
 	return c.Config.Points[index], true
 }
 
-func (c *Flexem_Mqtt) push_finally_time_map_W(tag string, t time.Time) {
-	c.push_finally_time_RWMu.Lock()
-	defer c.push_finally_time_RWMu.Unlock()
-	c.push_finally_time_map[tag] = t
-}
-func (c *Flexem_Mqtt) push_finally_time_map_R(tag string) (time.Time, bool) {
-	c.push_finally_time_RWMu.RLock()
-	defer c.push_finally_time_RWMu.RUnlock()
-	t, ok := c.push_finally_time_map[tag]
-	return t, ok
+// 获取mqtt点位名称的配置
+func (c *Flexem_Mqtt) push_key_map_R(mqttName string) (mysql.Mqtt_Points__type, bool) {
+	c.push_key_map_RWMu.RLock()
+	defer c.push_key_map_RWMu.RUnlock()
+	index, ok := c.push_key_map[mqttName]
+	if !ok {
+		return mysql.Mqtt_Points__type{}, false
+	}
+	if index < 0 || index >= len(c.Config.Points) {
+		return mysql.Mqtt_Points__type{}, false
+	}
+	return c.Config.Points[index], true
 }
 
 // 推送
 func (c *Flexem_Mqtt) Push() (err error) {
-	mqttbase.Subscribe(c.Config.Drive.Example_IDentifier, c.Config.Drive.Topic_Push, func(broker, topic string, dataByte []byte) {
+	topic_Push, ok := cloud.GetKVValue(c.Config.Drive.Config, "推送")
+	if !ok || topic_Push == "" {
+		err := fmt.Errorf("ERROR mqtt实例名称【%s】 推送值错误【%s】", c.Config.Drive.Name, topic_Push)
+		log.Print(err)
+		return err
+	}
+
+	example_IDentifier, ok := cloud.GetKVValue(c.Config.Drive.Config, "MQTT实例")
+	if !ok || example_IDentifier == "" {
+		err := fmt.Errorf("ERROR mqtt实例名称【%s】 MQTT实例【%s】", c.Config.Drive.Name, example_IDentifier)
+		log.Print(err)
+		return err
+	}
+
+	mqttbase.Subscribe(example_IDentifier, topic_Push, func(broker, topic string, dataByte []byte) {
 		if len(dataByte) == 0 {
 			return
 		}
 
-		if c.Config.Drive.Example_IDentifier != broker {
+		if topic_Push != broker {
 			return
 		}
 
-		if c.Config.Drive.Topic_Push != topic {
+		if topic_Push != topic {
 			return
 		}
 
 		compress, ok := cloud.GetKVValue(c.Config.Drive.Config, "压缩")
-		if ok && compress != "" {
+		if !ok || compress == "" {
 			dataByte, err = cloud.Decompress(dataByte)
 			if err != nil {
-				log.Printf("ERROR mqtt实例名称【%s】 配置压缩【%s】算法解压错误", c.Config.Drive.Name, compress)
+				err := fmt.Errorf("ERROR mqtt实例名称【%s】 配置压缩【%s】算法解压错误", c.Config.Drive.Name, compress)
+				log.Print(err)
 				return
 			}
 		}
@@ -155,13 +196,13 @@ func (c *Flexem_Mqtt) Push() (err error) {
 			log.Printf("ERROR 响应解析失败: %v", err)
 			return
 		}
+
+		// 解析时间戳
 		var Time time.Time
-		t, ok := data_map["flexem_timestamp"]
-		if ok {
+		if timestampData, ok := data_map["flexem_timestamp"]; ok {
 			var unix int64
-			err = json.Unmarshal(t, &unix)
-			if err != nil {
-				log.Printf("ERROR flexem_timestamp响应解析失败,以及转化当前时间: %v", err)
+			if err := json.Unmarshal(timestampData, &unix); err != nil {
+				log.Printf("ERROR flexem_timestamp解析失败: %v，使用当前时间", err)
 				Time = time.Now()
 			} else {
 				Time = time.Unix(unix, 0)
@@ -170,71 +211,102 @@ func (c *Flexem_Mqtt) Push() (err error) {
 			Time = time.Now()
 		}
 
+		// 更新最后一次推送时间（使用写锁）
+		c.push_finally_time_RWMu.Lock()
+		c.push_finally_time = Time
+		c.push_finally_time_RWMu.Unlock()
+
 		var value_list []fullConfig.Value_type
 		for map_key, map_value := range data_map {
+			// 跳过时间戳字段
 			if map_key == "flexem_timestamp" {
 				continue
 			}
 
-			if string(map_value) == "null" {
-				continue
-			}
-
-			cfg, ok := c.points_config_map_R(map_key)
+			// 查找点位配置
+			cfg, ok := c.push_key_map_R(map_key)
 			if !ok {
+				log.Printf("WARN MQTT键【%s】未找到对应点位配置", map_key)
 				continue
 			}
 
+			// 检查读写权限
 			if cfg.RW_Cancel != "R" && cfg.RW_Cancel != "R/W" {
 				continue
 			}
 
-			var realValue any
-			switch cfg.Value_Type {
-			case "bool":
-				var v any
-				err = json.Unmarshal(map_value, &v)
-				realValue, _ = byte_util.ConvBool(v, byte_util.ValueType(v))
-			case "int":
-				var v int
-				err = json.Unmarshal(map_value, &v)
-				realValue = v
-			case "uint":
-				var v uint
-				err = json.Unmarshal(map_value, &v)
-				realValue = v
-			case "float":
-				var v float64
-				err = json.Unmarshal(map_value, &v)
-				realValue = v
-			case "string":
-				var v string
-				err = json.Unmarshal(map_value, &v)
-				realValue = v
-			default:
+			// 处理null值
+			if string(map_value) == "null" {
+				value_list = append(value_list, fullConfig.Value_type{
+					Tag:   cfg.Tag,
+					Value: nil,
+					Type:  cfg.Value_Type,
+					Msg:   "无数据",
+					Time:  Time,
+				})
 				continue
 			}
 
-			if err != nil {
+			// 根据类型解析值
+			realValue, parseErr := c.parseMQTTValue(map_value, cfg.Value_Type)
+			if parseErr != nil {
+				log.Printf("ERROR 点位【%s】值解析失败: %v", cfg.Tag, parseErr)
 				continue
 			}
-
-			c.push_finally_time_map_W(cfg.Tag, Time)
 
 			value_list = append(value_list, fullConfig.Value_type{
-				Tag:   cfg.Tag,        // 点位名称
-				Value: realValue,      // 点位值
-				Type:  cfg.Value_Type, // 输出类型
-				Msg:   "ok",           // 状态信息
-				Time:  Time,           // 读取时间
+				Tag:   cfg.Tag,
+				Value: realValue,
+				Type:  cfg.Value_Type,
+				Msg:   "ok",
+				Time:  Time,
 			})
 		}
 
-		if c.Push_External_Mappings != nil {
+		if len(value_list) > 0 && c.Push_External_Mappings != nil {
 			c.Push_External_Mappings(value_list)
 		}
 	})
 	return
+}
+
+// parseMQTTValue 解析MQTT消息中的值
+func (c *Flexem_Mqtt) parseMQTTValue(data json.RawMessage, valueType string) (any, error) {
+	switch valueType {
+	case "bool":
+		var v any
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, fmt.Errorf("bool解析失败: %w", err)
+		}
+		result, _ := byte_util.ConvBool(v, byte_util.ValueType(v))
+		return result, nil
+	case "int":
+		var v int
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, fmt.Errorf("int解析失败: %w", err)
+		}
+		return v, nil
+	case "uint":
+		var v uint
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, fmt.Errorf("uint解析失败: %w", err)
+		}
+		return v, nil
+	case "float":
+		var v float64
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, fmt.Errorf("float解析失败: %w", err)
+		}
+		return v, nil
+	case "string":
+		var v string
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, fmt.Errorf("string解析失败: %w", err)
+		}
+		return v, nil
+	default:
+		return nil, fmt.Errorf("不支持的类型: %s", valueType)
+	}
 }
 
 // 下发
@@ -245,31 +317,55 @@ func (c *Flexem_Mqtt) Down(values []fullConfig.Value_type) error {
 
 	r := make(map[string]any)
 	r["flexem_timestamp"] = time.Now().Unix()
+
 	for _, value := range values {
 		cfg, ok := c.points_config_map_R(value.Tag)
 		if !ok {
-			return fmt.Errorf("没有[%s]点位", cfg.Tag)
+			return fmt.Errorf("没有[%s]点位配置", value.Tag)
 		}
 
+		// 检查写权限
 		if cfg.RW_Cancel != "W" && cfg.RW_Cancel != "R/W" {
-			return fmt.Errorf("[%s]不是一个可以写的", cfg.Tag)
+			return fmt.Errorf("[%s]不允许写入，当前权限为[%s]", cfg.Tag, cfg.RW_Cancel)
 		}
 
+		// 检查类型匹配
 		if cfg.Value_Type != value.Type {
-			return fmt.Errorf("点位[%s]错误,请求类型[%s],实际类型[%s]", cfg.Tag, value.Type, cfg.Value_Type)
-		}
-		t := time.Until(value.Time).Abs()
-		if t > (5 * time.Second) {
-			return fmt.Errorf("[%s]点位超时[%s]", cfg.Tag, t)
+			return fmt.Errorf("点位[%s]类型不匹配: 请求类型[%s], 实际类型[%s]", cfg.Tag, value.Type, cfg.Value_Type)
 		}
 
-		r[value.Tag] = value.Value
+		// 检查时间有效性
+		t := time.Until(value.Time).Abs()
+		if t > (3 * time.Second) {
+			return fmt.Errorf("[%s]点位超时[%v]", cfg.Tag, t)
+		}
+
+		// 获取MQTT变量名称
+		mqttName, ok := cloud.GetKVValue(cfg.Config, "MQTT变量名称")
+		if !ok || mqttName == "" {
+			return fmt.Errorf("点位[%s]的MQTT变量名称配置缺失", cfg.Tag)
+		}
+
+		r[mqttName] = value.Value
 	}
 
+	// 序列化数据
 	dataByte, err := json.Marshal(r)
 	if err != nil {
-		return err
+		return fmt.Errorf("JSON序列化失败: %w", err)
 	}
 
-	return mqttbase.Send(c.Config.Drive.Example_IDentifier, c.Config.Drive.Topic_Down, dataByte)
+	// 获取推送主题
+	topic_Push, ok := cloud.GetKVValue(c.Config.Drive.Config, "推送")
+	if !ok || topic_Push == "" {
+		return fmt.Errorf("驱动【%s】的推送主题配置缺失", c.Config.Drive.Name)
+	}
+
+	// 获取MQTT实例标识
+	example_IDentifier, ok := cloud.GetKVValue(c.Config.Drive.Config, "MQTT实例")
+	if !ok || example_IDentifier == "" {
+		return fmt.Errorf("驱动【%s】的MQTT实例配置缺失", c.Config.Drive.Name)
+	}
+
+	return mqttbase.Send(example_IDentifier, topic_Push, dataByte)
 }

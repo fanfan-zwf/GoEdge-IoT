@@ -81,7 +81,7 @@ var (
 )
 
 // 数据更新 发布 发送
-func Update_Publisher(v []fullConfig.Value_type) (err error) {
+func Update_Publisher(v []fullConfig.Value_type) error {
 	if len(v) == 0 {
 		return nil
 	}
@@ -93,7 +93,7 @@ func Update_Publisher(v []fullConfig.Value_type) (err error) {
 		}
 	}
 
-	return
+	return nil
 }
 
 // 数据更新 订阅 接收
@@ -106,38 +106,47 @@ func Update_Subscriber(value Update_func) error {
 
 // 单条数据更新判断
 func Update_Value_Judgment(new fullConfig.Value_type) (bool, error) {
-	Value_Map_Mu.RLock()
+	// 优化：使用写锁保护整个读写过程，避免竞态窗口
+	Value_Map_Mu.Lock()
+	defer Value_Map_Mu.Unlock()
+	
 	old, ok := Value_Map[new.Tag]
-	Value_Map_Mu.RUnlock()
-
+	
 	if !ok {
-		old = Update_Value_type{
+		// 修复Bug: 新点位需要完整初始化所有字段
+		Value_Map[new.Tag] = Update_Value_type{
 			Value_type: fullConfig.Value_type{
 				Tag:   new.Tag,
 				Time:  new.Time,
 				Value: new.Value,
+				Type:  new.Type,
+				Msg:   new.Msg,
 			},
+			Last_Value: new.Value, // 首次更新时，Last_Value 与当前值相同
+			Last_Time:  new.Time,  // 首次更新时，Last_Time 与当前时间相同
 		}
-	} else {
-		if new.Msg != "ok" {
-			old.Msg = new.Msg
-		}
-
-		if new.Value != old.Value {
-			old.Last_Value = old.Value
-			old.Last_Time = old.Time
-			old.Value = new.Value
-			old.Time = new.Time
-		} else {
-			return false, nil
-		}
-
+		return true, nil
+	}
+	
+	// 状态消息更新
+	if new.Msg != "ok" {
+		old.Msg = new.Msg
 	}
 
-	Value_Map_Mu.Lock()
-	Value_Map[new.Tag] = old
-	Value_Map_Mu.Unlock()
-	return true, nil
+	// 值变化检测
+	if new.Value != old.Value {
+		old.Last_Value = old.Value
+		old.Last_Time = old.Time
+		old.Value = new.Value
+		old.Time = new.Time
+		
+		// 在锁内直接更新，避免二次加锁
+		Value_Map[new.Tag] = old
+		return true, nil
+	}
+	
+	// 值未变化
+	return false, nil
 }
 
 // 批量数据更新判断
@@ -146,17 +155,26 @@ func Update_Value_Judgment_list(new_list []fullConfig.Value_type) error {
 		return nil
 	}
 
-	var update_list []fullConfig.Value_type
+	// 优化：预分配切片容量，避免多次扩容
+	update_list := make([]fullConfig.Value_type, 0, len(new_list))
+	
 	for _, v := range new_list {
 		u, err := Update_Value_Judgment(v)
 		if err != nil {
 			log.Printf("ERROR 数据更新判断失败: %s", err)
+			// 修复：继续处理其他数据，不因单个错误中断整个批次
+			continue
 		}
 		if u {
 			update_list = append(update_list, v)
 		}
 	}
-	Update_Publisher(update_list)
+	
+	// 优化：只在有变化数据时才发布
+	if len(update_list) > 0 {
+		Update_Publisher(update_list)
+	}
+	
 	return nil
 }
 func init() {
