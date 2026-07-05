@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -31,19 +32,19 @@ var (
 	// key: API 路径（如 "/api/user"）
 	// value: APIRegister 指针，使用指针避免结构体拷贝导致的并发安全问题
 	apiRegistries = make(map[string]*APIRegister)
-	
+
 	// registryMutex 读写锁，保护 apiRegistries 的并发访问
 	// RLock: 读操作（查询、获取handler）可以并发执行
 	// Lock: 写操作（注册、注销、更新）需要独占访问
 	registryMutex sync.RWMutex
-	
+
 	// globalRouter 全局 Gin 引擎引用，用于动态注册路由
 	// 在 Web() 函数中通过 SetGlobalRouter() 设置
 	globalRouter *gin.Engine
 )
 
 // SetGlobalRouter 设置全局 Gin 引擎引用
-// 
+//
 // 参数:
 //   - router: Gin 引擎实例
 //
@@ -52,8 +53,9 @@ var (
 //   - 必须在 Web() 函数中调用，在 ExecuteRegistrations() 之前
 //
 // 示例:
-//   SetGlobalRouter(R)
-//   ExecuteRegistrations(R)
+//
+//	SetGlobalRouter(R)
+//	ExecuteRegistrations(R)
 func SetGlobalRouter(router *gin.Engine) {
 	globalRouter = router
 	log.Printf("INFO 全局 Gin 引擎已设置")
@@ -74,23 +76,62 @@ func defaultHandler(ctx *gin.Context) {
 }
 
 // RegisterAPI 注册 API 接口（支持动态注册）
-// 
+//
 // 参数:
 //   - method: HTTP 请求方法（GET/POST/PUT/DELETE），使用 Method_* 常量
-//   - url: API 路径（如 "/api/user/list"）
+//   - url: API 路径（如 "/api/data"）
 //   - handler: Gin 请求处理函数，如果为 nil 则自动使用 defaultHandler
+//
+// 返回值:
+//   - error: nil=注册成功，非nil=接口已存在或注册失败
 //
 // 功能:
 //   - 将 API 信息保存到全局注册表 apiRegistries
 //   - 默认设置为激活状态（IsActive=true）
 //   - 线程安全，使用互斥锁保护
 //   - **关键特性**: 如果 globalRouter 已设置，会立即注册到 Gin 引擎，实现真正的动态注册
+//   - **重复注册规则**: 同一路径只能注册一次，重复注册会返回错误，不会覆盖
 //
 // 示例:
-//   RegisterAPI(Method_POST, "/api/data", func(c *gin.Context) { ... })
-func RegisterAPI(method, url string, handler gin.HandlerFunc) {
-	registryMutex.Lock()       // 加写锁，独占访问
+//
+//	if err := RegisterAPI(Method_POST, "/api/data", func(c *gin.Context) { ... }); err != nil {
+//	    log.Printf("注册失败: %v", err)
+//	}
+func RegisterAPI(method, url string, handler gin.HandlerFunc) error {
+	registryMutex.Lock()         // 加写锁，独占访问
 	defer registryMutex.Unlock() // 函数退出时释放锁
+
+	// 检查是否已存在相同 URL 的接口
+	if existingReg, exists := apiRegistries[url]; exists {
+		// 如果已存在且方法相同，则更新 handler（覆盖模式）
+		if existingReg.Method == method {
+			log.Printf("WARN 接口 [%s] %s 已存在，将覆盖原有handler", method, url)
+			
+			// 安全检查：如果 handler 为 nil，使用默认处理器
+			if handler == nil {
+				log.Printf("WARN 接口 [%s] %s 的新handler为nil，使用默认handler", method, url)
+				handler = defaultHandler
+			}
+
+			// 更新注册表中的 handler
+			existingReg.Handler = handler
+			existingReg.IsActive = true
+			apiRegistries[url] = existingReg
+
+			// 如果全局 Gin 引擎已设置，重新注册路由到引擎
+			if globalRouter != nil {
+				registerRouteToEngine(globalRouter, method, url, handler)
+				log.Printf("INFO 动态路由已更新到 Gin 引擎: [%s] %s", method, url)
+			}
+
+			return nil
+		} else {
+			// 方法不同，拒绝注册
+			err := fmt.Errorf("接口 %s 已存在但方法不同（现有: %s, 新请求: %s），拒绝注册", url, existingReg.Method, method)
+			log.Printf("ERROR %v", err)
+			return err
+		}
+	}
 
 	// 安全检查：如果 handler 为 nil，使用默认处理器
 	if handler == nil {
@@ -114,10 +155,12 @@ func RegisterAPI(method, url string, handler gin.HandlerFunc) {
 		registerRouteToEngine(globalRouter, method, url, handler)
 		log.Printf("INFO 动态路由已注册到 Gin 引擎: [%s] %s", method, url)
 	}
+
+	return nil
 }
 
 // registerRouteToEngine 将路由注册到 Gin 引擎
-// 
+//
 // 参数:
 //   - router: Gin 引擎实例
 //   - method: HTTP 方法
@@ -148,7 +191,7 @@ func registerRouteToEngine(router *gin.Engine, method, url string, handler gin.H
 //   - url: 要注销的 API 路径
 //
 // 返回值:
-//   - bool: true=注销成功，false=接口不存在
+//   - error: nil=注销成功，非nil=接口不存在
 //
 // 功能:
 //   - 将接口标记为非激活状态（IsActive=false）
@@ -160,25 +203,28 @@ func registerRouteToEngine(router *gin.Engine, method, url string, handler gin.H
 //   - 如需完全删除，需手动从 map 中移除（当前未提供此功能）
 //
 // 示例:
-//   success := UnregisterAPI("/api/old-endpoint")
-func UnregisterAPI(url string) bool {
-	registryMutex.Lock()       // 加写锁
+//
+//	if err := UnregisterAPI("/api/old-endpoint"); err != nil {
+//	    log.Printf("注销失败: %v", err)
+//	}
+func UnregisterAPI(url string) error {
+	registryMutex.Lock() // 加写锁
 	defer registryMutex.Unlock()
 
 	reg, exists := apiRegistries[url]
 	if !exists {
-		log.Printf("WARN 接口不存在，无法注销: %s", url)
-		return false
+		err := fmt.Errorf("接口 %s 不存在，无法注销", url)
+		log.Printf("WARN %v", err)
+		return err
 	}
 
-	// 标记为非激活状态
-	reg.IsActive = false
-	// 将 handler 替换为 404 处理器，确保所有请求都返回 404
-	reg.Handler = notFoundHandler
-	apiRegistries[url] = reg
+	// 记录日志（在删除前）
+	log.Printf("INFO 注销接口: %s [%s]", reg.Method, url)
 
-	log.Printf("INFO 注销接口: %s (返回404)", url)
-	return true
+	// 真正从注册表中删除接口
+	delete(apiRegistries, url)
+
+	return nil
 }
 
 // DisableAPI 临时禁用 API 接口（返回 404，但保留原始 handler）
@@ -187,7 +233,7 @@ func UnregisterAPI(url string) bool {
 //   - url: 要禁用的 API 路径
 //
 // 返回值:
-//   - bool: true=禁用成功，false=接口不存在
+//   - error: nil=禁用成功，非nil=接口不存在
 //
 // 功能:
 //   - 仅将 IsActive 标记为 false
@@ -200,15 +246,19 @@ func UnregisterAPI(url string) bool {
 //   - 需要频繁切换激活/禁用状态的接口
 //
 // 示例:
-//   DisableAPI("/api/maintenance-endpoint")
-func DisableAPI(url string) bool {
-	registryMutex.Lock()       // 加写锁
+//
+//	if err := DisableAPI("/api/maintenance-endpoint"); err != nil {
+//	    log.Printf("禁用失败: %v", err)
+//	}
+func DisableAPI(url string) error {
+	registryMutex.Lock() // 加写锁
 	defer registryMutex.Unlock()
 
 	reg, exists := apiRegistries[url]
 	if !exists {
-		log.Printf("WARN 接口不存在，无法禁用: %s", url)
-		return false
+		err := fmt.Errorf("接口 %s 不存在，无法禁用", url)
+		log.Printf("WARN %v", err)
+		return err
 	}
 
 	// 仅标记为非激活，不修改 handler
@@ -216,7 +266,7 @@ func DisableAPI(url string) bool {
 	apiRegistries[url] = reg
 
 	log.Printf("INFO 禁用接口: %s", url)
-	return true
+	return nil
 }
 
 // EnableAPI 重新启用已禁用的 API 接口
@@ -225,7 +275,7 @@ func DisableAPI(url string) bool {
 //   - url: 要启用的 API 路径
 //
 // 返回值:
-//   - bool: true=启用成功，false=接口不存在
+//   - error: nil=启用成功，非nil=接口不存在
 //
 // 功能:
 //   - 将 IsActive 标记为 true
@@ -237,15 +287,19 @@ func DisableAPI(url string) bool {
 //   - 灰度发布完成后启用新接口
 //
 // 示例:
-//   EnableAPI("/api/maintenance-endpoint")
-func EnableAPI(url string) bool {
-	registryMutex.Lock()       // 加写锁
+//
+//	if err := EnableAPI("/api/maintenance-endpoint"); err != nil {
+//	    log.Printf("启用失败: %v", err)
+//	}
+func EnableAPI(url string) error {
+	registryMutex.Lock() // 加写锁
 	defer registryMutex.Unlock()
 
 	reg, exists := apiRegistries[url]
 	if !exists {
-		log.Printf("WARN 接口不存在，无法启用: %s", url)
-		return false
+		err := fmt.Errorf("接口 %s 不存在，无法启用", url)
+		log.Printf("WARN %v", err)
+		return err
 	}
 
 	// 重新激活接口
@@ -253,7 +307,7 @@ func EnableAPI(url string) bool {
 	apiRegistries[url] = reg
 
 	log.Printf("INFO 启用接口: %s", url)
-	return true
+	return nil
 }
 
 // GetHandler 安全获取 API 的处理函数（每次调用时实时检查状态）
@@ -277,10 +331,11 @@ func EnableAPI(url string) bool {
 //   - 使用读锁，允许多个请求并发执行
 //
 // 示例:
-//   handler := GetHandler(Method_GET, "/api/user/list")
-//   handler(c) // 执行处理函数
+//
+//	handler := GetHandler(Method_GET, "/api/user/list")
+//	handler(c) // 执行处理函数
 func GetHandler(method, url string) gin.HandlerFunc {
-	registryMutex.RLock()       // 加读锁，允许多个读者并发
+	registryMutex.RLock() // 加读锁，允许多个读者并发
 	defer registryMutex.RUnlock()
 
 	reg, exists := apiRegistries[url]
@@ -326,11 +381,12 @@ func GetHandler(method, url string) gin.HandlerFunc {
 //   - 如果需要热更新路由，可再次调用此函数（Gin 会覆盖已有路由）
 //
 // 示例:
-//   router := gin.Default()
-//   ExecuteRegistrations(router)
-//   router.Run(":8080")
+//
+//	router := gin.Default()
+//	ExecuteRegistrations(router)
+//	router.Run(":8080")
 func ExecuteRegistrations(router *gin.Engine) {
-	registryMutex.RLock()       // 加读锁
+	registryMutex.RLock() // 加读锁
 	defer registryMutex.RUnlock()
 
 	for url, reg := range apiRegistries {
@@ -385,51 +441,51 @@ func ExecuteRegistrations(router *gin.Engine) {
 
 // RegisterGET 快捷注册 GET 接口
 // 等价于: RegisterAPI(Method_GET, url, handler)
-func RegisterGET(url string, handler gin.HandlerFunc) {
-	RegisterAPI(Method_GET, url, handler)
+func RegisterGET(url string, handler gin.HandlerFunc) error {
+	return RegisterAPI(Method_GET, url, handler)
 }
 
 // RegisterPOST 快捷注册 POST 接口
 // 等价于: RegisterAPI(Method_POST, url, handler)
-func RegisterPOST(url string, handler gin.HandlerFunc) {
-	RegisterAPI(Method_POST, url, handler)
+func RegisterPOST(url string, handler gin.HandlerFunc) error {
+	return RegisterAPI(Method_POST, url, handler)
 }
 
 // RegisterPUT 快捷注册 PUT 接口
 // 等价于: RegisterAPI(Method_PUT, url, handler)
-func RegisterPUT(url string, handler gin.HandlerFunc) {
-	RegisterAPI(Method_PUT, url, handler)
+func RegisterPUT(url string, handler gin.HandlerFunc) error {
+	return RegisterAPI(Method_PUT, url, handler)
 }
 
 // RegisterDELETE 快捷注册 DELETE 接口
 // 等价于: RegisterAPI(Method_DELETE, url, handler)
-func RegisterDELETE(url string, handler gin.HandlerFunc) {
-	RegisterAPI(Method_DELETE, url, handler)
+func RegisterDELETE(url string, handler gin.HandlerFunc) error {
+	return RegisterAPI(Method_DELETE, url, handler)
 }
 
 // ==================== 快捷注销函数 ====================
 
 // UnregisterGET 快捷注销 GET 接口
 // 等价于: UnregisterAPI(url)
-func UnregisterGET(url string) bool {
+func UnregisterGET(url string) error {
 	return UnregisterAPI(url)
 }
 
 // UnregisterPOST 快捷注销 POST 接口
 // 等价于: UnregisterAPI(url)
-func UnregisterPOST(url string) bool {
+func UnregisterPOST(url string) error {
 	return UnregisterAPI(url)
 }
 
 // UnregisterPUT 快捷注销 PUT 接口
 // 等价于: UnregisterAPI(url)
-func UnregisterPUT(url string) bool {
+func UnregisterPUT(url string) error {
 	return UnregisterAPI(url)
 }
 
 // UnregisterDELETE 快捷注销 DELETE 接口
 // 等价于: UnregisterAPI(url)
-func UnregisterDELETE(url string) bool {
+func UnregisterDELETE(url string) error {
 	return UnregisterAPI(url)
 }
 
@@ -443,47 +499,30 @@ func UnregisterDELETE(url string) bool {
 //   - newHandler: 新的处理函数，如果为 nil 则使用 defaultHandler
 //
 // 返回值:
-//   - bool: true=更新成功，false=接口不存在
+//   - error: nil=更新成功，非nil=接口不存在（不支持更新）
 //
 // 功能:
-//   - 替换指定 API 的 handler
-//   - 自动将接口设置为激活状态（IsActive=true）
-//   - 支持运行时热更新接口逻辑，无需重启服务
-//
-// 使用场景:
-//   - 修复线上 bug 时替换 handler
-//   - A/B 测试时切换不同版本的 handler
-//   - 灰度发布时逐步替换接口实现
+//   - **此函数已废弃**：系统不支持更新已有接口的 handler
+//   - 如需修改接口逻辑，应先注销再重新注册
 //
 // 注意:
-//   - 更新后立即生效，正在处理的请求不受影响
-//   - 新请求会使用更新后的 handler
+//   - 此函数始终返回错误，因为系统不允许更新已有路径的 handler
+//   - 请使用 UnregisterAPI + RegisterAPI 的组合来替换接口
 //
 // 示例:
-//   UpdateHandler(Method_POST, "/api/data", newHandler)
-func UpdateHandler(method, url string, newHandler gin.HandlerFunc) bool {
-	registryMutex.Lock()       // 加写锁
-	defer registryMutex.Unlock()
-
-	reg, exists := apiRegistries[url]
-	if !exists {
-		log.Printf("WARN 接口不存在，无法更新: %s %s", method, url)
-		return false
-	}
-
-	// 安全检查：如果新 handler 为 nil，使用默认处理器
-	if newHandler == nil {
-		log.Printf("WARN 更新handler为nil，使用默认handler")
-		newHandler = defaultHandler
-	}
-
-	// 更新 handler 并自动激活
-	reg.Handler = newHandler
-	reg.IsActive = true // 更新时自动激活，确保接口可用
-	apiRegistries[url] = reg
-
-	log.Printf("INFO 更新接口handler: [%s] %s (新handler地址: %p)", method, url, newHandler)
-	return true
+//
+//	// 错误用法：
+//	if err := UpdateHandler(Method_POST, "/api/data", newHandler); err != nil {
+//	    log.Printf("更新失败: %v", err) // 始终会执行
+//	}
+//
+//	// 正确用法：
+//	UnregisterAPI("/api/data")
+//	RegisterAPI(Method_POST, "/api/data", newHandler)
+func UpdateHandler(method, url string, newHandler gin.HandlerFunc) error {
+	err := fmt.Errorf("UpdateHandler 已废弃，系统不支持更新已有路径的 handler。请使用 UnregisterAPI + RegisterAPI 组合")
+	log.Printf("WARN %v", err)
+	return err
 }
 
 // ==================== 查询接口状态 ====================
@@ -501,11 +540,12 @@ func UpdateHandler(method, url string, newHandler gin.HandlerFunc) bool {
 //   - 用于监控、管理界面展示
 //
 // 示例:
-//   if IsAPIActive("/api/user") {
-//       fmt.Println("用户接口正常运行")
-//   }
+//
+//	if IsAPIActive("/api/user") {
+//	    fmt.Println("用户接口正常运行")
+//	}
 func IsAPIActive(url string) bool {
-	registryMutex.RLock()       // 加读锁
+	registryMutex.RLock() // 加读锁
 	defer registryMutex.RUnlock()
 
 	reg, exists := apiRegistries[url]
@@ -530,12 +570,13 @@ func IsAPIActive(url string) bool {
 //   - 用于调试、监控、管理界面
 //
 // 示例:
-//   method, active, exists := GetAPIStatus("/api/user")
-//   if exists {
-//       fmt.Printf("方法: %s, 激活: %v\n", method, active)
-//   }
+//
+//	method, active, exists := GetAPIStatus("/api/user")
+//	if exists {
+//	    fmt.Printf("方法: %s, 激活: %v\n", method, active)
+//	}
 func GetAPIStatus(url string) (method string, isActive bool, exists bool) {
-	registryMutex.RLock()       // 加读锁
+	registryMutex.RLock() // 加读锁
 	defer registryMutex.RUnlock()
 
 	reg, exists := apiRegistries[url]
@@ -560,12 +601,13 @@ func GetAPIStatus(url string) (method string, isActive bool, exists bool) {
 //   - 修改返回的副本不会影响实际注册表
 //
 // 示例:
-//   apis := ListAllAPIs()
-//   for url, reg := range apis {
-//       fmt.Printf("%s [%s] 激活:%v\n", url, reg.Method, reg.IsActive)
-//   }
+//
+//	apis := ListAllAPIs()
+//	for url, reg := range apis {
+//	    fmt.Printf("%s [%s] 激活:%v\n", url, reg.Method, reg.IsActive)
+//	}
 func ListAllAPIs() map[string]*APIRegister {
-	registryMutex.RLock()       // 加读锁
+	registryMutex.RLock() // 加读锁
 	defer registryMutex.RUnlock()
 
 	// 创建副本，避免并发问题和数据泄露
@@ -596,11 +638,12 @@ func ListAllAPIs() map[string]*APIRegister {
 //   - 使用 defer ticker.Stop() 确保资源正确释放
 //
 // 示例:
-//   func main() {
-//       StartCheckTask() // 启动健康检查
-//       // ... 其他初始化代码
-//       router.Run(":8080")
-//   }
+//
+//	func main() {
+//	    StartCheckTask() // 启动健康检查
+//	    // ... 其他初始化代码
+//	    router.Run(":8080")
+//	}
 func StartCheckTask() {
 	go func() {
 		// 创建定时器，每 5 分钟触发一次

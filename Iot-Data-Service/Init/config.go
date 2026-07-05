@@ -112,6 +112,12 @@ type Config_type struct {
 		Point_Alarm_Value string `yaml:"point_alarm_value"` // 点更新值
 	} `yaml:"Mqtt_Rpc"` // mqtt版的rpc通信
 
+	Monitor struct {
+		Enable   bool          `yaml:"enable"`
+		Point    string        `yaml:"point"`
+		Interval time.Duration `yaml:"interval"` // 监控间隔
+	} `yaml:"monitor"` // 监控
+
 	Mqtt map[string]MqttItem `yaml:"Mqtt"` // mqtt版的rpc通信
 
 }

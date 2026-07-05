@@ -1,15 +1,14 @@
 package flexem_flexem
 
 import (
-	"fmt"
-	"log"
 	"main/IO/manager/fullConfig"
 	"main/cloud"
 	"main/db/mysql"
-	"main/method/timer"
 	"main/web"
-	"sync"
 
+	"fmt"
+	"log"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,13 +39,24 @@ var status_map = map[int]string{
 	16: "未完成",
 }
 
+// 设备状态类型的参数
+// type API_equipmentValue_struct struct {
+// 	Rssi        int       // 信号值
+// 	BoxId       int       // 盒子Id
+// 	Timestamp   time.Time // 报警推送的时间戳
+// 	BoxSubType  int       // 盒子类型
+// 	NetworkType int       // 盒子网络类型
+// 	NewState    int       // 盒子状态
+// }
+
 type API_indexkey_struct struct {
 	DeviceSn      string // 盒子序列号
 	DmonGroupName string // 监控点分组名称
 	DmonName      string // 监控点名称
 }
 
-type API_Post_Value_struct struct {
+// 监控点数据结构
+type API_dataValue_struct struct {
 	DeviceSn      string    // 盒子序列号
 	DeviceId      int       // 盒子Id
 	Timestamp     time.Time // 数据推送的时间戳
@@ -67,21 +77,13 @@ type API_Post_Value_struct struct {
 // 定义一个结构体
 type Flexem_FlexEm struct {
 	fullConfig.BaseDriver // 驱动全配置（驱动配置 + 该驱动下的所有点位配置）
-	timer                 *timer.TimerTask
 
-	Push_External_Mappings func([]fullConfig.Value_type) error
+	Callback_Push_External_Mappings func([]fullConfig.Value_type) error // 外部推送函数
 
 	// 盒子序列号+监控点分组名称+监控点名称 对应配置列表下标
 	api_indexkey_RWMu sync.RWMutex
 	api_indexkey      map[API_indexkey_struct]int // 盒子序列号+监控点分组名称+监控点名称 对应配置列表下标
 
-	// api推送 盒子序列号+监控点分组名称+监控点名称
-	deviceSn_finally_time_RWMu    sync.RWMutex
-	deviceSn_finally_time         map[string]time.Time // 盒子序列号 最后一次推送时间
-	deviceSn_finally_time_timeout time.Duration
-
-	// 点位索引到设备SN的映射（性能优化：避免重复解析JSON）
-	pointIndex_to_deviceSn []string // pointIndex_to_deviceSn[i] = c.Config.Points[i] 对应的设备SN
 }
 
 // 定义接口
@@ -90,52 +92,49 @@ type Connect_interface interface {
 }
 
 func (c *Flexem_FlexEm) Start() error {
-	if c.deviceSn_finally_time_timeout == 0 {
-		c.deviceSn_finally_time_timeout = 60 * time.Second
+
+	dataUrl, ok := cloud.GetKVValue(c.Config.Drive.Config, "数据推送url")
+	if !ok || dataUrl == "" {
+		return fmt.Errorf("数据推送url是空的 【%s】", c.Config.Drive.Config)
 	}
 
-	url, ok := cloud.GetKVValue(c.Config.Drive.Config, "url")
-	if !ok || url == "" {
-		return fmt.Errorf("url是空的 【%s】", c.Config.Drive.Config)
+	// 注册api接口
+	err := web.RegisterPOST(dataUrl, c.dataHandler)
+	if err != nil {
+		return err
 	}
-	web.RegisterPOST(url, c.handler)
 
 	api_indexkey := make(map[API_indexkey_struct]int)
 	deviceSn_finally_time := make(map[string]time.Time)
 
-	// 性能优化：预分配切片容量，避免动态扩容
-	pointIndex_to_deviceSn := make([]string, len(c.Config.Points))
-
 	for i, point := range c.Config.Points {
-
 		// 从驱动配置获取设备SN（一个驱动对应一个设备）
-		deviceSn, ok := cloud.GetKVValue(c.Config.Drive.Config, "盒子序列号")
+		deviceSn, ok := cloud.GetKVValue(point.Config, "盒子序列号")
 		if !ok || deviceSn == "" {
-			err := fmt.Errorf("ERROR 驱动名称【%s】 盒子序列号【%s】", c.Config.Drive.Name, deviceSn)
+			err := fmt.Errorf("ERROR 驱动名称【%s】 缺少盒子序列号【%s】", c.Config.Drive.Name, deviceSn)
 			log.Print(err)
 			return err
 		}
 
 		dmonGroupName, ok := cloud.GetKVValue(point.Config, "监控点分组名称")
 		if !ok || dmonGroupName == "" {
-			err := fmt.Errorf("ERROR 驱动名称【%s】 监控点分组名称【%s】", c.Config.Drive.Name, dmonGroupName)
+			err := fmt.Errorf("ERROR 驱动名称【%s】 缺少监控点分组名称【%s】", c.Config.Drive.Name, dmonGroupName)
 			log.Print(err)
 			return err
 		}
+
 		dmonName, ok := cloud.GetKVValue(point.Config, "监控点名称")
 		if !ok || dmonName == "" {
-			err := fmt.Errorf("ERROR 驱动名称【%s】 监控点名称【%s】", c.Config.Drive.Name, dmonName)
+			err := fmt.Errorf("ERROR 驱动名称【%s】 缺少监控点名称【%s】", c.Config.Drive.Name, dmonName)
 			log.Print(err)
 			return err
 		}
+
 		api_indexkey[API_indexkey_struct{
 			DeviceSn:      deviceSn,
 			DmonGroupName: dmonGroupName,
 			DmonName:      dmonName,
 		}] = i
-
-		// 缓存点位索引到设备SN的映射
-		pointIndex_to_deviceSn[i] = deviceSn
 
 		_, ok = deviceSn_finally_time[deviceSn]
 		if !ok {
@@ -144,16 +143,8 @@ func (c *Flexem_FlexEm) Start() error {
 	}
 
 	c.api_indexkey_RWMu.Lock()
+	defer c.api_indexkey_RWMu.Unlock()
 	c.api_indexkey = api_indexkey
-	c.api_indexkey_RWMu.Unlock()
-
-	// 保存点位到设备SN的映射
-	c.pointIndex_to_deviceSn = pointIndex_to_deviceSn
-	
-	// ✅ 关键修复：将初始化好的 deviceSn_finally_time 赋值给结构体字段
-	c.deviceSn_finally_time_RWMu.Lock()
-	c.deviceSn_finally_time = deviceSn_finally_time
-	c.deviceSn_finally_time_RWMu.Unlock()
 
 	return nil
 }
@@ -176,95 +167,36 @@ func (c *Flexem_FlexEm) api_indexkey_R(v API_indexkey_struct) (mysql.Mqtt_Points
 	return c.Config.Points[index], true
 }
 
-// 关闭连接
-func (c *Flexem_FlexEm) Close() error {
-	c.timer.Stop()
+// Stop 优雅关闭驱动（公开接口）
+func (c *Flexem_FlexEm) Stop() error {
+	log.Printf("INFO 正在关闭 Flexem_FlexEm 驱动 ID:%d", c.Config.Drive.Id)
 
-	url, ok := cloud.GetKVValue(c.Config.Drive.Config, "url")
-	if !ok || url == "" {
-		return fmt.Errorf("url是空的 【%s】", c.Config.Drive.Config)
+	// 1. 注销 API 路由
+	dataUrl, ok := cloud.GetKVValue(c.Config.Drive.Config, "数据推送url")
+	if !ok || dataUrl == "" {
+		log.Printf("ERROR 关闭失败 数据推送url是空的 【%s】", c.Config.Drive.Config)
+		return fmt.Errorf("关闭失败 数据推送url是空的 【%s】", c.Config.Drive.Config)
 	}
-	web.UnregisterAPI(url)
 
+	err := web.UnregisterAPI(dataUrl)
+	if err != nil {
+		log.Printf("WARN 注销API失败: %s", err)
+		// 继续执行清理，不返回错误
+	}
+
+	// 2. 清理内部 map，防止内存泄漏
+	c.api_indexkey_RWMu.Lock()
+	defer c.api_indexkey_RWMu.Unlock()
+	c.api_indexkey = make(map[API_indexkey_struct]int) // 重新初始化为空 map
+	// 3. 清空回调函数引用
+	c.Callback_Push_External_Mappings = nil
+
+	log.Printf("INFO Flexem_FlexEm 驱动 ID:%d 已完全关闭并清理资源", c.Config.Drive.Id)
 	return nil
 }
 
-func (c *Flexem_FlexEm) timer_msg(callTime time.Time) {
-	// ========== 第一步：只读锁检查超时设备（不修改数据）==========
-	c.deviceSn_finally_time_RWMu.RLock() // ✅ 使用读锁
-
-	// 收集所有超时的设备SN及其消息
-	timeoutDeviceMap := make(map[string]string)
-	for deviceSn, lastTime := range c.deviceSn_finally_time {
-		if lastTime.IsZero() {
-			continue // 跳过从未收到数据的设备
-		}
-		// 使用 After 方法符合 Go 时间比较规范
-		if time.Now().After(lastTime.Add(c.deviceSn_finally_time_timeout)) {
-			timeoutDeviceMap[deviceSn] = fmt.Sprintf("驱动超时 最后时间:%s", lastTime)
-		}
-	}
-
-	c.deviceSn_finally_time_RWMu.RUnlock() // ✅ 立即释放读锁
-
-	// 如果没有超时设备，直接返回（避免无效遍历）
-	if len(timeoutDeviceMap) == 0 {
-		return
-	}
-
-	// ========== 第二步：构建超时点位的值列表（O(n)复杂度，无锁）==========
-	var value_list []fullConfig.Value_type
-
-	for pointIndex, point := range c.Config.Points {
-		// 边界检查
-		if pointIndex >= len(c.pointIndex_to_deviceSn) {
-			log.Printf("ERROR 点位索引越界: index=%d, len=%d", pointIndex, len(c.pointIndex_to_deviceSn))
-			continue
-		}
-
-		// 从预缓存映射获取设备SN（O(1)，零JSON解析开销）
-		deviceSn := c.pointIndex_to_deviceSn[pointIndex]
-
-		// 检查该设备是否超时
-		msg, isTimeout := timeoutDeviceMap[deviceSn]
-		if !isTimeout {
-			continue // 设备未超时，跳过
-		}
-
-		// 添加超时点位到结果列表
-		value_list = append(value_list, fullConfig.Value_type{
-			Tag:   point.Tag,        // 使用正确的 Tag 字段
-			Value: nil,              // 点位值
-			Type:  point.Value_Type, // 输出类型
-			Msg:   msg,              // 状态信息（超时消息）
-			Time:  callTime,         // 读取时间
-		})
-	}
-
-	// ========== 第三步：如果没有超时点位，直接返回 ==========
-	if len(value_list) == 0 {
-		return
-	}
-
-	// ========== 第四步：推送前检查回调函数 ==========
-	if c.Push_External_Mappings == nil {
-		c.timer.Stop()
-		return
-	}
-
-	// ========== 第五步：写锁重置超时标记（防止重复报警）==========
-	c.deviceSn_finally_time_RWMu.Lock() // ✅ 升级为写锁
-	for deviceSn := range timeoutDeviceMap {
-		c.deviceSn_finally_time[deviceSn] = time.Time{} // 重置为零值
-	}
-	c.deviceSn_finally_time_RWMu.Unlock() // ✅ 立即释放写锁
-
-	// ========== 第六步：推送超时状态数据 ==========
-	c.Push_External_Mappings(value_list)
-}
-
 // 接收api数据
-func (c *Flexem_FlexEm) handler(ctx *gin.Context) {
+func (c *Flexem_FlexEm) dataHandler(ctx *gin.Context) {
 	name, nameOk := cloud.GetKVValue(c.Config.Drive.Config, "用户名")
 	passwd, passwdOk := cloud.GetKVValue(c.Config.Drive.Config, "密码")
 
@@ -286,22 +218,27 @@ func (c *Flexem_FlexEm) handler(ctx *gin.Context) {
 		}
 	}
 
-	var jsondata []API_Post_Value_struct
+	var jsondata []API_dataValue_struct
 	if err := ctx.BindJSON(&jsondata); err != nil {
 		ctx.Set("Response", []any{417, "请求格式不对"})
 		return
 	}
 
+	if len(jsondata) == 0 {
+		ctx.Set("Response", []any{403, "null"})
+		return
+	}
+
 	value_list := c.processAPIValues(jsondata)
 
-	if c.Push_External_Mappings != nil {
-		c.Push_External_Mappings(value_list)
+	if c.Callback_Push_External_Mappings != nil {
+		c.Callback_Push_External_Mappings(value_list)
 	}
 	ctx.Set("Response", []any{200, "ok"})
 }
 
 // processAPIValues 处理API推送的值
-func (c *Flexem_FlexEm) processAPIValues(jsondata []API_Post_Value_struct) []fullConfig.Value_type {
+func (c *Flexem_FlexEm) processAPIValues(jsondata []API_dataValue_struct) []fullConfig.Value_type {
 	var value_list []fullConfig.Value_type
 
 	for _, v := range jsondata {
@@ -311,13 +248,13 @@ func (c *Flexem_FlexEm) processAPIValues(jsondata []API_Post_Value_struct) []ful
 			DmonName:      v.DmonName,
 		})
 
-		// ✅ 修复：使用 defer 确保锁正确释放，避免死锁和竞态条件
-		c.deviceSn_finally_time_RWMu.Lock()
-		c.deviceSn_finally_time[v.DeviceSn] = v.Timestamp
-		c.deviceSn_finally_time_RWMu.Unlock()
-
 		// 如果找不到对应的配置，尝试根据监控点分组名称和监控点名称构建一个临时的点位值
 		if !ok {
+			face, ok := cloud.GetKVValue(c.Config.Drive.Config, "临时点")
+			if !(ok && face == "True") {
+				continue
+			}
+
 			valueType, ok := ValueType_map[v.ValueType]
 			if !ok {
 				continue
@@ -342,7 +279,7 @@ func (c *Flexem_FlexEm) processAPIValues(jsondata []API_Post_Value_struct) []ful
 }
 
 // buildValueFromAPI 根据API数据构建点位值
-func (c *Flexem_FlexEm) buildValueFromAPI(v API_Post_Value_struct, cfg mysql.Mqtt_Points__type) fullConfig.Value_type {
+func (c *Flexem_FlexEm) buildValueFromAPI(v API_dataValue_struct, cfg mysql.Mqtt_Points__type) fullConfig.Value_type {
 	// 检查读写权限
 	if cfg.RW_Cancel != "R" {
 		return fullConfig.Value_type{
@@ -396,7 +333,7 @@ func (c *Flexem_FlexEm) buildValueFromAPI(v API_Post_Value_struct, cfg mysql.Mqt
 }
 
 // extractValue 从API数据结构中提取对应类型的值
-func (c *Flexem_FlexEm) extractValue(v API_Post_Value_struct, valueType string) any {
+func (c *Flexem_FlexEm) extractValue(v API_dataValue_struct, valueType string) any {
 	switch valueType {
 	case "bool":
 		return v.BoolValue

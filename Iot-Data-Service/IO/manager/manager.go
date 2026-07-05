@@ -12,6 +12,7 @@ import (
 	"main/IO/manager/fullConfig"
 	"main/db/mysql"
 
+	"log"
 	"sync"
 
 	"errors"
@@ -21,15 +22,18 @@ import (
 // 最关键：驱动管理器（支持 N 个驱动）
 
 type DriverManager struct {
-	drivers map[uint]fullConfig.Driver // key = 驱动Name
-	mu      sync.RWMutex
+	drivers         map[uint]fullConfig.Driver // key = 驱动ID
+	mu              sync.RWMutex
+	shuttingDown    map[uint]bool // 正在关闭的驱动ID集合
+	shutdownMu      sync.Mutex    // 保护 shuttingDown map
 }
 
 var Manager *DriverManager
 
 func InitManager() {
 	Manager = &DriverManager{
-		drivers: make(map[uint]fullConfig.Driver),
+		drivers:      make(map[uint]fullConfig.Driver),
+		shuttingDown: make(map[uint]bool),
 	}
 }
 
@@ -72,6 +76,88 @@ func (m *DriverManager) GetDriver(id uint) (fullConfig.Driver, error) {
 		return nil, fmt.Errorf("不存在的驱动 点位id=%d", id)
 	}
 	return d, nil
+}
+
+// ShutdownDriver 优雅关闭指定驱动
+// 参数 id: 驱动ID（mqtt id）
+// 返回: error - 关闭过程中的错误
+func (m *DriverManager) ShutdownDriver(id uint) error {
+	if id == 0 {
+		return fmt.Errorf("无效的驱动ID")
+	}
+
+	// 1. 标记为正在关闭状态
+	m.shutdownMu.Lock()
+	if m.shuttingDown[id] {
+		m.shutdownMu.Unlock()
+		return fmt.Errorf("驱动 %d 已在关闭中", id)
+	}
+	m.shuttingDown[id] = true
+	m.shutdownMu.Unlock()
+
+	log.Printf("INFO 开始关闭驱动 ID:%d", id)
+
+	// 2. 获取驱动实例
+	m.mu.RLock()
+	driver, exists := m.drivers[id]
+	m.mu.RUnlock()
+
+	if !exists {
+		// 驱动不存在，直接清理关闭状态
+		m.shutdownMu.Lock()
+		delete(m.shuttingDown, id)
+		m.shutdownMu.Unlock()
+		return fmt.Errorf("驱动 %d 不存在", id)
+	}
+
+	// 3. 根据驱动类型执行关闭逻辑
+	var err error
+	switch d := driver.(type) {
+	case *flexem_mqtt.Flexem_Mqtt:
+		err = d.Stop() // 假设 Flexem_Mqtt 有 Stop 方法
+	case *flexem_flexem.Flexem_FlexEm:
+		err = d.Stop() // 假设 Flexem_FlexEm 有 Stop 方法
+	default:
+		err = fmt.Errorf("不支持的驱动类型")
+	}
+
+	// 4. 如果关闭成功，从管理器中移除驱动
+	if err == nil {
+		m.mu.Lock()
+		delete(m.drivers, id)
+		m.mu.Unlock()
+
+		// 5. 确认正常关闭，从 shuttingDown map 中删除
+		m.shutdownMu.Lock()
+		delete(m.shuttingDown, id)
+		m.shutdownMu.Unlock()
+
+		log.Printf("INFO 驱动 %d 已成功关闭并清理", id)
+	} else {
+		log.Printf("ERROR 驱动 %d 关闭失败: %s", id, err)
+		// 关闭失败时保留 shuttingDown 状态，便于后续重试或排查
+	}
+
+	return err
+}
+
+// IsShuttingDown 检查驱动是否正在关闭中
+func (m *DriverManager) IsShuttingDown(id uint) bool {
+	m.shutdownMu.Lock()
+	defer m.shutdownMu.Unlock()
+	return m.shuttingDown[id]
+}
+
+// GetShuttingDownDrivers 获取所有正在关闭的驱动ID列表
+func (m *DriverManager) GetShuttingDownDrivers() []uint {
+	m.shutdownMu.Lock()
+	defer m.shutdownMu.Unlock()
+
+	ids := make([]uint, 0, len(m.shuttingDown))
+	for id := range m.shuttingDown {
+		ids = append(ids, id)
+	}
+	return ids
 }
 
 // func main() {

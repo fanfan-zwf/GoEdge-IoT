@@ -35,15 +35,14 @@ type Flexem_Mqtt struct {
 	push_finally_time         time.Time // 设备最后一次推送时间
 	Push_finally_time_timeout time.Duration
 
-	Push_External_Mappings func([]fullConfig.Value_type) error
+	Callback_Push_External_Mappings func([]fullConfig.Value_type) error
 }
 
 // 定义接口
 type Connect_interface interface {
-	New() error
 }
 
-func (c *Flexem_Mqtt) New() error {
+func (c *Flexem_Mqtt) Start() error {
 	if c.Push_finally_time_timeout == 0 {
 		c.Push_finally_time_timeout = 10 * time.Second
 	}
@@ -64,7 +63,7 @@ func (c *Flexem_Mqtt) New() error {
 			log.Printf("ERROR 点位【%s】 MQTT变量名称配置缺失", v.Tag)
 			continue
 		}
-		
+
 		c.push_key_map_RWMu.Lock()
 		c.push_key_map[mqttName] = i
 		c.push_key_map_RWMu.Unlock()
@@ -73,13 +72,59 @@ func (c *Flexem_Mqtt) New() error {
 	// 启动定时器任务
 	c.timer = timer.NewTimerTask()
 	c.timer.Start(c.Push_finally_time_timeout, c.timer_msg)
-	
-	return nil
+
+	return c.Push()
 }
 
-// 关闭连接
-func (c *Flexem_Mqtt) Close() {
-	c.timer.Stop()
+// Stop 优雅关闭驱动（公开接口）
+func (c *Flexem_Mqtt) Stop() error {
+	log.Printf("INFO 正在关闭 Flexem_Mqtt 驱动 ID:%d", c.Config.Drive.Id)
+
+	// 1. 停止定时器
+	if c.timer != nil {
+		c.timer.Stop()
+	}
+
+	// 2. 取消 MQTT 订阅
+	topic_Push, ok := cloud.GetKVValue(c.Config.Drive.Config, "推送")
+	if !ok || topic_Push == "" {
+		err := fmt.Errorf("ERROR mqtt实例名称【%s】 推送值错误【%s】", c.Config.Drive.Name, topic_Push)
+		log.Print(err)
+		return err
+	}
+
+	example_IDentifier, ok := cloud.GetKVValue(c.Config.Drive.Config, "MQTT实例")
+	if !ok || example_IDentifier == "" {
+		err := fmt.Errorf("ERROR mqtt实例名称【%s】 MQTT实例【%s】", c.Config.Drive.Name, example_IDentifier)
+		log.Print(err)
+		return err
+	}
+
+	err := mqttbase.Subscribe_Close(example_IDentifier, topic_Push)
+	if err != nil {
+		log.Printf("WARN 取消订阅失败: %s", err)
+		// 继续执行清理，不返回错误
+	}
+
+	// 3. 清理内部资源，防止内存泄漏
+	c.points_config_RWMu.Lock()
+	defer c.points_config_RWMu.Unlock()
+	c.points_config_map = make(map[string]int) // 重新初始化为空 map
+
+	c.push_key_map_RWMu.Lock()
+	defer c.push_key_map_RWMu.Unlock()
+	c.push_key_map = make(map[string]int) // 重新初始化为空 map
+
+	// 4. 重置时间戳
+	c.push_finally_time_RWMu.Lock()
+	defer c.push_finally_time_RWMu.Unlock()
+	c.push_finally_time = time.Time{}
+
+	// 5. 清空回调函数引用
+	c.Callback_Push_External_Mappings = nil
+
+	log.Printf("INFO Flexem_Mqtt 驱动 ID:%d 已完全关闭并清理资源", c.Config.Drive.Id)
+	return nil
 }
 
 func (c *Flexem_Mqtt) timer_msg(callTime time.Time) {
@@ -114,11 +159,11 @@ func (c *Flexem_Mqtt) timer_msg(callTime time.Time) {
 		})
 	}
 
-	if len(value_list) == 0 || c.Push_External_Mappings == nil {
+	if len(value_list) == 0 || c.Callback_Push_External_Mappings == nil {
 		return
 	}
 
-	c.Push_External_Mappings(value_list)
+	c.Callback_Push_External_Mappings(value_list)
 }
 
 // 获取点位配置下标
@@ -263,8 +308,8 @@ func (c *Flexem_Mqtt) Push() (err error) {
 			})
 		}
 
-		if len(value_list) > 0 && c.Push_External_Mappings != nil {
-			c.Push_External_Mappings(value_list)
+		if len(value_list) > 0 && c.Callback_Push_External_Mappings != nil {
+			c.Callback_Push_External_Mappings(value_list)
 		}
 	})
 	return

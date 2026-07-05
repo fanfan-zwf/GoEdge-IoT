@@ -216,7 +216,7 @@ func Mqtt__Count(Types []string, Example_IDentifiers []string, Topics []string, 
 // Mqtt-》查询配置（回调）
 // 传递：Types 设备类型，Example_IDentifiers 设备标识符，Topics 设备主题，page 页码，pageSize 每页数量，callback 回调函数
 // 返回：err 错误
-func Mqtt__Query_Callback(Types []string, page uint, pageSize uint, callback func(Mqtt__type)) (err error) {
+func Mqtt__Query_Callback(Id []uint, Types []string, page uint, pageSize uint, callback func(Mqtt__type)) (err error) {
 	// 1. 初始化SQL和参数切片，避免多次拼接字符串，提升可读性和安全性
 	baseQuery := `
 		SELECT
@@ -295,8 +295,8 @@ func Mqtt__Query_Callback(Types []string, page uint, pageSize uint, callback fun
 // Mqtt-》查询配置
 // 传递：driveid 设备 id, page 页码，pageSize 每页数量
 // 返回：configs 配置，err 错误
-func Mqtt__Query(Types []string, page uint, pageSize uint) (configs []Mqtt__type, err error) {
-	err = Mqtt__Query_Callback(Types, page, pageSize, func(config Mqtt__type) {
+func Mqtt__Query(Id []uint, Types []string, page uint, pageSize uint) (configs []Mqtt__type, err error) {
+	err = Mqtt__Query_Callback(Id, Types, page, pageSize, func(config Mqtt__type) {
 		configs = append(configs, config)
 	})
 	return

@@ -9,6 +9,7 @@ import (
 	"main/db/influxdb"
 	"main/db/mysql"
 	"main/db/redis"
+	"main/method/monitor"
 	"main/web"
 
 	"log"
@@ -59,11 +60,16 @@ func exit() {
 
 func main() {
 	log.Print("INFO 程序开始 =======================================")
-	// 关键：defer 执行顺序是“后进先出”，建议把日志defer放在最前面，确保最后执行
+	// 关键：defer 执行顺序是"后进先出"，建议把日志defer放在最前面，确保最后执行
 	defer log.Print("INFO 程序结束 ---------------------------------------")
 
 	defer exit()
 	app()
+
+	// ********** 启动系统资源监控（CPU + 内存）**********
+	sysMonitor := monitor.NewSystemMonitor(5) // 每5分钟监控一次
+	sysMonitor.Start()
+	defer sysMonitor.Stop()
 
 	// ********** 关键2：提前初始化退出信号监听（app之前）**********
 	// 创建带缓冲的信号通道（避免信号丢失）

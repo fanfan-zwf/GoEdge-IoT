@@ -65,7 +65,13 @@ type Connect_interface interface {
 var c Connect_struct
 
 // 写入缓存: key = Tag + 纳秒时间戳，防重复写入（Tag + Time 作为唯一索引）
-var writeCache sync.Map
+// 优化：使用带过期时间的 map，定期清理旧数据防止内存泄漏
+var (
+	writeCache      sync.Map
+	cacheCleanupMu  sync.Mutex
+	lastCleanupTime time.Time
+	cacheMaxAge     = 1 * time.Hour // 缓存最大保留时间
+)
 
 // 统一固定测量名
 const fixedMeasurement = "point_data"
@@ -120,6 +126,13 @@ func (c *Connect_struct) Close() error {
 	if c.client != nil {
 		c.client.Close()
 	}
+
+	// 清理所有缓存
+	writeCache.Range(func(key, value interface{}) bool {
+		writeCache.Delete(key)
+		return true
+	})
+
 	return nil
 }
 
@@ -187,7 +200,48 @@ func (c *Connect_struct) flushBuffer() error {
 		return err
 	}
 
+	// 定期清理过期的缓存键，防止内存泄漏
+	c.cleanupWriteCache()
+
 	return nil
+}
+
+// cleanupWriteCache 清理过期的写入缓存键
+func (c *Connect_struct) cleanupWriteCache() {
+	cacheCleanupMu.Lock()
+	defer cacheCleanupMu.Unlock()
+
+	now := time.Now()
+	if now.Sub(lastCleanupTime) < cacheMaxAge/2 {
+		// 距离上次清理时间不足一半，跳过
+		return
+	}
+
+	lastCleanupTime = now
+	cutoffTime := now.Add(-cacheMaxAge).UnixNano()
+
+	// 遍历并删除过期的缓存键
+	writeCache.Range(func(key, value interface{}) bool {
+		if keyStr, ok := key.(string); ok {
+			// 从 cacheKey 格式 "tag_timestamp" 中提取时间戳部分
+			// 查找最后一个下划线后的时间戳
+			for i := len(keyStr) - 1; i >= 0; i-- {
+				if keyStr[i] == '_' {
+					if i < len(keyStr)-1 {
+						// 提取时间戳字符串
+						tsStr := keyStr[i+1:]
+						var ts int64
+						fmt.Sscanf(tsStr, "%d", &ts)
+						if ts < cutoffTime {
+							writeCache.Delete(key)
+						}
+					}
+					break
+				}
+			}
+		}
+		return true
+	})
 }
 
 // addToBuffer 添加数据到缓冲区，达到阈值时自动刷新
@@ -538,7 +592,7 @@ func New() error {
 
 	if cfg.Redis_Cache_Enable {
 		if cfg.Redis_Cache_Key == "" {
-			cfg.Redis_Cache_Key = "influxdb_cache"
+			log.Panic("ERROR Redis缓存队列Key不能为空")
 		}
 
 		// key: Redis队列的key名称
@@ -551,24 +605,43 @@ func New() error {
 			cfg.Redis_Cache_flushInterval,
 			cfg.Redis_Cache_maxReadSize,
 			func(v []string) {
-				// 优化：预分配切片容量，避免多次扩容
-				items := make([]fullConfig.Value_type, 0, len(v))
-
-				for _, s := range v {
-					item, err := db_point.Json_struct_to(s)
-					if err != nil {
-						log.Printf("influxdb JSON解析异常: %v", err)
-						continue
-					}
-					items = append(items, item)
+				if len(v) == 0 {
+					return
 				}
 
-				// 只在有有效数据时才写入
-				if len(items) > 0 {
-					err := c.Write(items)
-					if err != nil {
-						log.Printf("influxdb 写入失败: %v", err)
+				// 优化：分批处理，避免一次性加载大量数据到内存
+				// 每批最多处理 500 条数据
+				const batchSize = 500
+
+				for i := 0; i < len(v); i += batchSize {
+					end := i + batchSize
+					if end > len(v) {
+						end = len(v)
 					}
+					batch := v[i:end]
+
+					// 预分配切片容量，避免多次扩容
+					items := make([]fullConfig.Value_type, 0, len(batch))
+
+					for _, s := range batch {
+						item, err := db_point.Json_struct_to(s)
+						if err != nil {
+							log.Printf("influxdb JSON解析异常: %v", err)
+							continue
+						}
+						items = append(items, item)
+					}
+
+					// 只在有有效数据时才写入
+					if len(items) > 0 {
+						err := c.Write(items)
+						if err != nil {
+							log.Printf("influxdb 写入失败: %v", err)
+						}
+					}
+
+					// 释放当前批次内存，帮助 GC 回收
+					items = nil
 				}
 			})
 		if err != nil {
