@@ -124,7 +124,7 @@ func (sm *SystemMonitor) GetStats() []fullConfig.Value_type {
 		// === GC 相关 ===
 		{
 			Tag:   fmt.Sprintf("%s/GC执行次数", pointPrefix), // GC 执行次数
-			Value: memStats.NumGC,
+			Value: int(memStats.NumGC),
 			Type:  "int",
 			Msg:   "ok",
 			Time:  now,
@@ -156,22 +156,22 @@ func (sm *SystemMonitor) GetStats() []fullConfig.Value_type {
 		// === 内存分配统计 ===
 		{
 			Tag:   fmt.Sprintf("%s/累计内存分配次数", pointPrefix), // 累计内存分配次数
-			Value: memStats.Mallocs,
-			Type:  "uint64",
+			Value: int(memStats.Mallocs),
+			Type:  "int",
 			Msg:   "ok",
 			Time:  now,
 		},
 		{
 			Tag:   fmt.Sprintf("%s/累计内存释放次数", pointPrefix), // 累计内存释放次数
-			Value: memStats.Frees,
-			Type:  "uint64",
+			Value: int(memStats.Frees),
+			Type:  "int",
 			Msg:   "ok",
 			Time:  now,
 		},
 		{
 			Tag:   fmt.Sprintf("%s/指针查找次数", pointPrefix), // 指针查找次数
-			Value: memStats.Lookups,
-			Type:  "uint64",
+			Value: int(memStats.Lookups),
+			Type:  "int",
 			Msg:   "ok",
 			Time:  now,
 		},

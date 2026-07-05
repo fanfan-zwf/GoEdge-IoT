@@ -1,9 +1,8 @@
 package main
 
 import (
-	_ "main/Init"
-
 	"main/IO/manager"
+	"main/Init"
 	"main/app/mqttbase"
 	"main/db/db_point"
 	"main/db/influxdb"
@@ -67,9 +66,11 @@ func main() {
 	app()
 
 	// ********** 启动系统资源监控（CPU + 内存）**********
-	sysMonitor := monitor.NewSystemMonitor(5) // 每5分钟监控一次
-	sysMonitor.Start()
-	defer sysMonitor.Stop()
+	if Init.Config.Monitor.Enable {
+		sysMonitor := monitor.NewSystemMonitor(Init.Config.Monitor.Interval) // 每5分钟监控一次
+		sysMonitor.Start()
+		defer sysMonitor.Stop()
+	}
 
 	// ********** 关键2：提前初始化退出信号监听（app之前）**********
 	// 创建带缓冲的信号通道（避免信号丢失）
