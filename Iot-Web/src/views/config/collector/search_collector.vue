@@ -38,7 +38,7 @@ import { reactive, watch } from 'vue'
 import axios from "axios";
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Collector_Info__Search_Field_Blurred, type Collector_Info__table_interface } from '@/api/config_service'
+import { Collector_Config__Search_Field_Blurred, type Collector_Config__table_interface } from '@/api/config_service'
 
 // export interface api_search_interface {
 //     Id: number,   // 点位id
@@ -53,12 +53,12 @@ import { Collector_Info__Search_Field_Blurred, type Collector_Info__table_interf
 interface search_interface {
     visible: boolean,
     search: string,
-    result: Collector_Info__table_interface[]
+    result: Collector_Config__table_interface[]
     multiple: boolean
 }
 
 interface Props {
-    result: (value: Collector_Info__table_interface) => void;
+    result: (value: Collector_Config__table_interface) => void;
 }
 
 
@@ -77,7 +77,7 @@ var search: search_interface = reactive<search_interface>({
 
 
 
-const choice = (row: Collector_Info__table_interface) => {
+const choice = (row: Collector_Config__table_interface) => {
     if (search.multiple === false) {
         search.visible = false
         search.search = row.Name
@@ -87,9 +87,9 @@ const choice = (row: Collector_Info__table_interface) => {
 
 
 const api_Search = () => {
-    Collector_Info__Search_Field_Blurred(
+    Collector_Config__Search_Field_Blurred(
         { Quantity: 20, Vague: search.search }
-    ).then((value_array: Collector_Info__table_interface[]) => {
+    ).then((value_array: Collector_Config__table_interface[]) => {
         search.result.length = 0
         Object.assign(search.result, value_array)
         search.visible = true

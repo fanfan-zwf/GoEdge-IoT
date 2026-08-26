@@ -15,14 +15,19 @@ import (
 	"sync"
 )
 
+type Config_key_type struct {
+	DeviceId string // 设备id
+	PointId  uint   // 点位id
+}
+
 var (
 	Err_Publisher_Close = fmt.Errorf("Close")
-	Value_Map           map[string]Update_Value_type
+	Value_Map           map[Config_key_type]Update_Value_type
 	Value_Map_Mu        sync.RWMutex
 )
 
 func init() {
-	Value_Map = make(map[string]Update_Value_type)
+	Value_Map = make(map[Config_key_type]Update_Value_type)
 }
 
 /*
@@ -40,7 +45,7 @@ var (
 func Collection_Publisher(v []fullConfig.Value_type) error {
 	if len(v) == 0 {
 		return nil
-	}
+	} 
 
 	for _, f := range Collection_value_list {
 		err := (*f)(v)
@@ -106,28 +111,34 @@ func Update_Subscriber(value Update_func) error {
 
 // 单条数据更新判断
 func Update_Value_Judgment(new fullConfig.Value_type) (bool, error) {
+	key := Config_key_type{
+		DeviceId: new.DeviceId, // 设备id
+		PointId:  new.PointId,  // 点位id
+	}
+
 	// 优化：使用写锁保护整个读写过程，避免竞态窗口
 	Value_Map_Mu.Lock()
 	defer Value_Map_Mu.Unlock()
-	
-	old, ok := Value_Map[new.Tag]
-	
+
+	old, ok := Value_Map[key]
+
 	if !ok {
 		// 修复Bug: 新点位需要完整初始化所有字段
-		Value_Map[new.Tag] = Update_Value_type{
+		Value_Map[key] = Update_Value_type{
 			Value_type: fullConfig.Value_type{
-				Tag:   new.Tag,
-				Time:  new.Time,
-				Value: new.Value,
-				Type:  new.Type,
-				Msg:   new.Msg,
+				DeviceId: new.DeviceId, // 设备id
+				PointId:  new.PointId,  // 点位id
+				Time:     new.Time,
+				Value:    new.Value,
+				Type:     new.Type,
+				Msg:      new.Msg,
 			},
 			Last_Value: new.Value, // 首次更新时，Last_Value 与当前值相同
 			Last_Time:  new.Time,  // 首次更新时，Last_Time 与当前时间相同
 		}
 		return true, nil
 	}
-	
+
 	// 状态消息更新
 	if new.Msg != "ok" {
 		old.Msg = new.Msg
@@ -139,12 +150,12 @@ func Update_Value_Judgment(new fullConfig.Value_type) (bool, error) {
 		old.Last_Time = old.Time
 		old.Value = new.Value
 		old.Time = new.Time
-		
+
 		// 在锁内直接更新，避免二次加锁
-		Value_Map[new.Tag] = old
+		Value_Map[key] = old
 		return true, nil
 	}
-	
+
 	// 值未变化
 	return false, nil
 }
@@ -157,7 +168,7 @@ func Update_Value_Judgment_list(new_list []fullConfig.Value_type) error {
 
 	// 优化：预分配切片容量，避免多次扩容
 	update_list := make([]fullConfig.Value_type, 0, len(new_list))
-	
+
 	for _, v := range new_list {
 		u, err := Update_Value_Judgment(v)
 		if err != nil {
@@ -169,12 +180,12 @@ func Update_Value_Judgment_list(new_list []fullConfig.Value_type) error {
 			update_list = append(update_list, v)
 		}
 	}
-	
+
 	// 优化：只在有变化数据时才发布
 	if len(update_list) > 0 {
 		Update_Publisher(update_list)
 	}
-	
+
 	return nil
 }
 func init() {
@@ -189,7 +200,7 @@ func New() error {
 func init() {
 	Update_Subscriber(func(v []fullConfig.Value_type) error {
 		for _, val := range v {
-			fmt.Printf("数据更新 Tag: %s, Value: %v, Msg: %s, Time: %s\n", val.Tag, val.Value, val.Msg, val.Time.Format(time.RFC3339))
+			fmt.Printf("数据更新 设备id: %s, 设备id: %d, Value: %v, Msg: %s, Time: %s\n", val.DeviceId, val.PointId, val.Value, val.Msg, val.Time.Format(time.RFC3339))
 		}
 		return nil
 	})

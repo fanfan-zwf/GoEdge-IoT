@@ -41,32 +41,32 @@ type TableRule struct {
 // ---------------------- 3. 程序预期的表规则（精简版） ----------------------
 // 定义程序预期的表规则（按需修改为你的实际表/字段）
 var expectTableRules = []TableRule{
-	{
-		TableName: "Drive_Config",
-		// TableComment: "驱动配置",
-		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true},
-			{ColumnName: "Type", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
-			{ColumnName: "Name", ColumnType: "varchar(100)", IsRequired: true},
-			{ColumnName: "Config", ColumnType: "varchar(200)"},
-			{ColumnName: "Points_Length", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0"},
-			{ColumnName: "Collector_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
-			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
-		},
-	}, {
-		TableName: "Points_Config",
-		// TableComment: "点位配置",
-		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
-			{ColumnName: "Drive_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
-			{ColumnName: "Tag", ColumnType: "varchar(300)", IsRequired: true, IsUnique: true},
-			{ColumnName: "Description", ColumnType: "varchar(300)"},
-			{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
-			{ColumnName: "RW_Cancel", ColumnType: "varchar(100)", IsRequired: true, DefaultValue: "N"},
-			{ColumnName: "Value_Type", ColumnType: "varchar(100)", IsRequired: true},
-			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
-		},
-	},
+	// {
+	// 	TableName: "Drive_Config",
+	// 	// TableComment: "驱动配置",
+	// 	Columns: []ColumnRule{
+	// 		{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true},
+	// 		{ColumnName: "Type", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
+	// 		{ColumnName: "Name", ColumnType: "varchar(100)", IsRequired: true},
+	// 		{ColumnName: "Config", ColumnType: "varchar(200)"},
+	// 		{ColumnName: "Points_Length", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0"},
+	// 		{ColumnName: "Collector_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+	// 		{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+	// 	},
+	// }, {
+	// 	TableName: "Point_Config",
+	// 	// TableComment: "点位配置",
+	// 	Columns: []ColumnRule{
+	// 		{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
+	// 		{ColumnName: "Drive_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+	// 		{ColumnName: "Name", ColumnType: "varchar(300)", IsRequired: true},
+	// 		{ColumnName: "Description", ColumnType: "varchar(300)"},
+	// 		{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
+	// 		{ColumnName: "RW_Cancel", ColumnType: "varchar(100)", IsRequired: true, DefaultValue: "N"},
+	// 		{ColumnName: "Value_Type", ColumnType: "varchar(100)", IsRequired: true},
+	// 		{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+	// 	},
+	// },
 }
 
 // ---------------------- 5. 核心工具函数 ----------------------
@@ -290,6 +290,9 @@ func getTableColumns(tableName string) (map[string]ColumnRule, error) {
 			IsPrimaryKey: columnKey == "PRI", // 数据库中是否为主键
 			DefaultValue: defaultValue,
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("遍历表[%s]字段时出错：%w", tableName, err)
 	}
 	return actualColumns, nil
 }

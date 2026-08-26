@@ -19,6 +19,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/andybalholm/brotli"
 )
@@ -285,4 +286,49 @@ func GetKVValue(str string, targetKey string) (string, bool) {
 	}
 
 	return "", false
+}
+
+// SplitBySemicolon 根据 ; 分割字符串，按index获取元素，index从 0 开始
+// str: "1;03;4;BA;int16"
+// index: 下标，0为第一个元素
+func GetSplitStr(str string, index int) (string, error) {
+	parts := strings.Split(str, ";")
+	// 判断下标越界
+	if index < 0 || index >= len(parts) {
+		return "", errors.New("index out of range")
+	}
+	return parts[index], nil
+}
+
+// GetSplitInt 根据;分割，取index位置，直接转int返回
+func GetSplitInt(str string, index int) (int, error) {
+	s, err := GetSplitStr(str, index)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(strings.TrimSpace(s))
+}
+
+// GetSplitBool 根据;分割，取index位置，直接转bool返回
+func GetSplitBool(str string, index int) (bool, error) {
+	s, err := GetSplitStr(str, index)
+	if err != nil {
+		return false, err
+	}
+	switch s {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	}
+
+	return false, errors.New("invalid bool value")
+}
+
+func GetSplitDuration(str string, index int) (time.Duration, error) {
+	s, err := GetSplitStr(str, index)
+	if err != nil {
+		return 0, err
+	}
+	return time.ParseDuration(s)
 }

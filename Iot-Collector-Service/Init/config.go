@@ -39,11 +39,21 @@ type MqttItem struct {
 
 type Config_type struct {
 	APP struct {
-		Version   string `yaml:"version"` // 版本号
-		SN        string `yaml:"sn"`      // 设备id
-		Uuid      string `yaml:"uuid"`
-		AesPasswd string `yaml:"aes_passwd"`
+		Version string `yaml:"version"` // 版本号
+		SN      string `yaml:"sn"`      // 设备id
+		Uuid    string `yaml:"uuid"`
+		Passwd  string `yaml:"passwd"`
+		Label   string `yaml:"label"` // 标识符
 	} `yaml:"APP"` // 程序主要参数
+
+	Config_Service struct {
+		Enable  bool   `yaml:"enable"`  // 配置服务是否启用
+		Address string `yaml:"address"` // 配置服务地址
+
+		SetTimeout       time.Duration `yaml:"setTimeout"`       // 设置超时时间
+		SetRetryCount    int           `yaml:"setRetryCount"`    // 401 最多重试 1 次，避免死循环
+		SetRetryWaitTime time.Duration `yaml:"setRetryWaitTime"` // 设置重试等待时间
+	} `yaml:"Config_Service"`
 
 	API struct {
 		Enable bool   `yaml:"enable"`
@@ -133,6 +143,20 @@ func init() {
 		log.Panic("ERR", "读取配置文件错误", err)
 		return
 	}
+
+	// Config_Service 默认值
+	Config.Config_Service.SetTimeout = 10 * time.Second
+	Config.Config_Service.SetRetryCount = 1
+	Config.Config_Service.SetRetryWaitTime = 3 * time.Second
+
+	// API 默认值
+	Config.API.Ip = "0.0.0.0"
+	Config.API.Post = 8102
+
+	// log
+	Config.LOG.Path = "./log"
+	Config.LOG.CacheTTL = 30
+	Config.LOG.Flags = "Ldate Lmicroseconds Llongfile"
 
 	err = yaml.Unmarshal(data, &Config)
 	if err != nil {

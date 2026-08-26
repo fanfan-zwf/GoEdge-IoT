@@ -41,51 +41,51 @@ type TableRule struct {
 // ---------------------- 3. 程序预期的表规则（精简版） ----------------------
 // 定义程序预期的表规则（按需修改为你的实际表/字段）
 var expectTableRules = []TableRule{
-	{
-		TableName: "Collector_Info",
-		// TableComment: "采集设备的信息",
-		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
-			{ColumnName: "Equipment_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true, IsUnique: true, DefaultValue: "0"},
-			{ColumnName: "Label", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true, IsUnique: true},
-			{ColumnName: "Uuid", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
-			{ColumnName: "Sn", ColumnType: "varchar(100)", IsIndex: true},
-			{ColumnName: "User_Id", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0", IsIndex: true},
-			{ColumnName: "Version", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
-			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
-			{ColumnName: "Last_Activity_Time", ColumnType: "datetime", IsIndex: true},
-			{ColumnName: "Name", ColumnType: "varchar(100)", IsIndex: true},
-		},
-	}, {
-		TableName: "Drive_Config",
-		// TableComment: "驱动配置",
-		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true},
-			{ColumnName: "Type", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
-			{ColumnName: "Name", ColumnType: "varchar(100)", IsRequired: true},
-			{ColumnName: "Config", ColumnType: "varchar(200)"},
-			{ColumnName: "Points_Length", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0"},
-			{ColumnName: "Collector_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
-			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
-		},
-	}, {
-		TableName: "Points_Config",
-		// TableComment: "点位配置",
-		Columns: []ColumnRule{
-			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
-			{ColumnName: "Drive_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
-			{ColumnName: "Tag", ColumnType: "varchar(300)", IsRequired: true, IsUnique: true},
-			{ColumnName: "Description", ColumnType: "varchar(300)"},
-			{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
-			{ColumnName: "RW_Cancel", ColumnType: "varchar(100)", IsRequired: true, DefaultValue: "N"},
-			{ColumnName: "Value_Type", ColumnType: "varchar(100)", IsRequired: true},
-			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+	// {
+	// 	TableName: "Collector_Config",
+	// 	// TableComment: "采集设备的信息",
+	// 	Columns: []ColumnRule{
+	// 		{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
+	// 		{ColumnName: "Equipment_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true, IsUnique: true, DefaultValue: "0"},
+	// 		{ColumnName: "Label", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true, IsUnique: true},
+	// 		{ColumnName: "Uuid", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
+	// 		{ColumnName: "Sn", ColumnType: "varchar(100)", IsIndex: true},
+	// 		{ColumnName: "User_Id", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0", IsIndex: true},
+	// 		{ColumnName: "Version", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
+	// 		{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+	// 		{ColumnName: "Last_Activity_Time", ColumnType: "datetime", IsIndex: true},
+	// 		{ColumnName: "Name", ColumnType: "varchar(100)", IsIndex: true},
+	// 	},
+	// }, {
+	// 	TableName: "Drive_Config",
+	// 	// TableComment: "驱动配置",
+	// 	Columns: []ColumnRule{
+	// 		{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true},
+	// 		{ColumnName: "Type", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
+	// 		{ColumnName: "Name", ColumnType: "varchar(100)", IsRequired: true},
+	// 		{ColumnName: "Config", ColumnType: "varchar(200)"},
+	// 		{ColumnName: "Points_Length", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0"},
+	// 		{ColumnName: "Collector_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+	// 		{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+	// 	},
+	// }, {
+	// 	TableName: "Point_Config",
+	// 	// TableComment: "点位配置",
+	// 	Columns: []ColumnRule{
+	// 		{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
+	// 		{ColumnName: "Drive_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+	// 		{ColumnName: "Tag", ColumnType: "varchar(300)", IsRequired: true, IsUnique: true},
+	// 		{ColumnName: "Description", ColumnType: "varchar(300)"},
+	// 		{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
+	// 		{ColumnName: "RW_Cancel", ColumnType: "varchar(100)", IsRequired: true, DefaultValue: "N"},
+	// 		{ColumnName: "Value_Type", ColumnType: "varchar(100)", IsRequired: true},
+	// 		{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
 
-			{ColumnName: "History", ColumnType: "varchar(100)"},
-			{ColumnName: "Alarm", ColumnType: "varchar(100)"},
-			{ColumnName: "Alarm_Group", ColumnType: "tinyint unsigned"},
-		},
-	},
+	// 		{ColumnName: "History", ColumnType: "varchar(100)"},
+	// 		{ColumnName: "Alarm", ColumnType: "varchar(100)"},
+	// 		{ColumnName: "Alarm_Group", ColumnType: "tinyint unsigned"},
+	// 	},
+	// },
 }
 
 // ---------------------- 5. 核心工具函数 ----------------------
@@ -310,7 +310,14 @@ func getTableColumns(tableName string) (map[string]ColumnRule, error) {
 			DefaultValue: defaultValue,
 		}
 	}
-	return actualColumns, nil
+
+	// 检查迭代过程中是否发生错误
+	err = rows.Err()
+	if err != nil {
+		err = fmt.Errorf("ERROR 遍历驱动配置结果集失败，错误:%v", err)
+		log.Print(err)
+	}
+	return actualColumns, err
 }
 
 // 6. 读取表的实际注释

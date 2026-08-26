@@ -27,11 +27,15 @@ const (
 	CDAB // 中端
 	DCBA // 全反
 
-	// 8字节
-	ABCDEFGH
-	BADCFEHG
-	CDABGHEF
-	DCBAHGFE
+	// 8字节（8种完整顺序）
+	ABCDEFGH // 大端
+	BADCFEHG // 字交换+字内字节交换
+	CDABGHEF // 中端
+	DCBAHGFE // 全反（小端）
+	EFGHABCD // 前后半组交换
+	FEHGDCBA // 前后半组交换+字内字节交换
+	GHEFCDAB // 前后半组交换+中端
+	HGFEDCBA // 前后半组交换+全反
 )
 
 // 类型字节数量输出
@@ -52,6 +56,10 @@ var Byte_Value = map[string]int{
 	"BADCFEHG": BADCFEHG,
 	"CDABGHEF": CDABGHEF,
 	"DCBAHGFE": DCBAHGFE,
+	"EFGHABCD": EFGHABCD,
+	"FEHGDCBA": FEHGDCBA,
+	"GHEFCDAB": GHEFCDAB,
+	"HGFEDCBA": HGFEDCBA,
 }
 
 // ==============================
@@ -246,6 +254,15 @@ func Uint64ToBytes(v []uint64, order int) []byte {
 			out[i*8+5] = byte(n >> 32)
 			out[i*8+6] = byte(n >> 16)
 			out[i*8+7] = byte(n)
+		case CDABGHEF:
+			out[i*8] = byte(n >> 40)
+			out[i*8+1] = byte(n >> 48)
+			out[i*8+2] = byte(n >> 56)
+			out[i*8+3] = byte(n >> 32)
+			out[i*8+4] = byte(n >> 16)
+			out[i*8+5] = byte(n >> 24)
+			out[i*8+6] = byte(n)
+			out[i*8+7] = byte(n >> 8)
 		case DCBAHGFE:
 			out[i*8] = byte(n)
 			out[i*8+1] = byte(n >> 8)
@@ -255,6 +272,42 @@ func Uint64ToBytes(v []uint64, order int) []byte {
 			out[i*8+5] = byte(n >> 40)
 			out[i*8+6] = byte(n >> 48)
 			out[i*8+7] = byte(n >> 56)
+		case EFGHABCD:
+			out[i*8] = byte(n >> 24)
+			out[i*8+1] = byte(n >> 16)
+			out[i*8+2] = byte(n >> 8)
+			out[i*8+3] = byte(n)
+			out[i*8+4] = byte(n >> 56)
+			out[i*8+5] = byte(n >> 48)
+			out[i*8+6] = byte(n >> 40)
+			out[i*8+7] = byte(n >> 32)
+		case FEHGDCBA:
+			out[i*8] = byte(n >> 16)
+			out[i*8+1] = byte(n >> 24)
+			out[i*8+2] = byte(n)
+			out[i*8+3] = byte(n >> 8)
+			out[i*8+4] = byte(n >> 48)
+			out[i*8+5] = byte(n >> 56)
+			out[i*8+6] = byte(n >> 32)
+			out[i*8+7] = byte(n >> 40)
+		case GHEFCDAB:
+			out[i*8] = byte(n >> 8)
+			out[i*8+1] = byte(n)
+			out[i*8+2] = byte(n >> 24)
+			out[i*8+3] = byte(n >> 16)
+			out[i*8+4] = byte(n >> 40)
+			out[i*8+5] = byte(n >> 32)
+			out[i*8+6] = byte(n >> 56)
+			out[i*8+7] = byte(n >> 48)
+		case HGFEDCBA:
+			out[i*8] = byte(n)
+			out[i*8+1] = byte(n >> 8)
+			out[i*8+2] = byte(n >> 16)
+			out[i*8+3] = byte(n >> 24)
+			out[i*8+4] = byte(n >> 56)
+			out[i*8+5] = byte(n >> 48)
+			out[i*8+6] = byte(n >> 40)
+			out[i*8+7] = byte(n >> 32)
 		}
 	}
 	return out
@@ -271,7 +324,22 @@ func BytesToUint64(b []byte, order int) []uint64 {
 		case BADCFEHG:
 			out[i] = uint64(b[i*8+1])<<56 | uint64(b[i*8+2])<<48 | uint64(b[i*8+3])<<40 | uint64(b[i*8])<<32 |
 				uint64(b[i*8+5])<<24 | uint64(b[i*8+6])<<16 | uint64(b[i*8+4])<<8 | uint64(b[i*8+7])
+		case CDABGHEF:
+			out[i] = uint64(b[i*8+2])<<56 | uint64(b[i*8])<<48 | uint64(b[i*8+1])<<40 | uint64(b[i*8+3])<<32 |
+				uint64(b[i*8+6])<<24 | uint64(b[i*8+4])<<16 | uint64(b[i*8+5])<<8 | uint64(b[i*8+7])
 		case DCBAHGFE:
+			out[i] = uint64(b[i*8+7])<<56 | uint64(b[i*8+6])<<48 | uint64(b[i*8+5])<<40 | uint64(b[i*8+4])<<32 |
+				uint64(b[i*8+3])<<24 | uint64(b[i*8+2])<<16 | uint64(b[i*8+1])<<8 | uint64(b[i*8])
+		case EFGHABCD:
+			out[i] = uint64(b[i*8+4])<<56 | uint64(b[i*8+5])<<48 | uint64(b[i*8+6])<<40 | uint64(b[i*8+7])<<32 |
+				uint64(b[i*8])<<24 | uint64(b[i*8+1])<<16 | uint64(b[i*8+2])<<8 | uint64(b[i*8+3])
+		case FEHGDCBA:
+			out[i] = uint64(b[i*8+5])<<56 | uint64(b[i*8+4])<<48 | uint64(b[i*8+7])<<40 | uint64(b[i*8+6])<<32 |
+				uint64(b[i*8+1])<<24 | uint64(b[i*8])<<16 | uint64(b[i*8+3])<<8 | uint64(b[i*8+2])
+		case GHEFCDAB:
+			out[i] = uint64(b[i*8+6])<<56 | uint64(b[i*8+7])<<48 | uint64(b[i*8+4])<<40 | uint64(b[i*8+5])<<32 |
+				uint64(b[i*8+2])<<24 | uint64(b[i*8+3])<<16 | uint64(b[i*8])<<8 | uint64(b[i*8+1])
+		case HGFEDCBA:
 			out[i] = uint64(b[i*8+7])<<56 | uint64(b[i*8+6])<<48 | uint64(b[i*8+5])<<40 | uint64(b[i*8+4])<<32 |
 				uint64(b[i*8+3])<<24 | uint64(b[i*8+2])<<16 | uint64(b[i*8+1])<<8 | uint64(b[i*8])
 		}

@@ -1,97 +1,88 @@
 package manager
 
 import (
-	"main/IO/Modbus_Tcp"
-	"main/IO/manager/fullConfig"
-	"main/Init"
-	"main/app/mqttrpc"
+	apigetconfig "main/app/api_get_config"
 	"main/db/db_point"
 	"main/db/mysql"
 
 	"fmt"
 	"log"
-
 	"time"
 )
 
 // InitializeDrivers 初始化采集器下所有支持的驱动（查询+加载+启动）
-func InitializeDrivers() (err error) {
-	// 1. 查询采集器
-	var collectorInfos []mysql.Collector_Info_type
-	collectorInfos, err = mqttrpc.Collector_Info__Search_Field("Uuid", 1, Init.Config.APP.Uuid)
-	if err != nil {
-		return fmt.Errorf("ERROR 采集器查询失败: %w", err)
+// 配置来源：通过 HTTP API 从配置服务获取驱动和点位配置
+func InitializeDrivers() error {
+	// 0. 先登录配置服务获取 token
+	if _, err := apigetconfig.Collector_GetBasicAuth(); err != nil {
+		return fmt.Errorf("配置服务认证失败: %w", err)
 	}
-	if len(collectorInfos) == 0 {
-		return fmt.Errorf("ERROR 未找到采集设备 UUID: %s", Init.Config.APP.Uuid)
-	}
-	collectorInfo := collectorInfos[0]
+	log.Printf("INFO 配置服务认证成功")
 
-	// 2. 查询驱动列表
-	driveConfigs, err := mqttrpc.Drive_Config__Query([]uint{collectorInfo.Id}, []string{}, 0, 0)
+	// 1. 从配置服务获取驱动配置
+	driveConfigs, err := apigetconfig.Collector_Drive_Config__Query()
 	if err != nil {
-		return fmt.Errorf("ERROR 驱动查询失败: %w", err)
+		return fmt.Errorf("驱动配置获取失败: %w", err)
+	}
+	if len(driveConfigs) == 0 {
+		log.Printf("WARN 当前采集器下无驱动配置")
+		return nil
+	}
+
+	// 2. 从配置服务获取点位配置
+	pointConfigs, err := apigetconfig.Collector_Point_Config__Query()
+	if err != nil {
+		return fmt.Errorf("点位配置获取失败: %w", err)
+	}
+
+	// 3. 按驱动ID分组点位配置（避免每个驱动都遍历全量点位）
+	pointsByDriveId := make(map[uint][]mysql.CollectorGet_Point_Config_type)
+	for _, p := range pointConfigs {
+		pointsByDriveId[p.Drive_Id] = append(pointsByDriveId[p.Drive_Id], p)
 	}
 
 	InitManager() // 初始化驱动管理器
 
-	// 3. 遍历驱动
+	// 4. 遍历驱动，逐个初始化
+	var firstErr error
 	for _, driveConfig := range driveConfigs {
-
-		var fullConfig fullConfig.FullConfig_type
-		fullConfig.Drive = driveConfig
-		// 2. 支持 → 才查询点位（你要的核心优化）
-		fullConfig.Points, err = mqttrpc.Points_Config__Query([]uint{}, []uint{driveConfig.Id}, 0, 0)
-		if err != nil {
-			log.Printf("ERROR 点位查询失败 driveId:%d: %s", driveConfig.Id, err)
-			return
-		}
-
-		var driver any
-		driver, err = Manager.CreateDriver(fullConfig)
-		if err != nil {
-			log.Printf("ERROR 创建驱动失败 driveId:%d: %s", driveConfig.Id, err)
-			return
-		}
-
-		err = db_point.Alarm_Config_Subscriber_mysqlconfig(fullConfig)
-		if err != nil {
-			log.Printf("ERROR 创建报警失败 driveId:%d: %s", driveConfig.Id, err)
-			return
-		}
-
-		switch driveConfig.Type {
-		case "Modbus_Tcp":
-			modbus_tcp_struct, ok := driver.(*Modbus_Tcp.Modbus_Tcp)
-			if !ok {
-				continue
+		if err := initSingleDriver(driveConfig, pointsByDriveId[driveConfig.Id]); err != nil {
+			log.Printf("ERROR 驱动 id=%d 初始化失败: %v", driveConfig.Id, err)
+			if firstErr == nil {
+				firstErr = err
 			}
-			err = modbus_tcp_struct.New()
-			if err != nil {
-				log.Printf("ERROR 初始化驱动失败 driveId:%d: %s", driveConfig.Id, err)
-				return
-			}
-			err = modbus_tcp_struct.Connect()
-			if err != nil {
-				log.Printf("ERROR 连接驱动失败 driveId:%d: %s", driveConfig.Id, err)
-				return
-			}
-			modbus_tcp_struct.Read_External_Mappings = db_point.Collection_Publisher
-			err = db_point.Write_value_Subscriber_mysqlconfig(fullConfig, map[string]bool{"R/W": true, "W": true}, modbus_tcp_struct.Write)
-			if err != nil {
-				log.Printf("ERROR 订阅写点位失败 driveId:%d: %s", driveConfig.Id, err)
-				return
-			}
-		default:
-			log.Printf("WARN 未知驱动类型: %s, 驱动ID: %d", driveConfig.Type, driveConfig.Id)
+			// 单个驱动失败不影响其他驱动初始化
+			continue
 		}
+		log.Printf("INFO 驱动 id=%d type=%s 初始化完成，点位数=%d",
+			driveConfig.Id, driveConfig.Type, len(pointsByDriveId[driveConfig.Id]))
+	}
+
+	return firstErr
+}
+
+// initSingleDriver 初始化单个驱动：创建 → New → Connect
+func initSingleDriver(drive mysql.Drive_Config_type, points []mysql.CollectorGet_Point_Config_type) error {
+	// 1. 创建驱动实例
+	_, err := CreateDriver(drive.Type, drive.Id)
+	if err != nil {
+		return fmt.Errorf("创建驱动失败: %w", err)
+	}
+
+	// 2. 初始化驱动配置
+	if err := DriveNew(drive.Id, drive, points); err != nil {
+		return fmt.Errorf("初始化配置失败: %w", err)
+	}
+
+	// 3. 连接驱动并绑定数据回调
+	if err := DriveConnect(drive.Id, db_point.Collection_Publisher); err != nil {
+		return fmt.Errorf("连接驱动失败: %w", err)
 	}
 
 	return nil
 }
-func New() (err error) {
-	time.Sleep(1 * time.Second)
-	InitializeDrivers()
 
-	return
+func Start() error {
+	time.Sleep(1 * time.Second)
+	return InitializeDrivers()
 }

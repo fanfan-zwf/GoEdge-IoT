@@ -26,20 +26,20 @@ type Collector__Carry_type struct {
 }
 
 // 采集配置增加结构体
-type Collector_Info_Add_type struct {
+type Collector_Config_Add_type struct {
 	Label   string // 标识
 	Uuid    string // Uuid
 	Name    string // 设备名称
 	User_Id uint   // 用户id
 }
 
-type Collector_Info_Update_type struct {
+type Collector_Config_Update_type struct {
 	Id   uint   // 采集 Id
 	Name string // 设备名称
 }
 
 // 采集配置结构体
-type Collector_Info_type struct {
+type Collector_Config_type struct {
 	Id                 uint      // 采集 Id
 	Label              string    // 标识
 	Creation_Time      time.Time // 创建时间
@@ -88,7 +88,7 @@ type Drive_Config_type struct {
 ***************点位配置结构体***************
  */
 // 点位配置增加结构体
-type Points_Config_Add_type struct {
+type Point_Config_Add_type struct {
 	Id          uint   // 点位id
 	Drive_Id    uint   // 驱动id唯一标识符
 	Tag         string // 点位标识
@@ -102,7 +102,7 @@ type Points_Config_Add_type struct {
 }
 
 // 点位配置更新结构体
-type Points_Config_Update_type struct {
+type Point_Config_Update_type struct {
 	Id          uint   // 点位id
 	Tag         string // 点位标识
 	Description string // 点位描述
@@ -115,11 +115,11 @@ type Points_Config_Update_type struct {
 }
 
 // 点位配置结构体
-type Points_Config_type struct {
+type Point_Config_type struct {
 	Collector Collector__Carry_type
 	Drive     Drive__Carry_type
 
-	Points_Config_Update_type
+	Point_Config_Update_type
 	Creation_Time time.Time // 创建时间
 
 }
@@ -352,7 +352,7 @@ func Mqtt__Add(configs ...Mqtt__Add_type) (err error) {
 	// 6. 执行插入
 	_, err = DB.Exec(query, args...)
 	if err != nil {
-		return fmt.Errorf("批量插入 Points_Config 失败: %w", err)
+		return fmt.Errorf("批量插入 Point_Config 失败: %w", err)
 	}
 
 	return nil
@@ -724,7 +724,7 @@ func Mqtt_Points__Add(configs ...Mqtt_Points__Add_type) (err error) {
 	// 6. 执行插入
 	_, err = DB.Exec(query, args...)
 	if err != nil {
-		return fmt.Errorf("批量插入 Points_Config 失败: %w", err)
+		return fmt.Errorf("批量插入 Point_Config 失败: %w", err)
 	}
 
 	return nil

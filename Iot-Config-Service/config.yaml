@@ -17,7 +17,7 @@ API:
       value: Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, F_Access_Token, F_Refresh_Token, F_Terminal_Uuid
 
 MYSQL:
-  dsn: "root:123456@tcp(127.0.0.1:3306)/iot-config-service?charset=utf8mb4&parseTime=True&loc=Local"
+  dsn: "root:123456@tcp(127.0.0.1:3306)/iot-config-service?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true&parseTime=true"
   
 REDIS:
   ip: 127.0.0.1
@@ -39,16 +39,17 @@ User_Service:
   timeout: 30s 
 
 Mqtt:
-  enable: True
-  broker: tcp://127.0.0.1:1883
-  username: o7aKZOj53p2PkkFJzKzM
-  password: lpj4VZ4ZYFg5GmINhRat
-  client_id:  123e4567-e89b-12d3-a456-426614174001
-  clean_session: True
-  auto_reconnect: True
-  connect_timeout: 10s
-  write_timeout: 5s
-  keep_alive: 30s
-  
-  business_timeout: 5s 
-  listen_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174001 
+  default:
+    enable: True
+    broker: tcp://127.0.0.1:1883
+    username: o7aKZOj53p2PkkFJzKzM
+    password: lpj4VZ4ZYFg5GmINhRat
+    client_id:  123e4567-e89b-12d3-a456-426614174001
+    clean_session: True
+    auto_reconnect: True
+    connect_timeout: 10s
+    write_timeout: 5s
+    keep_alive: 30s
+    
+    business_timeout: 5s 
+    listen_topic: /GoEdge-IoT/123e4567-e89b-12d3-a456-426614174001 

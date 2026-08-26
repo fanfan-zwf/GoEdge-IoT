@@ -292,6 +292,9 @@ func getTableColumns(tableName string) (map[string]ColumnRule, error) {
 			DefaultValue: defaultValue,
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("遍历表[%s]结果集时出错：%w", tableName, err)
+	}
 	return actualColumns, nil
 }
 

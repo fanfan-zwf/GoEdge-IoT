@@ -54,7 +54,7 @@ export interface Collector__Carry_interface {
 /**
  * 采集配置配置增加表接口
  */
-export interface Collector_Info__Add_interface {
+export interface Collector_Config__Add_interface {
     Label: string // 标识
     Uuid: string // Uuid
     Name: string // 设备名称
@@ -64,14 +64,14 @@ export interface Collector_Info__Add_interface {
 /**
  * 采集配置配置更新表接口
  */
-export interface Collector_Info__Update_interface {
+export interface Collector_Config__Update_interface {
     Id: number // 采集 Id 
     Name: string // 设备名称 
 }
 /**
  * 采集配置配置表接口
  */
-export interface Collector_Info__table_interface {
+export interface Collector_Config__table_interface {
     Id: number      // 采集 Id
     Label: string    // 标识
     Creation_Time: string// 创建时间
@@ -146,7 +146,7 @@ export async function Collector_Reload(Uuid: string): Promise<void> {
  * 采集 -》查询数量
  * 传递：page 页码，pageSize 每页数量 返回：Count 数量
  */
-export async function Collector_Info__Count(params?: {
+export async function Collector_Config__Count(params?: {
     Page?: number; Page_Size?: number;
 }): Promise<number> {
     try {
@@ -176,9 +176,9 @@ export async function Collector_Info__Count(params?: {
  * 采集 -》查询配置 
  * 传递：传递：page 页码，pageSize 每页数量 返回：configs 配置列表
  */
-export async function Collector_Info__Query(params?: {
+export async function Collector_Config__Query(params?: {
     Page?: number; Page_Size?: number;
-}): Promise<Collector_Info__table_interface[]> {
+}): Promise<Collector_Config__table_interface[]> {
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/query', {
@@ -187,7 +187,7 @@ export async function Collector_Info__Query(params?: {
         })
 
         if (response.status == 200) {
-            return response.data.Data as Collector_Info__table_interface[]
+            return response.data.Data as Collector_Config__table_interface[]
         }
         throw response.data.Msg || '未知错误';
     } catch (error: unknown) {
@@ -205,7 +205,7 @@ export async function Collector_Info__Query(params?: {
  * 采集 -》增加配置
  * 传递：config 配置数组形式
  */
-export async function Collector_Info__Add(add: Collector_Info__Add_interface): Promise<void> {
+export async function Collector_Config__Add(add: Collector_Config__Add_interface): Promise<void> {
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/add', add)
@@ -229,7 +229,7 @@ export async function Collector_Info__Add(add: Collector_Info__Add_interface): P
  * 采集 -》增加配置
  * 传递：config 配置数组形式
  */
-export async function Collector_Info__Update(add: Collector_Info__Update_interface): Promise<void> {
+export async function Collector_Config__Update(add: Collector_Config__Update_interface): Promise<void> {
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/update', add)
@@ -253,7 +253,7 @@ export async function Collector_Info__Update(add: Collector_Info__Update_interfa
  * 采集 -》增加删除
  * 传递：Id 需要删除的 id
  */
-export async function Collector_Info__Del(Id: number): Promise<void> {
+export async function Collector_Config__Del(Id: number): Promise<void> {
     if (Id == 0) {
         throw '请选择需要删除的配置'
     }
@@ -283,9 +283,9 @@ export async function Collector_Info__Del(Id: number): Promise<void> {
  * 采集-》搜索
  * 传递：field quantity 数量，vague 模糊搜索字符串 返回：configs 配置，err 错误
  */
-export async function Collector_Info__Search_Field_Vague(params?: {
+export async function Collector_Config__Search_Field_Vague(params?: {
     Field: string; Quantity: number; Vague: string;
-}): Promise<Collector_Info__table_interface[]> {
+}): Promise<Collector_Config__table_interface[]> {
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/search/field/vague', {
@@ -295,7 +295,7 @@ export async function Collector_Info__Search_Field_Vague(params?: {
         })
 
         if (response.status == 200) {
-            return response.data.Data as Collector_Info__table_interface[]
+            return response.data.Data as Collector_Config__table_interface[]
         }
         throw response.data.Msg || '未知错误';
     } catch (error: unknown) {
@@ -313,9 +313,9 @@ export async function Collector_Info__Search_Field_Vague(params?: {
  * 采集-》模糊搜索
  * 传递：field quantity 数量，vague 模糊搜索字符串 返回：configs 配置，err 错误
  */
-export async function Collector_Info__Search_Field_Blurred(params?: {
+export async function Collector_Config__Search_Field_Blurred(params?: {
     Quantity: number; Vague: string;
-}): Promise<Collector_Info__table_interface[]> {
+}): Promise<Collector_Config__table_interface[]> {
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/collector/search/blurred', {
@@ -324,7 +324,7 @@ export async function Collector_Info__Search_Field_Blurred(params?: {
         })
 
         if (response.status == 200) {
-            return response.data.Data as Collector_Info__table_interface[]
+            return response.data.Data as Collector_Config__table_interface[]
         }
         throw response.data.Msg || '未知错误';
     } catch (error: unknown) {
@@ -604,7 +604,7 @@ export async function Drive_Config__Search_Field_Blurred(params?: {
 /**
  * 点位配置更新表接口
  */
-export interface Points_Config__Update_interface {
+export interface Point_Config__Update_interface {
     Id: number   // 点位 id
     Tag: string // 点位标识
     Description: string // 点位描述
@@ -619,7 +619,7 @@ export interface Points_Config__Update_interface {
 /**
  * 点位配置增加表接口
  */
-export interface Points_Config__add_interface extends Points_Config__Update_interface {
+export interface Point_Config__add_interface extends Point_Config__Update_interface {
     Drive_Id: number   // 点位 id 唯一标识符 
     Drive_Type: string // 驱动类型
 }
@@ -627,7 +627,7 @@ export interface Points_Config__add_interface extends Points_Config__Update_inte
 /**
  * 点位配置配置表接口
  */
-export interface Points_Config__table_interface extends Points_Config__Update_interface {
+export interface Point_Config__table_interface extends Point_Config__Update_interface {
     Collector: Collector__Carry_interface
     Drive: Drive__Carry_interface
 
@@ -640,15 +640,15 @@ export interface Points_Config__table_interface extends Points_Config__Update_in
  * 传递：Page 页码，Page_Size 每页数量，Drive_Id 驱动 id 返回：Count 数量
  */
 
-export async function Points_Config__Count(params?: {
-    Page?: number; Page_Size?: number; Drive_Id?: number[]; Collector_Info?: number[];
+export async function Point_Config__Count(params?: {
+    Page?: number; Page_Size?: number; Drive_Id?: number[]; Collector_Config?: number[];
 }): Promise<number> {
     // 默认值
     const {
         Page = 0,
         Page_Size = 0,
         Drive_Id = [],
-        Collector_Info = [],
+        Collector_Config = [],
     } = params || {}
     try {
         // 修改：直接 await axios.post
@@ -656,7 +656,7 @@ export async function Points_Config__Count(params?: {
             Page: Page,
             Page_Size: Page_Size,
             Drive_Id: Drive_Id,
-            Collector_Info: Collector_Info,
+            Collector_Config: Collector_Config,
         })
 
         if (response.status == 200) {
@@ -678,15 +678,15 @@ export async function Points_Config__Count(params?: {
  * 点位配置 -》查询配置
  * 传递：Page 页码，Page_Size 每页数量，Drive_Id 驱动 id 返回：配置列表
  */
-export async function Points_Config__Query(params?: {
-    Page?: number; Page_Size?: number; Drive_Id?: number[]; Collector_Info?: number[];
-}): Promise<Points_Config__table_interface[]> {
+export async function Point_Config__Query(params?: {
+    Page?: number; Page_Size?: number; Drive_Id?: number[]; Collector_Config?: number[];
+}): Promise<Point_Config__table_interface[]> {
     // 默认值
     const {
         Page = 0,
         Page_Size = 0,
         Drive_Id = [],
-        Collector_Info = [],
+        Collector_Config = [],
     } = params || {}
     try {
         // 修改：直接 await axios.post
@@ -694,11 +694,11 @@ export async function Points_Config__Query(params?: {
             Page: Page,
             Page_Size: Page_Size,
             Drive_Id: Drive_Id,
-            Collector_Info: Collector_Info,
+            Collector_Config: Collector_Config,
         })
 
         if (response.status == 200) {
-            return response.data.Data as Points_Config__table_interface[]
+            return response.data.Data as Point_Config__table_interface[]
         }
         throw response.data.Msg || '未知错误';
     } catch (error: unknown) {
@@ -717,7 +717,7 @@ export async function Points_Config__Query(params?: {
  * 点位配置 -》增加配置
  * 传递：config 配置对象，包含 Name 点位名称，Config json 配置参数，Type 点位类型，Drive_Id 驱动 id
  */
-export async function Points_Config__Add(config: Points_Config__add_interface): Promise<void> {
+export async function Point_Config__Add(config: Point_Config__add_interface): Promise<void> {
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/config/points/add', config)
@@ -741,7 +741,7 @@ export async function Points_Config__Add(config: Points_Config__add_interface): 
  * 点位配置 -》更新配置
  * 传递：config 配置对象，包含 Id 点位 id, Name 点位名称，Config json 配置参数，Type 点位类型，Drive_Id 驱动 id
  */
-export async function Points_Config__Update(config: Points_Config__Update_interface): Promise<void> {
+export async function Point_Config__Update(config: Point_Config__Update_interface): Promise<void> {
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/config/points/update', config)
@@ -765,7 +765,7 @@ export async function Points_Config__Update(config: Points_Config__Update_interf
  * 点位配置 -》删除配置
  * 传递：Id 点位 id
  */
-export async function Points_Config__Del(Id: number): Promise<void> {
+export async function Point_Config__Del(Id: number): Promise<void> {
     try {
         // 修改：直接 await axios.post
         const response = await axios.post(config_service_url + '/api/gui/v1.0/config/points/del', {

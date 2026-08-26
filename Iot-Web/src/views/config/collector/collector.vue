@@ -70,22 +70,22 @@ import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus' // 引
 // import { c } from 'naive-ui' 
 import {
     App_Restart,
-    Collector_Info__Count,
-    Collector_Info__Query,
-    Collector_Info__Add,
-    Collector_Info__Del,
-    Collector_Info__Update,
+    Collector_Config__Count,
+    Collector_Config__Query,
+    Collector_Config__Add,
+    Collector_Config__Del,
+    Collector_Config__Update,
     Collector_Synchronise_Config,
     Collector_Reload,
-    type Collector_Info__table_interface,
-    type Collector_Info__Add_interface,
+    type Collector_Config__table_interface,
+    type Collector_Config__Add_interface,
 } from '@/api/config_service'
 import { useUserStore } from '@/stores/user'
 
 const UserStore = useUserStore() // 获取用户信息
 const router = useRouter()
 
-const config_data: Collector_Info__table_interface[] = reactive([])
+const config_data: Collector_Config__table_interface[] = reactive([])
 const pagination = reactive({
     Page_length: 10, // 每页数量
     total_length: 0, // 总数量
@@ -93,7 +93,7 @@ const pagination = reactive({
 
 // 分页查询 Page 页码
 const Query = (Page: number) => {
-    Collector_Info__Query({
+    Collector_Config__Query({
         Page: Page,
         Page_Size: pagination.Page_length
     }).then((config_info) => {
@@ -106,7 +106,7 @@ const Query = (Page: number) => {
 
 // 查询总条目
 const Count = () => {
-    Collector_Info__Count().then((Count) => {
+    Collector_Config__Count().then((Count) => {
         pagination.total_length = Count
         Query(1)
     }).catch((error) => {
@@ -192,7 +192,7 @@ const deleteRow = (scope: any) => {
         dangerouslyUseHTMLString: true,
     })
         .then(({ }) => {
-            Collector_Info__Del(id).then(() => {
+            Collector_Config__Del(id).then(() => {
                 ElMessage.success('删除成功')
                 Count()
             }).catch((error) => {
@@ -211,7 +211,7 @@ const showUpdateDialog = ref(false)
 const addFormRef = ref<FormInstance>()
 
 // 新项目数据
-const UpdateItem: Collector_Info__table_interface = reactive({
+const UpdateItem: Collector_Config__table_interface = reactive({
     Id: 0,      // 采集 Id
     Label: '',    // 标识
     Creation_Time: '',// 创建时间
@@ -249,7 +249,7 @@ const UpdateNewRow = () => {
         }
 
         if (UpdateItem.Id === 0) {
-            Collector_Info__Add(UpdateItem).then(() => {
+            Collector_Config__Add(UpdateItem).then(() => {
                 ElMessage.success('添加成功')
                 showUpdateDialog.value = false
                 Count()
@@ -258,7 +258,7 @@ const UpdateNewRow = () => {
                 ElMessage.error('添加失败')
             })
         } else {
-            Collector_Info__Update(UpdateItem).then(() => {
+            Collector_Config__Update(UpdateItem).then(() => {
                 ElMessage.success('修改成功')
                 showUpdateDialog.value = false
                 Count()

@@ -4,7 +4,6 @@ import (
 	"main/IO/manager"
 	_ "main/Init"
 	"main/app/mqttbase"
-	"main/app/mqttrpc"
 	"main/db/db_point"
 	"main/web"
 
@@ -18,33 +17,24 @@ import (
 	_ "github.com/icattlecoder/godaemon"
 )
 
-func app() (err error) {
-	err = mqttbase.New()
-	if err != nil {
-		log.Panic(err.Error())
+func app() {
+	if err := mqttbase.New(); err != nil {
+		log.Printf("ERROR MQTT 初始化失败: %v", err)
 	}
 
-	err = mqttrpc.New()
-	if err != nil {
-		log.Panic(err.Error())
-	}
-	err = web.Web()
-	if err != nil {
-		log.Panic(err.Error())
+	if err := web.Web(); err != nil {
+		log.Printf("ERROR Web 服务启动失败: %v", err)
 	}
 
-	err = db_point.New()
-	if err != nil {
-		log.Panic(err.Error())
+	if err := db_point.New(); err != nil {
+		log.Printf("ERROR 数据点初始化失败: %v", err)
 	}
 
 	time.Sleep(200 * time.Millisecond)
 
-	err = manager.New()
-	if err != nil {
-		log.Panic(err.Error())
+	if err := manager.Start(); err != nil {
+		log.Printf("ERROR 驱动初始化失败: %v", err)
 	}
-	return
 }
 
 func exit() {

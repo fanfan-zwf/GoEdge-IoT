@@ -9,6 +9,8 @@ package Modbus_Tcp
 import (
 	"main/IO/byte_util"
 	"main/IO/manager/fullConfig"
+	"main/Init"
+	"main/db/mysql"
 	"sync"
 
 	"fmt"
@@ -32,8 +34,7 @@ var Type_byte = map[string]uint16{
 /*******************驱动配置*******************/
 
 type Config_type struct {
-	Ip                  string        // IP地址
-	Port                uint16        // 端口（可选，默认502）
+	Address             string        // 地址
 	Retry_timeout       time.Duration // 重试间隔（可选，默认3000）
 	Connect_timeout     time.Duration // 连接超时（可选，默认3000）
 	Response_timeout    time.Duration // 响应超时（可选，默认180000)
@@ -63,28 +64,66 @@ type Points_type struct {
 // 	Time  string      // 时间戳
 // }
 
+// ValueTypeIntToString 将数据库中的 int 类型编码转换为 string 类型名称
+// 1:bool 2:int8 3:uint8 4:int16 5:uint16 6:int32 7:uint32 8:int64 9:uint64 10:int 11:uint 12:float32 13:float64 14:float 15:string
+func ValueTypeIntToString(vt int) string {
+	switch vt {
+	case 1:
+		return "bool"
+	case 2:
+		return "int8"
+	case 3:
+		return "uint8"
+	case 4:
+		return "int16"
+	case 5:
+		return "uint16"
+	case 6:
+		return "int32"
+	case 7:
+		return "uint32"
+	case 8:
+		return "int64"
+	case 9:
+		return "uint64"
+	case 10:
+		return "int"
+	case 11:
+		return "uint"
+	case 12:
+		return "float32"
+	case 13:
+		return "float64"
+	case 14:
+		return "float"
+	case 15:
+		return "string"
+	default:
+		return fmt.Sprintf("unknown(%d)", vt)
+	}
+}
+
 // mysql存储结构体
 type Drive_Config_type struct {
 	Id     uint   // 驱动id
 	Type   string // 驱动类型
-	Name   string // 驱动名称
 	Config Config_type
 }
 
-type Points_Config_type struct {
-	Tag        string // 点位标识符
-	RW_Cancel  string // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
+type Point_Config_type struct {
+	Id         uint
+	RW_Cancel  int    // 点位读写方式 读写方式 N:禁用  R:只读  W:只写  R/W:读写
 	Value_Type string // 输出类型
 	Config     Points_type
 }
 
 // 组包
 type Packet_type struct {
-	SlaveID        uint8    // 设备id
-	Function       uint8    // 功能码
-	Start_Address  uint16   // 开始地址
-	Number_Address uint16   // 地址数量
-	Tags           []string // 这个包的点位
+	SlaveID        uint8  // 设备id
+	Function       uint8  // 功能码
+	Start_Address  uint16 // 开始地址
+	Number_Address uint16 // 地址数量
+	Ids            []uint // 这个包的点位
 }
 
 /*******************驱动连接*******************/
@@ -98,9 +137,8 @@ type Read_Points_type struct {
 
 // 定义一个结构体
 type Modbus_Tcp struct {
-	fullConfig.BaseDriver                      // 驱动全配置（驱动配置 + 该驱动下的所有点位配置）
-	Drive                 Drive_Config_type    // 通信参数结构体
-	Points                []Points_Config_type // 点位结构体
+	Drive  Drive_Config_type   // 通信参数结构体
+	Points []Point_Config_type // 点位结构体
 
 	conn          *modbus.Client // tcp连接实例
 	conn_err      error          // 连接状态
@@ -109,8 +147,9 @@ type Modbus_Tcp struct {
 	read_points    []Read_Points_type // 读取结构体
 	packets        []Packet_type      // 组包格式
 	Esc_collection chan bool
+	closed         bool // 连接关闭标志
 
-	Tag_Pointsindex_Map map[string]int // tag点位index索引
+	Tag_Pointsindex_Map map[uint]int // tag点位index索引
 
 	Read_External_Mappings func([]fullConfig.Value_type) error
 	Write_value_mu         sync.Mutex
@@ -123,66 +162,60 @@ type Connect_interface interface {
 	Close() error   // 停止连接
 }
 
-func (m *Modbus_Tcp) LoadConfig(cfg fullConfig.FullConfig_type) error {
-	m.BaseDriver.LoadConfig(cfg)
-
-	// 解析驱动配置字符串格式: IP;Port;RetryTimeout;ConnectTimeout;ResponseTimeout;DelayBetweenPolls;PacketMax
-	var err error
-	m.Drive.Config, err = Drive_Config_Switch(cfg.Drive.Config)
-	if err != nil {
-		return fmt.Errorf("ERROR 解析驱动配置失败: %w", err)
-	}
-
-	// 设置其他字段
-	m.Drive.Id = cfg.Drive.Id
-	m.Drive.Type = cfg.Drive.Type
-	m.Drive.Name = cfg.Drive.Name
-
-	return nil
-}
-
 type Packet_df struct {
 	SlaveID  uint8 // 设备id
 	Function uint8 // 功能码
 }
 
-func (c *Modbus_Tcp) New() (err error) {
-	c.Drive.Config, err = Drive_Config_Switch(c.Config.Drive.Config)
+func (c *Modbus_Tcp) New(Drive mysql.Drive_Config_type, Points []mysql.CollectorGet_Point_Config_type) (err error) {
+
+	// 解析驱动配置字符串格式: IP;Port;RetryTimeout;ConnectTimeout;ResponseTimeout;DelayBetweenPolls;PacketMax
+	c.Drive.Config, err = Drive_Config_Switch(Drive.Config)
 	if err != nil {
-		return err
+		return fmt.Errorf("解析驱动配置失败: %w", err)
 	}
 
-	c.Tag_Pointsindex_Map = make(map[string]int)
+	// 设置其他字段
+	c.Drive.Id = Drive.Id
+	c.Drive.Type = Drive.Type
 
-	var points []Points_Config_type
-	for i, v := range c.Config.Points {
+	c.Tag_Pointsindex_Map = make(map[uint]int, len(Points))
+
+	var points []Point_Config_type
+	for _, v := range Points {
 		point, err := Point_Config_Switch(v.Config)
 		if err != nil {
-			return fmt.Errorf("ERROR 解析点位配置失败: %v, 配置字符串: %s", err, v.Config)
+			log.Printf("WARN 点位 id=%d 配置解析失败，跳过: %v", v.Id, err)
+			continue
 		}
-		points = append(points, Points_Config_type{
+		// Value_Type 为 0 时，使用采集类型作为默认输出类型
+		outputType := ValueTypeIntToString(v.Value_Type)
+		if v.Value_Type == 0 {
+			outputType = point.Type
+			log.Printf("WARN 点位 id=%d 输出类型未配置，使用采集类型 %s 作为默认值", v.Id, outputType)
+		}
+		points = append(points, Point_Config_type{
+			Id:         v.Id,
 			Config:     point,
 			RW_Cancel:  v.RW_Cancel,
-			Tag:        v.Tag,
-			Value_Type: v.Value_Type,
+			Value_Type: outputType,
 		})
-		c.Tag_Pointsindex_Map[v.Tag] = i // 建立tag到index的映射
-
+		c.Tag_Pointsindex_Map[v.Id] = len(points) - 1 // 建立tag到index的映射
 	}
 	c.Points = points
 
-	c.packets, err = c.packet(c.Points, map[string]bool{"R": true, "R/W": true})
+	c.packets, err = c.packet(c.Points, map[int]bool{2: true, 4: true}) // 2=只读(R) 4=读写(R/W)
 	if err != nil {
-		return fmt.Errorf("ERROR 组包失败: %v", err)
+		return fmt.Errorf("组包失败: %w", err)
 	}
 
 	return nil
 }
 
-func (c *Modbus_Tcp) tag_points_index(tag string) (p Points_Config_type, err error) {
-	index, exists := c.Tag_Pointsindex_Map[tag]
+func (c *Modbus_Tcp) id_points_index(id uint) (p Point_Config_type, err error) {
+	index, exists := c.Tag_Pointsindex_Map[id]
 	if !exists {
-		err = fmt.Errorf("ERROR 点位不存在:  c.Tag_Pointsindex_Map:%+ v   tag %s", c.Tag_Pointsindex_Map, tag)
+		err = fmt.Errorf("ERROR 点位不存在:  c.id_points_index:%+ v   点位id: %d", c.Tag_Pointsindex_Map, id)
 		return
 	}
 
@@ -194,7 +227,7 @@ func (c *Modbus_Tcp) tag_points_index(tag string) (p Points_Config_type, err err
 	p = c.Points[index]
 	return
 }
-func (c *Modbus_Tcp) packet(Points []Points_Config_type, RW_Cancel map[string]bool) (Packets []Packet_type, err error) {
+func (c *Modbus_Tcp) packet(Points []Point_Config_type, RW_Cancel map[int]bool) (Packets []Packet_type, err error) {
 	// 1️⃣ 初始化 map（必须！否则 panic）
 	pointMap := make(map[Packet_df][]PackAddressPackages_Point_type)
 
@@ -213,13 +246,13 @@ func (c *Modbus_Tcp) packet(Points []Points_Config_type, RW_Cancel map[string]bo
 
 		len, exist := Type_byte[point.Config.Type]
 		if !exist {
-			log.Printf("ERROR modbus_tcp: 无效类型:%s  点位:%s", point.Config.Type, point.Tag)
+			log.Printf("ERROR modbus_tcp: 无效类型:%s  点位Id:%d", point.Config.Type, point.Id)
 			continue
 		}
 
 		// 加入分组
 		pointMap[key] = append(pointMap[key], PackAddressPackages_Point_type{
-			Tag:       point.Tag,
+			Id:        point.Id,
 			StartAddr: point.Config.Address,
 			DataLen:   len,
 		})
@@ -239,7 +272,7 @@ func (c *Modbus_Tcp) packet(Points []Points_Config_type, RW_Cancel map[string]bo
 				Function:       key.Function,
 				Start_Address:  v.StartAddr,
 				Number_Address: v.DataLen,
-				Tags:           v.Tags,
+				Ids:            v.Id,
 			})
 		}
 	}
@@ -248,7 +281,9 @@ func (c *Modbus_Tcp) packet(Points []Points_Config_type, RW_Cancel map[string]bo
 }
 
 // 开始连接外部映射
-func (c *Modbus_Tcp) Connect() error {
+func (c *Modbus_Tcp) Connect(Read_External_Mappings func([]fullConfig.Value_type) error) error {
+	c.Read_External_Mappings = Read_External_Mappings
+
 	err := c.connect()
 	if err != nil {
 		return err
@@ -261,10 +296,7 @@ func (c *Modbus_Tcp) Connect() error {
 func (c *Modbus_Tcp) connect() error {
 
 	// ---------- 2. 创建客户端，绑定所有时间参数 ----------
-	p := modbus.NewTCPClientProvider(
-		fmt.Sprintf("%s:%d", c.Drive.Config.Ip, c.Drive.Config.Port),
-		modbus.WithTCPTimeout(c.Drive.Config.Connect_timeout),
-	)
+	p := modbus.NewTCPClientProvider(c.Drive.Config.Address, modbus.WithTCPTimeout(c.Drive.Config.Connect_timeout))
 
 	client := modbus.NewClient(p)
 
@@ -276,59 +308,57 @@ func (c *Modbus_Tcp) connect() error {
 		return c.conn_err
 	}
 
-	log.Printf("modbus_tcp 连接状态: %v", c.conn_err)
+	log.Printf("modbus_tcp 驱动:%d 连接成功 地址:%s", c.Drive.Id, c.Drive.Config.Address)
 	return nil
 }
 
 // 关闭连接
 func (c *Modbus_Tcp) Close() error {
-	(*c.conn).Close()
+	c.closed = true
+	if c.conn != nil {
+		(*c.conn).Close()
+	}
 	c.Error_External_Mappings("驱动连接已关闭")
-
 	return nil
 }
 
 func (c *Modbus_Tcp) Error_External_Mappings(msg string) error {
-	var read_list []fullConfig.Value_type
+	if c.Read_External_Mappings == nil {
+		return nil
+	}
+	read_list := make([]fullConfig.Value_type, 0, len(c.Points))
 	for _, point := range c.Points {
 		read_list = append(read_list, fullConfig.Value_type{
-			Tag:  point.Tag,        // 点位名称
-			Type: point.Value_Type, // 输出类型
-			Msg:  msg,              // 状态信息
-			Time: time.Now(),       // 读取时间
+			DeviceId: Init.Config.APP.Uuid, // 设备id
+			PointId:  point.Id,             // 点位id
+			Type:     point.Value_Type,     // 输出类型
+			Msg:      msg,                  // 状态信息
+			Time:     time.Now(),           // 读取时间
 		})
 	}
-
-	// 外部映射
-	if c.Read_External_Mappings != nil {
-		c.Read_External_Mappings(read_list)
-	}
-
-	return nil
+	return c.Read_External_Mappings(read_list)
 }
 
-func (c *Modbus_Tcp) Error_External_Mappings_list(tags []string, msg string) (err error) {
-	var read_list []fullConfig.Value_type
-	for _, tag := range tags {
-		cfg, err := c.tag_points_index(tag)
+func (c *Modbus_Tcp) Error_External_Mappings_list(ids []uint, msg string) error {
+	if c.Read_External_Mappings == nil {
+		return nil
+	}
+	read_list := make([]fullConfig.Value_type, 0, len(ids))
+	for _, id := range ids {
+		cfg, err := c.id_points_index(id)
 		if err != nil {
-			log.Printf("ERROR modbus_tcp: %v", err)
+			log.Printf("WARN 点位 id=%d 索引查找失败，跳过: %v", id, err)
 			continue
 		}
 		read_list = append(read_list, fullConfig.Value_type{
-			Tag:   tag,            // 点位名称
-			Type:  cfg.Value_Type, // 输出类型
-			Msg:   msg,            // 状态信息
-			Time:  time.Now(),     // 读取时间
-			Value: nil,
+			DeviceId: Init.Config.APP.Uuid, // 设备id
+			PointId:  id,
+			Type:     cfg.Value_Type,
+			Msg:      msg,
+			Time:     time.Now(),
 		})
 	}
-	// 外部映射
-	if c.Read_External_Mappings != nil {
-		c.Read_External_Mappings(read_list)
-	}
-
-	return nil
+	return c.Read_External_Mappings(read_list)
 }
 
 // 位操作（1/0 开关量）
@@ -351,16 +381,16 @@ func (c *Modbus_Tcp) Collection_Allback() error {
 func (c *Modbus_Tcp) analysis(packet Packet_type, results []byte) ([]fullConfig.Value_type, error) {
 	var read_list []fullConfig.Value_type
 	now := time.Now()
-	for _, tag := range packet.Tags {
+	for _, id := range packet.Ids {
 		var read fullConfig.Value_type
-		cfg, err := c.tag_points_index(tag)
+		cfg, err := c.id_points_index(id)
 		if err != nil {
-			log.Printf("ERROR modbus_tcp: %v", err)
+			log.Printf("WARN 点位 id=%d 索引查找失败，跳过: %v", id, err)
 			continue
 		}
 
 		read.Time = now
-		read.Tag = tag
+		read.PointId = id
 		read.Type = cfg.Value_Type
 		read.Msg = "ok"
 
@@ -417,15 +447,16 @@ func (c *Modbus_Tcp) analysis(packet Packet_type, results []byte) ([]fullConfig.
 				0, 1,
 			)[0]
 		default:
-			read.Msg = fmt.Sprintf("ERROR tag: %s, 配置类型: %s", tag, cfg.Value_Type)
+			read.Msg = fmt.Sprintf("不支持的配置类型: 点位id=%d, 类型=%s", id, cfg.Value_Type)
 		}
 		var ok bool
 		read.Value, ok = byte_util.ConvertType(v, cfg.Config.Type, cfg.Value_Type)
 		if !ok {
-			err = fmt.Errorf("ERROR modbus_tcp: 读取值类型不匹配, tag: %s, 采集类型: %s, 输出类型: %s, 输出实际类型: %T", tag, cfg.Value_Type, cfg.Config.Type, v)
-			log.Print(err)
-			return []fullConfig.Value_type{}, err
+			log.Printf("WARN 点位 id=%d 值类型转换失败, 采集类型=%s, 输出类型=%s, 实际类型=%T, 跳过",
+				id, cfg.Config.Type, cfg.Value_Type, v)
+			continue
 		}
+		read.DeviceId = Init.Config.APP.Label // 设备id
 		read_list = append(read_list, read)
 
 	}
@@ -433,10 +464,16 @@ func (c *Modbus_Tcp) analysis(packet Packet_type, results []byte) ([]fullConfig.
 }
 
 func (c *Modbus_Tcp) polling() {
+	if len(c.packets) == 0 {
+		log.Printf("WARN 驱动:%d 无有效轮询包，退出轮询", c.Drive.Id)
+
+		return
+	}
+
 	var i int
 	for {
-		if c.conn_err == fmt.Errorf("关闭连接") {
-			log.Printf("ERROR 驱动:%s 连接未建立", c.Drive.Name)
+		if c.closed {
+			log.Printf("INFO 驱动:%d 连接已关闭，退出轮询", c.Drive.Id)
 			return
 		}
 
@@ -462,25 +499,28 @@ func (c *Modbus_Tcp) polling() {
 		case 4:
 			byte_list, err = (*c.conn).ReadInputRegistersBytes(packet.SlaveID, packet.Start_Address, packet.Number_Address)
 		default:
-			c.Error_External_Mappings_list(packet.Tags, "Unknown function code")
+			c.Error_External_Mappings_list(packet.Ids, "Unknown function code")
+			continue
 		}
 
 		if err != nil {
-			log.Printf("ERROR 设备id:%d 读取错误:%v", c.Drive.Id, err)
-			c.Error_External_Mappings_list(packet.Tags, err.Error())
+			log.Printf("WARN 设备id:%d 包 id=%d 读取错误: %v", c.Drive.Id, packet.Ids[0], err)
+			c.Error_External_Mappings_list(packet.Ids, err.Error())
 			continue
 		}
 
 		read_list, err := c.analysis(packet, byte_list)
 		if err != nil {
-			log.Printf("ERROR 设备id:%d 分析错误:%v", c.Drive.Id, err)
-			c.Error_External_Mappings_list(packet.Tags, err.Error())
+			log.Printf("WARN 设备id:%d 分析错误: %v", c.Drive.Id, err)
+			c.Error_External_Mappings_list(packet.Ids, err.Error())
 			continue
 		}
 
 		// 外部映射
 		if c.Read_External_Mappings != nil {
-			c.Read_External_Mappings(read_list)
+			if err := c.Read_External_Mappings(read_list); err != nil {
+				log.Printf("WARN 设备id:%d 数据回调失败: %v", c.Drive.Id, err)
+			}
 		}
 
 	}
@@ -488,43 +528,34 @@ func (c *Modbus_Tcp) polling() {
 }
 
 // 写入组包
-func (c *Modbus_Tcp) write_packet(packet Packet_type, tag_points_map map[string]fullConfig.Value_type) error {
+func (c *Modbus_Tcp) write_packet(packet Packet_type, tag_points_map map[uint]fullConfig.Value_type) error {
 
 	bool_value_address := make(map[uint16]bool) // 线圈地址与值的映射
 
 	now := time.Now()
 	var byte_list []byte
-	for _, tag := range packet.Tags {
-		var cfg Points_Config_type
-		cfg, err := c.tag_points_index(tag)
+	for _, id := range packet.Ids {
+		var cfg Point_Config_type
+		cfg, err := c.id_points_index(id)
 		if err != nil {
-			err = fmt.Errorf("设备id:%d %v", c.Drive.Id, err)
-			log.Print(err)
-			return err
+			return fmt.Errorf("驱动 id=%d %w", c.Drive.Id, err)
 		}
-		v, exists := tag_points_map[tag]
+		v, exists := tag_points_map[id]
 		if !exists {
-			err = fmt.Errorf("ERROR modbus_tcp: 写入值不存在, tag: %s", tag)
-			log.Print(err)
-			return err
+			return fmt.Errorf("写入值不存在, 点位id: %d", id)
 		}
 
 		// 时间确认
 		if !v.Time.IsZero() {
 			duration := now.Sub(v.Time)
-			if duration >= (5*time.Second) || duration <= (5*time.Second) {
-				err = fmt.Errorf("ERROR modbus_tcp: 写入值时间间隔过长, tag: %s, 时间间隔: %s", tag, duration)
-				log.Print(err)
-				return err
-
+			if duration > 5*time.Second {
+				return fmt.Errorf("写入值时间间隔过长, 点位id=%d, 间隔=%s", id, duration)
 			}
 		}
 
 		// 类型确认
 		if v.Type != cfg.Value_Type {
-			err = fmt.Errorf("ERROR modbus_tcp: 配置类型与写入值类型不匹配, tag: %s, 配置类型: %s, 值类型: %s", tag, cfg.Value_Type, v.Type)
-			log.Print(err)
-			return err
+			return fmt.Errorf("配置类型与写入值类型不匹配, 点位id=%d, 配置类型=%s, 值类型=%s", id, cfg.Value_Type, v.Type)
 		}
 
 		index := cfg.Config.Address - packet.Start_Address // 计算相对地址索引
@@ -532,60 +563,82 @@ func (c *Modbus_Tcp) write_packet(packet Packet_type, tag_points_map map[string]
 		var ok bool
 		v.Value, ok = byte_util.ConvertType(v.Value, cfg.Value_Type, cfg.Config.Type)
 		if !ok {
-			err = fmt.Errorf("ERROR modbus_tcp: 写入值类型不匹配, tag: %s, 配置类型: %s, 值类型: %T", tag, cfg.Value_Type, v.Value)
-			log.Print(err)
-			return err
+			return fmt.Errorf("写入值类型转换失败, 点位id=%d, 配置类型=%s, 值类型=%T", id, cfg.Value_Type, v.Value)
 		}
 
 		switch {
 		case cfg.Config.Type == "bool" && packet.Function == 1:
+			boolVal, ok := v.Value.(bool)
+			if !ok {
+				return fmt.Errorf("点位 id=%d 值类型断言失败: 期望 bool, 实际 %T", id, v.Value)
+			}
 			a := byte_util.Get_list_index(byte_list, int(index)/8, 1)
 			b := byte_util.BytesToBool(a)
-			b[index] = v.Value.(bool)
+			b[index] = boolVal
 			rb := byte_util.BoolToBytes(b)
 			byte_util.Update_List_Slice(&byte_list, int(index), rb)
 		case cfg.Config.Type == "bool" && packet.Function == 3:
+			boolVal, ok := v.Value.(bool)
+			if !ok {
+				return fmt.Errorf("点位 id=%d 值类型断言失败: 期望 bool, 实际 %T", id, v.Value)
+			}
 			if !bool_value_address[cfg.Config.Address] {
 				byte_list, err = (*c.conn).ReadHoldingRegistersBytes(cfg.Config.SlaveID, cfg.Config.Address, 1)
 				if err != nil {
-					log.Print(err)
-					return err
+					return fmt.Errorf("点位 id=%d 读取保持寄存器失败: %w", id, err)
 				}
 				byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(byte_list, 0, 2))
 			}
 			a := byte_util.Get_list_index(byte_list, int(index)*2, 2)
 			bool_list := byte_util.Get_list_index(byte_util.BytesToBool(a), 0, 16)
 			if cfg.Config.Child_Address > 15 {
-				err = fmt.Errorf("ERROR modbus_tcp: 子地址超出范围, tag: %s", tag)
-				return err
+				return fmt.Errorf("点位 id=%d 子地址超出范围: child_address=%d, 最大15", id, cfg.Config.Child_Address)
 			}
-			bool_list[cfg.Config.Child_Address] = v.Value.(bool)
+			bool_list[cfg.Config.Child_Address] = boolVal
 			b := byte_util.Get_list_index(byte_util.BoolToBytes(bool_list), 0, 2)
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, b)
 		case cfg.Config.Type == "uint16" && packet.Function == 3:
+			val, ok := v.Value.(uint16)
+			if !ok {
+				return fmt.Errorf("点位 id=%d 值类型断言失败: 期望 uint16, 实际 %T", id, v.Value)
+			}
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
-				byte_util.Uint16ToBytes([]uint16{uint16(v.Value.(uint16))}, cfg.Config.Byte_Order),
+				byte_util.Uint16ToBytes([]uint16{val}, cfg.Config.Byte_Order),
 				0, 2))
 		case cfg.Config.Type == "int16" && packet.Function == 3:
+			val, ok := v.Value.(int16)
+			if !ok {
+				return fmt.Errorf("点位 id=%d 值类型断言失败: 期望 int16, 实际 %T", id, v.Value)
+			}
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
-				byte_util.Int16ToBytes([]int16{int16(v.Value.(int16))}, cfg.Config.Byte_Order),
+				byte_util.Int16ToBytes([]int16{val}, cfg.Config.Byte_Order),
 				0, 2))
 		case cfg.Config.Type == "uint32" && packet.Function == 3:
+			val, ok := v.Value.(uint32)
+			if !ok {
+				return fmt.Errorf("点位 id=%d 值类型断言失败: 期望 uint32, 实际 %T", id, v.Value)
+			}
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
-				byte_util.Uint32ToBytes([]uint32{uint32(v.Value.(uint32))}, cfg.Config.Byte_Order),
+				byte_util.Uint32ToBytes([]uint32{val}, cfg.Config.Byte_Order),
 				0, 2))
 		case cfg.Config.Type == "int32" && packet.Function == 3:
+			val, ok := v.Value.(int32)
+			if !ok {
+				return fmt.Errorf("点位 id=%d 值类型断言失败: 期望 int32, 实际 %T", id, v.Value)
+			}
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
-				byte_util.Int32ToBytes([]int32{int32(v.Value.(int32))}, cfg.Config.Byte_Order),
+				byte_util.Int32ToBytes([]int32{val}, cfg.Config.Byte_Order),
 				0, 2))
 		case cfg.Config.Type == "float32" && packet.Function == 3:
+			val, ok := v.Value.(float32)
+			if !ok {
+				return fmt.Errorf("点位 id=%d 值类型断言失败: 期望 float32, 实际 %T", id, v.Value)
+			}
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(
-				byte_util.Float32ToBytes([]float32{v.Value.(float32)}, cfg.Config.Byte_Order),
+				byte_util.Float32ToBytes([]float32{val}, cfg.Config.Byte_Order),
 				0, 2))
 		default:
-			err = fmt.Errorf("ERROR modbus_tcp: 不支持的类型: %s, tag: %s", cfg.Config.Type, tag)
-			log.Print(err)
-			return err
+			return fmt.Errorf("不支持的写入类型: type=%s, function=%d, 点位id=%d", cfg.Config.Type, packet.Function, id)
 		}
 	}
 	switch packet.Function {
@@ -596,18 +649,18 @@ func (c *Modbus_Tcp) write_packet(packet Packet_type, tag_points_map map[string]
 		a := byte_util.Get_list_index(byte_list, 0, int(packet.Number_Address*2))
 		return (*c.conn).WriteMultipleRegistersBytes(packet.SlaveID, packet.Start_Address, packet.Number_Address, a)
 	}
-	log.Print("ERROR 未执行")
-	return fmt.Errorf("ERROR 未执行")
+	log.Printf("WARN 驱动 id=%d 写入未匹配到有效功能码: function=%d", c.Drive.Id, packet.Function)
+	return fmt.Errorf("未匹配到有效写入功能码: function=%d", packet.Function)
 }
 
 // 写入外部映射
 func (c *Modbus_Tcp) Write(values []fullConfig.Value_type) (err error) {
-	var points []Points_Config_type
-	tag_points_map := make(map[string]fullConfig.Value_type)
+	var points []Point_Config_type
+	tag_points_map := make(map[uint]fullConfig.Value_type)
 	for _, v := range values {
-		tag_points_map[v.Tag] = v
-		var cfg Points_Config_type
-		cfg, err = c.tag_points_index(v.Tag)
+		tag_points_map[v.PointId] = v
+		var cfg Point_Config_type
+		cfg, err = c.id_points_index(v.PointId)
 		if err != nil {
 			return err
 		}
@@ -615,7 +668,7 @@ func (c *Modbus_Tcp) Write(values []fullConfig.Value_type) (err error) {
 	}
 
 	var packets []Packet_type
-	packets, err = c.packet(points, map[string]bool{"R/W": true, "W": true})
+	packets, err = c.packet(points, map[int]bool{3: true, 4: true}) // 3=只写(W) 4=读写(R/W)
 	if err != nil {
 		return fmt.Errorf("ERROR 组包失败: %v", err)
 	}

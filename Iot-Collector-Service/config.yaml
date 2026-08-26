@@ -2,10 +2,11 @@ APP:
   version: v1.0
   sn: "0" 
   uuid: 123e4567-e89b-12d3-a456-426614174000
-  aes_passwd: "123456"
+  passwd: "123456"
+  label: 123e4567-e89b-12d3-a456-426614174000
   
 MYSQL:
-  dsn: "root:123456@tcp(127.0.0.1:3306)/iot-collector-server-123e4567-e89b-12d3-a456-426614174000?charset=utf8mb4&parseTime=True&loc=Local"
+  dsn: "root:123456@tcp(127.0.0.1:3306)/iot-collector-server?charset=utf8mb4&parseTime=True&loc=Local"
   
 REDIS:
   ip: 127.0.0.1
@@ -24,11 +25,6 @@ LOG:
   path: ./logs
   cacheTTL: 30
   flags: Ldate Lmicroseconds Llongfile 
-
-user_Service:
-  url: "http://127.0.0.1:8101" 
-  apikey: "123456"
-  secret: "123456"
 
 API:
   enable: true
@@ -68,3 +64,7 @@ Mqtt:
     write_timeout: 5s # 写超时
     keep_alive: 30s # 心跳保活
 
+ 
+Config_Service:
+  enable: True
+  address: "http://127.0.0.1:8102"

@@ -122,7 +122,7 @@ func (c *Connect_struct) Write(data []fullConfig.Value_type) (err error) {
 	for _, v := range data {
 
 		point := influxdb2.NewPoint(
-			v.Tag, // 测量名，可根据业务修改
+			fmt.Sprintf("%d", v.PointId), // 测量名：点位ID
 			map[string]string{
 				"_msg": v.Msg,
 			}, // 标签：点位ID唯一标识

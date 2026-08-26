@@ -80,6 +80,28 @@ type KeyValue struct {
 	TTL   time.Duration // 可选：单个key的过期时间
 }
 
+// WriteKey 单个key写入Redis，支持设置TTL
+// kv：单个键值对
+// 返回：error 错误信息
+func Write_Key(Key string, Value string, TTL time.Duration) error {
+	// 校验key不能为空
+	if Key == "" {
+		return fmt.Errorf("key不能为空")
+	}
+
+	// value为空打印警告，和批量函数行为保持一致
+	if Value == "" {
+		log.Printf("WARNING value为空（key=%s）\n", Key)
+	}
+
+	// 设置key value
+	err := Rdb.Set(ctx, Key, Value, TTL).Err()
+	if err != nil {
+		return fmt.Errorf("Set写入失败: %v", err)
+	}
+	return nil
+}
+
 // Write_Key_list 批量写入Redis（支持批量写入+单独设置TTL）
 // 参数：data-要写入的数组
 // 返回：error-错误信息
@@ -144,6 +166,7 @@ func Read_Key(key string) (value string, err error) {
 	}
 
 	// 单个key读取：使用Get命令替代MGet
+
 	value, err = Rdb.Get(ctx, key).Result()
 	return
 }

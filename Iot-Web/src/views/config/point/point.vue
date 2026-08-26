@@ -127,14 +127,14 @@ import { reactive, onMounted, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, ElMessageBox } from 'element-plus'
 import {
-    Points_Config__Count,
-    Points_Config__Query,
-    Points_Config__Add,
-    Points_Config__Update,
-    Points_Config__Del,
-    type Points_Config__table_interface,
+    Point_Config__Count,
+    Point_Config__Query,
+    Point_Config__Add,
+    Point_Config__Update,
+    Point_Config__Del,
+    type Point_Config__table_interface,
     type Drive_Config__table_interface,
-    type Points_Config__add_interface
+    type Point_Config__add_interface
 } from '@/api/config_service'
 import search_drive from '@/views/config/drive/search_drive.vue'
 import DynamicConfigForm, { type DynamicFieldItem } from '@/components/Custom_Form.vue'
@@ -145,7 +145,7 @@ const route = useRoute()
 const drive_name = ref<string>(String(route.params.name) ?? '')
 const drive_id = ref<number>(Number(route.query.drive_id ?? 0) ?? 0)
 
-const config_data: Points_Config__table_interface[] = reactive([])
+const config_data: Point_Config__table_interface[] = reactive([])
 const pagination = reactive({
     Page_length: 10, // 每页数量
     total_length: 0, // 总数量
@@ -161,7 +161,7 @@ const Query = (Page: number) => {
     if (drive_id.value !== 0) {
         params.Drive_Id = [drive_id.value];
     }
-    Points_Config__Query(params).then((config_info) => {
+    Point_Config__Query(params).then((config_info) => {
         config_data.length = 0
         Object.assign(config_data, config_info)
     }).catch((error) => {
@@ -177,7 +177,7 @@ const Count = () => {
     if (drive_id.value !== 0) {
         params.Drive_Id = [drive_id.value];
     }
-    Points_Config__Count(params).then((Count) => {
+    Point_Config__Count(params).then((Count) => {
         pagination.total_length = Count
         Query(1)
     }).catch((error) => {
@@ -235,7 +235,7 @@ const deleteRow = (scope: any) => {
         dangerouslyUseHTMLString: true,
     })
         .then(({ }) => {
-            Points_Config__Del(id).then(() => {
+            Point_Config__Del(id).then(() => {
                 ElMessage.success('删除成功')
                 Count()
             }).catch((error) => {
@@ -255,7 +255,7 @@ const showUpdateDialog = ref(false)
 const addFormRef = ref<FormInstance>()
 
 // 新项目数据 
-const UpdateItem: Points_Config__table_interface = reactive({
+const UpdateItem: Point_Config__table_interface = reactive({
     Id: 0,   // 点位 id
     Tag: '', // 点位标识
     Description: '', // 点位描述
@@ -345,8 +345,8 @@ const UpdateNewRow = () => {
             return
         }
         if (UpdateItem.Id === 0) {
-            // 此时 payload符合 Points_Config__add_interface
-            Points_Config__Add({
+            // 此时 payload符合 Point_Config__add_interface
+            Point_Config__Add({
                 Drive_Id: UpdateItem.Drive.Id,   // 点位 id 唯一标识符 
                 Drive_Type: UpdateItem.Drive.Type, // 驱动类型
                 Id: UpdateItem.Id,   // 点位 id
@@ -366,7 +366,7 @@ const UpdateNewRow = () => {
                 ElMessage.error(error)
             })
         } else {
-            Points_Config__Update({
+            Point_Config__Update({
                 Id: UpdateItem.Id,
                 Tag: UpdateItem.Tag,
                 Description: UpdateItem.Description,

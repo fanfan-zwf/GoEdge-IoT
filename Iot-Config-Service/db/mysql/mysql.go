@@ -9,6 +9,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+var ErrNoRows = sql.ErrNoRows
 var DB *sql.DB
 
 func Init_sql(dsn string) error {

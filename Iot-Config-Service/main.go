@@ -2,7 +2,7 @@ package main
 
 import (
 	_ "main/Init"
-	"main/app/mqtt"
+	"main/app/mqttbase"
 	"main/app/user_service"
 	"main/db/mysql"
 	"main/db/redis"
@@ -20,7 +20,7 @@ import (
 
 func app() (err error) {
 
-	err = mqtt.New()
+	err = mqttbase.New()
 	if err != nil {
 		log.Panic(err.Error())
 	}

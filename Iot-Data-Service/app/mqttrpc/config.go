@@ -36,7 +36,7 @@ func collector_reload(req []byte) (rep []byte, err error) {
 
 // 	return jsonWrap(req, func(r Req) (rep string, err error) {
 // 		// 1. 获取采集器信息
-// 		collectorList, err := Collector_Info__Search_Field("Uuid", 1, Init.Config.APP.Uuid)
+// 		collectorList, err := Collector_Config__Search_Field("Uuid", 1, Init.Config.APP.Uuid)
 // 		if err != nil {
 // 			rep = err.Error()
 // 			return
@@ -172,7 +172,7 @@ func collector_reload(req []byte) (rep []byte, err error) {
 
 // 		// ===================== 同步点位配置 =====================
 // 		// 1. 获取服务端驱动配置
-// 		Points_List, err := Points_Config__Query([]uint{collectorID}, []uint{}, 0, 0)
+// 		Points_List, err := Point_Config__Query([]uint{collectorID}, []uint{}, 0, 0)
 // 		if err != nil {
 // 			rep = err.Error()
 // 			return
@@ -192,7 +192,7 @@ func collector_reload(req []byte) (rep []byte, err error) {
 // 		Points_runIndexs := make(map[int]bool) // 需要增加的下标
 
 // 		// 4. 流式查询数据库数据 → 对比
-// 		err = mysql.Points_Config__Query_Callback([]uint{}, 0, 0, func(dbPoints mysql.Points_Config_type) {
+// 		err = mysql.Point_Config__Query_Callback([]uint{}, 0, 0, func(dbPoints mysql.Point_Config_type) {
 // 			// 从服务端配置中查找
 // 			idx, exists := PointsIndexMap[dbPoints.Id]
 // 			Points_runIndexs[idx] = true
@@ -221,7 +221,7 @@ func collector_reload(req []byte) (rep []byte, err error) {
 // 		}
 
 // 		// 5. 剩下的都是：服务端有、数据库没有 → 新增
-// 		var Points_addList []mysql.Points_Config_Add_type
+// 		var Points_addList []mysql.Point_Config_Add_type
 // 		for _, idx := range PointsIndexMap {
 // 			_, ok := Points_runIndexs[idx]
 // 			if ok {
@@ -234,7 +234,7 @@ func collector_reload(req []byte) (rep []byte, err error) {
 // 				return
 // 			}
 // 			d := Points_List[idx]
-// 			Points_addList = append(Points_addList, mysql.Points_Config_Add_type{
+// 			Points_addList = append(Points_addList, mysql.Point_Config_Add_type{
 // 				Id:          d.Id,          // 点位id
 // 				Drive_Id:    d.Drive.Id,    // 驱动id唯一标识符
 // 				Tag:         d.Tag,         // 点位标识
@@ -246,7 +246,7 @@ func collector_reload(req []byte) (rep []byte, err error) {
 // 		}
 
 // 		// 6. 构建更新列表
-// 		var Points_updateList []mysql.Points_Config_Synchronization_type
+// 		var Points_updateList []mysql.Point_Config_Synchronization_type
 // 		for _, id := range Points_updateIDs {
 // 			idx, ok := PointsIndexMap[id] // 这里用原来的 map 最安全
 // 			if !ok {
@@ -256,8 +256,8 @@ func collector_reload(req []byte) (rep []byte, err error) {
 // 				continue
 // 			}
 // 			d := Points_List[idx]
-// 			Points_updateList = append(Points_updateList, mysql.Points_Config_Synchronization_type{
-// 				Points_Config_Add_type: mysql.Points_Config_Add_type{
+// 			Points_updateList = append(Points_updateList, mysql.Point_Config_Synchronization_type{
+// 				Point_Config_Add_type: mysql.Point_Config_Add_type{
 // 					Id:          d.Id,          // 点位id
 // 					Drive_Id:    d.Drive.Id,    // 驱动id唯一标识符
 // 					Tag:         d.Tag,         // 点位标识
@@ -273,7 +273,7 @@ func collector_reload(req []byte) (rep []byte, err error) {
 // 		// 最终执行 =====================
 // 		// 更新
 // 		if len(Points_updateList) != 0 {
-// 			err = mysql.Points_Config__Synchronization(Points_updateList...)
+// 			err = mysql.Point_Config__Synchronization(Points_updateList...)
 // 			if err != nil {
 // 				rep = err.Error()
 // 				return
@@ -282,7 +282,7 @@ func collector_reload(req []byte) (rep []byte, err error) {
 
 // 		// 删除
 // 		if len(Points_delIDs) != 0 {
-// 			err = mysql.Points_Config__Del(Points_delIDs...)
+// 			err = mysql.Point_Config__Del(Points_delIDs...)
 // 			if err != nil {
 // 				rep = err.Error()
 // 				return
@@ -291,7 +291,7 @@ func collector_reload(req []byte) (rep []byte, err error) {
 
 // 		// 新增
 // 		if len(Points_addList) != 0 {
-// 			err = mysql.Points_Config__Add(Points_addList...)
+// 			err = mysql.Point_Config__Add(Points_addList...)
 // 			if err != nil {
 // 				rep = err.Error()
 // 				return
@@ -308,7 +308,7 @@ func register() {
 	// M.Register(Init.Config.Mqtt_Rpc.Example, "/Order/V1.0/Collector/Config", collector_synchronise_config)
 	M.Register(Init.Config.Mqtt_Rpc.Example, "/Config/V1.0/Order/Collector/Reload", collector_reload)
 }
-func Collector_Info__Count(page uint, pageSize uint) (resp uint, err error) {
+func Collector_Config__Count(page uint, pageSize uint) (resp uint, err error) {
 	type Req struct {
 		Page     uint
 		PageSize uint
@@ -325,7 +325,7 @@ func Collector_Info__Count(page uint, pageSize uint) (resp uint, err error) {
 	return
 }
 
-func Collector_Info__Query(page uint, pageSize uint) (resp []mysql.Collector_Info_type, err error) {
+func Collector_Config__Query(page uint, pageSize uint) (resp []mysql.Collector_Config_type, err error) {
 	type Req struct {
 		Page     uint
 		PageSize uint
@@ -346,7 +346,7 @@ func Collector_Info__Query(page uint, pageSize uint) (resp []mysql.Collector_Inf
 // 采集-》搜索
 // 传递：field quantity 数量，vague 模糊搜索字符串
 // 返回：configs 配置，err 错误
-func Collector_Info__Search_Field(field string, quantity uint, vague string) (resp []mysql.Collector_Info_type, err error) {
+func Collector_Config__Search_Field(field string, quantity uint, vague string) (resp []mysql.Collector_Config_type, err error) {
 	type Req struct {
 		Field    string
 		Quantity uint
@@ -403,7 +403,7 @@ func Drive_Config__Query(collectorId []uint, driveType []string, page uint, page
 	}
 	return
 }
-func Points_Config__Count(Collector_Id []uint, driveid []uint, page uint, pageSize uint) (resp uint, err error) {
+func Point_Config__Count(Collector_Id []uint, driveid []uint, page uint, pageSize uint) (resp uint, err error) {
 	type Req struct {
 		Collector_Id []uint
 		Driveid      []uint
@@ -422,7 +422,7 @@ func Points_Config__Count(Collector_Id []uint, driveid []uint, page uint, pageSi
 	return
 }
 
-func Points_Config__Query(Collector_Id []uint, driveid []uint, page uint, pageSize uint) (resp []mysql.Points_Config_type, err error) {
+func Point_Config__Query(Collector_Id []uint, driveid []uint, page uint, pageSize uint) (resp []mysql.Point_Config_type, err error) {
 	type Req struct {
 		Collector_Id []uint
 		Driveid      []uint

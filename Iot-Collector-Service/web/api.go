@@ -38,9 +38,9 @@ var typeMap = map[string]reflect.Type{
 func api_point_write_value(ctx *gin.Context) {
 	// 第一步：用 json.RawMessage 临时接收，实现“不解析Value”
 	var tempData []struct {
-		Tag   string
-		Value json.RawMessage
-		Type  string
+		PointId uint
+		Value   json.RawMessage
+		Type    string
 		// Msg   string
 		// Time  time.Time
 	}
@@ -69,9 +69,9 @@ func api_point_write_value(ctx *gin.Context) {
 
 		realValue = reflect.ValueOf(realValue).Convert(t).Interface()
 		jsondata = append(jsondata, fullConfig.Value_type{
-			Tag:   item.Tag,  // 点位名称
-			Value: realValue, // 点位值
-			Type:  item.Type, // 输出类型
+			PointId: item.PointId, // 点位名称
+			Value:   realValue,    // 点位值
+			Type:    item.Type,    // 输出类型
 			// Msg:   item.Msg,  // 状态信息
 			Time: time.Now(), // 读取时间
 		})
@@ -87,7 +87,7 @@ func api_point_write_value(ctx *gin.Context) {
 }
 
 func api_alarm_tatus(ctx *gin.Context) {
-	var tags []string
+	var tags []db_point.Config_key_type
 	err := ctx.BindJSON(&tags)
 	if err != nil {
 		ctx.Set("Response", []any{417, "请求格式不对"})

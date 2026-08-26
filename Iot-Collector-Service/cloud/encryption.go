@@ -18,6 +18,8 @@ import (
 	"hash/crc32"
 	"io"
 	"strconv"
+	"strings"
+	"time"
 )
 
 // GetPasswordHashGood 获取密码的哈希值（安全）
@@ -213,4 +215,102 @@ func Receive__CRC32_Aes_Gzip(dataBytes []byte, aesPasswd string) ([]byte, error)
 	}
 
 	return gzipData, nil
+}
+
+// GetKVValue 解析 ; 分隔的键值串，根据key查询值
+// str: 原始字符串 例:"name:张三;age:18"
+// targetKey: 要查找的key
+// return: (对应值, 是否找到)
+func GetKVValue(str string, targetKey string) (string, bool) {
+	// 去除首尾空格
+	str = strings.TrimSpace(str)
+
+	// 如果字符串为空，直接返回
+	if str == "" {
+		return "", false
+	}
+
+	// 按;拆分所有片段
+	parts := strings.Split(str, ";")
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		// 找到第一个 :
+		eqIdx := strings.Index(part, ":")
+		if eqIdx == -1 {
+			continue
+		}
+
+		k := strings.TrimSpace(part[:eqIdx])
+		v := strings.TrimSpace(part[eqIdx+1:])
+
+		// 大小写不敏感匹配（可选）
+		if strings.EqualFold(k, targetKey) {
+			return v, true
+		}
+
+		// 精确匹配（默认）
+		// if k == targetKey {
+		//     return v, true
+		// }
+	}
+
+	return "", false
+}
+
+// SplitBySemicolon 根据 ; 分割字符串，按index获取元素，index从 0 开始
+// str: "1;03;4;BA;int16"
+// index: 下标，0为第一个元素
+func GetSplitStr(str string, index int, errstr ...string) (string, error) {
+	parts := strings.Split(str, ";")
+	// 判断下标越界
+	if index < 0 || index >= len(parts) {
+		return "", fmt.Errorf("ERROR %s 解析失败 下标越界", errstr[0])
+	}
+	return parts[index], nil
+}
+
+// GetSplitInt 根据;分割，取index位置，直接转int返回
+func GetSplitInt(str string, index int, errstr ...string) (int, error) {
+	s, err := GetSplitStr(str, index)
+	if err != nil {
+		return 0, err
+	}
+	i, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil {
+		return 0, fmt.Errorf("ERROR %s 解析失败: %w", errstr[0], err)
+	}
+	return i, nil
+}
+
+// GetSplitBool 根据;分割，取index位置，直接转bool返回
+func GetSplitBool(str string, index int, errstr ...string) (bool, error) {
+	s, err := GetSplitStr(str, index)
+	if err != nil {
+		return false, err
+	}
+	switch s {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	}
+
+	return false, fmt.Errorf("ERROR %s 解析失败 无效的布尔值", errstr[0])
+}
+
+func GetSplitDuration(str string, index int, errstr ...string) (time.Duration, error) {
+	s, err := GetSplitStr(str, index)
+	if err != nil {
+		return 0, err
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, fmt.Errorf("ERROR %s 解析失败: %w", errstr[0], err)
+	}
+	return d, nil
 }

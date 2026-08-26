@@ -116,8 +116,15 @@ func token_use() gin.HandlerFunc {
 
 		// 2. 检查是否是免token的路径
 		if strings.HasPrefix(FullPath, "/api/gui/v1.0/login") ||
-			strings.HasPrefix(FullPath, "/api/v1.0/login") {
+			strings.HasPrefix(FullPath, "/api/v1.0/login") || strings.HasPrefix(FullPath, "/api/Collector/v1.0/") ||
+			strings.HasPrefix(FullPath, "/api/app/v1.0/login") {
 			fmt.Printf("路径 %s 无需token授权\n", FullPath)
+			ctx.Next()
+			return
+		}
+
+		if strings.HasPrefix(FullPath, "/api/app/v1.0") {
+			// app接口：login免token，其他接口在handler内部自行验证Collector_Token
 			ctx.Next()
 			return
 		}
@@ -302,6 +309,7 @@ func Web() error {
 	log.Print("INFO ", "api", bind)
 
 	gui_api(r)
+	app_api(r)
 	// 前端接口
 
 	// time.Sleep(3 * time.Second)

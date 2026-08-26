@@ -15,7 +15,7 @@ import (
 
 // 你定义的结构体（完全保留）
 type PackAddressPackages_Point_type struct {
-	Tag       string // 点位名称
+	Id        uint   // 点位id
 	StartAddr uint16 // 点位开始值
 	DataLen   uint16 // 点位类型长度
 	EndAddr   uint16 // 内部计算用
@@ -25,7 +25,7 @@ type PackAddressPackages_Point_type struct {
 type PackageResult struct {
 	StartAddr uint16
 	DataLen   uint16
-	Tags      []string // 改成 uint 匹配你的结构
+	Id        []uint // 改成 uint 匹配你的结构
 }
 
 // PackAddressPackages 终极修复版 → 连续地址1、2、3一定会合并！
@@ -38,7 +38,7 @@ func PackAddressPackages(addrList []PackAddressPackages_Point_type, maxPackageLe
 	var validPoints []PackAddressPackages_Point_type
 	for _, p := range addrList {
 		if p.DataLen <= 0 {
-			fmt.Printf("跳过无效点位：Tag=%s\n", p.Tag)
+			fmt.Printf("id=%d\n", p.Id)
 			continue
 		}
 		p.EndAddr = p.StartAddr + p.DataLen - 1
@@ -71,7 +71,7 @@ func PackAddressPackages(addrList []PackAddressPackages_Point_type, maxPackageLe
 				// 不超限才合并
 				if maxPackageLen == 0 || newLen <= maxPackageLen {
 					last.DataLen = newLen
-					last.Tags = append(last.Tags, point.Tag)
+					last.Id = append(last.Id, point.Id)
 					merged = true
 				}
 			}
@@ -82,7 +82,7 @@ func PackAddressPackages(addrList []PackAddressPackages_Point_type, maxPackageLe
 			packages = append(packages, PackageResult{
 				StartAddr: point.StartAddr,
 				DataLen:   point.DataLen,
-				Tags:      []string{point.Tag},
+				Id:        []uint{point.Id},
 			})
 		}
 	}

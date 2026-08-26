@@ -23,8 +23,8 @@ type Flexem_Mqtt struct {
 	// Points                []mysql.Mqtt_Points__type //  // 点位结构体
 
 	// 点位标志与配置下标
-	points_config_RWMu sync.RWMutex
-	points_config_map  map[string]int // 点位配置下标
+	Point_Config_RWMu sync.RWMutex
+	Point_Config_map  map[string]int // 点位配置下标
 
 	// 推送key值
 	push_key_map_RWMu sync.RWMutex
@@ -48,14 +48,14 @@ func (c *Flexem_Mqtt) Start() error {
 	}
 
 	// 初始化点位配置映射
-	c.points_config_map = make(map[string]int)
+	c.Point_Config_map = make(map[string]int)
 	c.push_key_map = make(map[string]int)
 
 	for i, v := range c.Config.Points {
 		// 构建点位标签到索引的映射
-		c.points_config_RWMu.Lock()
-		c.points_config_map[v.Tag] = i
-		c.points_config_RWMu.Unlock()
+		c.Point_Config_RWMu.Lock()
+		c.Point_Config_map[v.Tag] = i
+		c.Point_Config_RWMu.Unlock()
 
 		// 构建MQTT变量名称到索引的映射
 		mqttName, ok := cloud.GetKVValue(v.Config, "MQTT变量名称")
@@ -107,9 +107,9 @@ func (c *Flexem_Mqtt) Stop() error {
 	}
 
 	// 3. 清理内部资源，防止内存泄漏
-	c.points_config_RWMu.Lock()
-	defer c.points_config_RWMu.Unlock()
-	c.points_config_map = make(map[string]int) // 重新初始化为空 map
+	c.Point_Config_RWMu.Lock()
+	defer c.Point_Config_RWMu.Unlock()
+	c.Point_Config_map = make(map[string]int) // 重新初始化为空 map
 
 	c.push_key_map_RWMu.Lock()
 	defer c.push_key_map_RWMu.Unlock()
@@ -167,10 +167,10 @@ func (c *Flexem_Mqtt) timer_msg(callTime time.Time) {
 }
 
 // 获取点位配置下标
-func (c *Flexem_Mqtt) points_config_map_R(tag string) (mysql.Mqtt_Points__type, bool) {
-	c.points_config_RWMu.RLock()
-	defer c.points_config_RWMu.RUnlock()
-	index, ok := c.points_config_map[tag]
+func (c *Flexem_Mqtt) Point_Config_map_R(tag string) (mysql.Mqtt_Points__type, bool) {
+	c.Point_Config_RWMu.RLock()
+	defer c.Point_Config_RWMu.RUnlock()
+	index, ok := c.Point_Config_map[tag]
 	if !ok {
 		return mysql.Mqtt_Points__type{}, false
 	}
@@ -364,7 +364,7 @@ func (c *Flexem_Mqtt) Down(values []fullConfig.Value_type) error {
 	r["flexem_timestamp"] = time.Now().Unix()
 
 	for _, value := range values {
-		cfg, ok := c.points_config_map_R(value.Tag)
+		cfg, ok := c.Point_Config_map_R(value.Tag)
 		if !ok {
 			return fmt.Errorf("没有[%s]点位配置", value.Tag)
 		}
