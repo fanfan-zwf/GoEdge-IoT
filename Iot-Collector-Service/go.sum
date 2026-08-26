@@ -235,6 +235,8 @@ github.com/richardlehane/msoleps v1.0.6 h1:9BvkpjvD+iUBalUY4esMwv6uBkfOip/Lzvd93
 github.com/richardlehane/msoleps v1.0.6/go.mod h1:BWev5JBpU9Ko2WAgmZEuiz4/u3ZYTKbjLycmwiWUfWg=
 github.com/robinson/gos7 v0.0.0-20241205073040-7ea1d6fb9d20 h1:HjGiMRQ3pKwKH3p0mmLtY62bwd973txhzV9FfpdGo7U=
 github.com/robinson/gos7 v0.0.0-20241205073040-7ea1d6fb9d20/go.mod h1:AMHIeh1KJ7Xa2RVOMHdv9jXKrpw0D4EWGGQMHLb2doc=
+github.com/robinson/gos7 v0.0.0-20260622162611-2d6806f80c8b h1:jHMa5VgiGPbSoG8Nhv6ceiiVvH1ysoXeGfzvZrd/Ibk=
+github.com/robinson/gos7 v0.0.0-20260622162611-2d6806f80c8b/go.mod h1:AMHIeh1KJ7Xa2RVOMHdv9jXKrpw0D4EWGGQMHLb2doc=
 github.com/rymdport/portal v0.4.1 h1:2dnZhjf5uEaeDjeF/yBIeeRo6pNI2QAKm7kq1w/kbnA=
 github.com/rymdport/portal v0.4.1/go.mod h1:kFF4jslnJ8pD5uCi17brj/ODlfIidOxlgUDTO5ncnC4=
 github.com/spkg/bom v0.0.0-20160624110644-59b7046e48ad/go.mod h1:qLr4V1qq6nMqFKkMo8ZTx3f+BZEkzsRUY10Xsm2mwU0=

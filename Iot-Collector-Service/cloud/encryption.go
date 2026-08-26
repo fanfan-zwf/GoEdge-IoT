@@ -217,17 +217,23 @@ func Receive__CRC32_Aes_Gzip(dataBytes []byte, aesPasswd string) ([]byte, error)
 	return gzipData, nil
 }
 
+/*
+工具函数
+*/
+
+var NilError = errors.New("nil error")
+
 // GetKVValue 解析 ; 分隔的键值串，根据key查询值
 // str: 原始字符串 例:"name:张三;age:18"
 // targetKey: 要查找的key
-// return: (对应值, 是否找到)
-func GetKVValue(str string, targetKey string) (string, bool) {
+// return: (对应值, error) 未找到返回 NilError
+func GetKVValue(str string, targetKey string) (string, error) {
 	// 去除首尾空格
 	str = strings.TrimSpace(str)
 
 	// 如果字符串为空，直接返回
 	if str == "" {
-		return "", false
+		return "", NilError
 	}
 
 	// 按;拆分所有片段
@@ -250,16 +256,16 @@ func GetKVValue(str string, targetKey string) (string, bool) {
 
 		// 大小写不敏感匹配（可选）
 		if strings.EqualFold(k, targetKey) {
-			return v, true
+			return v, nil
 		}
 
 		// 精确匹配（默认）
 		// if k == targetKey {
-		//     return v, true
+		//     return v, nil
 		// }
 	}
 
-	return "", false
+	return "", NilError
 }
 
 // SplitBySemicolon 根据 ; 分割字符串，按index获取元素，index从 0 开始
@@ -269,29 +275,47 @@ func GetSplitStr(str string, index int, errstr ...string) (string, error) {
 	parts := strings.Split(str, ";")
 	// 判断下标越界
 	if index < 0 || index >= len(parts) {
-		return "", fmt.Errorf("ERROR %s 解析失败 下标越界", errstr[0])
+		msg := "下标越界"
+		if len(errstr) > 0 {
+			msg = errstr[0] + " 解析失败 下标越界"
+		}
+		return "", fmt.Errorf("ERROR %s", msg)
 	}
 	return parts[index], nil
 }
 
 // GetSplitInt 根据;分割，取index位置，直接转int返回
+// 空值（越界或空串）返回 0 + NilError，解析失败返回 error
 func GetSplitInt(str string, index int, errstr ...string) (int, error) {
-	s, err := GetSplitStr(str, index)
+	s, err := GetSplitStr(str, index, errstr...)
 	if err != nil {
-		return 0, err
+		return 0, NilError // 越界 → 未配置
 	}
-	i, err := strconv.Atoi(strings.TrimSpace(s))
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, NilError // 空值 → 未配置
+	}
+	i, err := strconv.Atoi(s)
 	if err != nil {
-		return 0, fmt.Errorf("ERROR %s 解析失败: %w", errstr[0], err)
+		msg := "解析失败"
+		if len(errstr) > 0 {
+			msg = errstr[0] + " 解析失败"
+		}
+		return 0, fmt.Errorf("ERROR %s: %w", msg, err)
 	}
 	return i, nil
 }
 
 // GetSplitBool 根据;分割，取index位置，直接转bool返回
+// 空值（越界或空串）返回 false + NilError，解析失败返回 error
 func GetSplitBool(str string, index int, errstr ...string) (bool, error) {
-	s, err := GetSplitStr(str, index)
+	s, err := GetSplitStr(str, index, errstr...)
 	if err != nil {
-		return false, err
+		return false, NilError // 越界 → 未配置
+	}
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false, NilError // 空值 → 未配置
 	}
 	switch s {
 	case "true":
@@ -300,17 +324,31 @@ func GetSplitBool(str string, index int, errstr ...string) (bool, error) {
 		return false, nil
 	}
 
-	return false, fmt.Errorf("ERROR %s 解析失败 无效的布尔值", errstr[0])
+	msg := "解析失败 无效的布尔值"
+	if len(errstr) > 0 {
+		msg = errstr[0] + " 解析失败 无效的布尔值"
+	}
+	return false, fmt.Errorf("ERROR %s", msg)
 }
 
+// GetSplitDuration 根据;分割，取index位置，直接转Duration返回
+// 空值（越界或空串）返回 0 + NilError，解析失败返回 error
 func GetSplitDuration(str string, index int, errstr ...string) (time.Duration, error) {
-	s, err := GetSplitStr(str, index)
+	s, err := GetSplitStr(str, index, errstr...)
 	if err != nil {
-		return 0, err
+		return 0, NilError // 越界 → 未配置
+	}
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, NilError // 空值 → 未配置
 	}
 	d, err := time.ParseDuration(s)
 	if err != nil {
-		return 0, fmt.Errorf("ERROR %s 解析失败: %w", errstr[0], err)
+		msg := "解析失败"
+		if len(errstr) > 0 {
+			msg = errstr[0] + " 解析失败"
+		}
+		return 0, fmt.Errorf("ERROR %s: %w", msg, err)
 	}
 	return d, nil
 }

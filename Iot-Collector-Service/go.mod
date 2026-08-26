@@ -90,7 +90,7 @@ require (
 	github.com/redis/go-redis/v9 v9.18.0 // indirect
 	github.com/richardlehane/mscfb v1.0.6 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
-	github.com/robinson/gos7 v0.0.0-20241205073040-7ea1d6fb9d20 // indirect
+	github.com/robinson/gos7 v0.0.0-20260622162611-2d6806f80c8b // indirect
 	github.com/rymdport/portal v0.4.1 // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
