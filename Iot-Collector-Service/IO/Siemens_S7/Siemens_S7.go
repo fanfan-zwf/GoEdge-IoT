@@ -5,6 +5,7 @@ import (
 	"log"
 	"main/IO/byte_util"
 	"main/IO/manager/fullConfig"
+	"main/Init"
 	"main/db/mysql"
 	"time"
 
@@ -321,10 +322,11 @@ func (c *Siemens_S7) analysis(packetIndex int, data []byte) []fullConfig.Value_t
 		}
 
 		read := fullConfig.Value_type{
-			PointId: point.Id,
-			Type:    ValueTypeIntToString(point.Value_Type),
-			Msg:     "ok",
-			Time:    now,
+			DeviceId: Init.Config.APP.Label,
+			PointId:  point.Id,
+			Type:     ValueTypeIntToString(point.Value_Type),
+			Msg:      "ok",
+			Time:     now,
 		}
 
 		// 1. 按采集类型 Type 从字节流解析原始值（S7 固定大端序）

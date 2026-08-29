@@ -45,7 +45,7 @@ var (
 func Collection_Publisher(v []fullConfig.Value_type) error {
 	if len(v) == 0 {
 		return nil
-	} 
+	}
 
 	for _, f := range Collection_value_list {
 		err := (*f)(v)
@@ -200,7 +200,7 @@ func New() error {
 func init() {
 	Update_Subscriber(func(v []fullConfig.Value_type) error {
 		for _, val := range v {
-			fmt.Printf("数据更新 设备id: %s, 设备id: %d, Value: %v, Msg: %s, Time: %s\n", val.DeviceId, val.PointId, val.Value, val.Msg, val.Time.Format(time.RFC3339))
+			fmt.Printf("数据更新 设备id: %s, 点位id: %d, Value: %v, Msg: %s, Time: %s\n", val.DeviceId, val.PointId, val.Value, val.Msg, val.Time.Format(time.RFC3339))
 		}
 		return nil
 	})
