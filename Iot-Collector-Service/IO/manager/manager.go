@@ -8,6 +8,7 @@ package manager
 
 import (
 	"main/IO/Modbus_Tcp"
+	Siemens_S7 "main/IO/Siemens_S7"
 	"main/IO/manager/fullConfig"
 	"main/db/mysql"
 
@@ -24,7 +25,7 @@ type driverEntry struct {
 	instance any // 驱动实例（如 *Modbus_Tcp.Modbus_Tcp）
 
 	// 函数绑定：创建时根据驱动类型赋值，调用时直接执行，无需类型断言
-	New      func(mysql.Drive_Config_type, []mysql.CollectorGet_Point_Config_type) error
+	New      func(mysql.CollectorGet_Drive_Config_type, []mysql.CollectorGet_Point_Config_type) error
 	Connect  func(func([]fullConfig.Value_type) error) error
 	Close    func() error
 	callback func([]fullConfig.Value_type) error // 存储回调，供 ResetConfig 重连时复用
@@ -55,6 +56,14 @@ func CreateDriver(driveType string, driveId uint) (any, error) {
 	switch driveType {
 	case "Modbus_Tcp":
 		inst := &Modbus_Tcp.Modbus_Tcp{}
+		entry = &driverEntry{
+			instance: inst,
+			New:      inst.New,
+			Connect:  inst.Connect,
+			Close:    inst.Close,
+		}
+	case "Siemens_S7":
+		inst := &Siemens_S7.Siemens_S7{}
 		entry = &driverEntry{
 			instance: inst,
 			New:      inst.New,
@@ -128,7 +137,7 @@ func unlockDrive(l *sync.Mutex) {
 }
 
 // DriveNew 初始化指定驱动（解析配置、组包等）
-func DriveNew(id uint, Drive mysql.Drive_Config_type, Points []mysql.CollectorGet_Point_Config_type) error {
+func DriveNew(id uint, Drive mysql.CollectorGet_Drive_Config_type, Points []mysql.CollectorGet_Point_Config_type) error {
 
 	l, err := tryLockDrive(id)
 	if err != nil {
@@ -176,7 +185,7 @@ func DriveClose(id uint) error {
 
 // DriveResetConfig 重置驱动配置：Close → 6秒后 New → 3秒后 Connect
 // 整个过程锁定该 id，同 id 的并发调用立即返回 error
-func DriveResetConfig(id uint, Drive mysql.Drive_Config_type, Points []mysql.CollectorGet_Point_Config_type) error {
+func DriveResetConfig(id uint, Drive mysql.CollectorGet_Drive_Config_type, Points []mysql.CollectorGet_Point_Config_type) error {
 	l, err := tryLockDrive(id)
 	if err != nil {
 		return err

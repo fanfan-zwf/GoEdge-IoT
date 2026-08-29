@@ -15,7 +15,7 @@ import (
 
 const (
 	s7MaxItemsPerRead = 20  // S7 协议 AGReadMulti 单次最大 item 数
-	s7DefaultPDUSize  = 480 // 默认 PDU 长度（字节）
+	s7DefaultPDUSize  = 480 // 默认 PDU 长度（字节） Smart200=240 300=240 400=960 1200=480 1500=960
 )
 
 // S7GroupKey S7 组包分组键：Area + DBNumber

@@ -92,7 +92,7 @@ func Collector_GetBasicAuth() (string, error) {
 
 }
 
-func Collector_Drive_Config__Query() (data []mysql.Drive_Config_type, err error) {
+func Collector_Drive_Config__Query() (data []mysql.CollectorGet_Drive_Config_type, err error) {
 	client := resty.New().
 		SetTimeout(Init.Config.Config_Service.SetTimeout).            // 设置超时时间
 		SetRetryCount(Init.Config.Config_Service.SetRetryCount).      // 401 最多重试 1 次，避免死循环
@@ -141,7 +141,7 @@ func Collector_Drive_Config__Query() (data []mysql.Drive_Config_type, err error)
 		return nil, fmt.Errorf("驱动配置请求失败，状态码: %d", resp.StatusCode())
 	}
 
-	respBody, err := parseResponseBody[[]mysql.Drive_Config_type](resp.Bytes())
+	respBody, err := parseResponseBody[[]mysql.CollectorGet_Drive_Config_type](resp.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("驱动配置响应解析失败: %w", err)
 	}

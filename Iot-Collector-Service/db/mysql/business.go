@@ -59,14 +59,6 @@ type CollectorGet_Drive_Config_type struct {
 	Points_Length uint   // 点位数量
 }
 
-// Drive_Config_type IO层使用的驱动配置类型（与 CollectorGet_Drive_Config_type 字段一致）
-type Drive_Config_type struct {
-	Id           uint   // 驱动id
-	Collector_Id uint   // 采集id
-	Type         string // 驱动类型
-	Config       string // 配置参数
-}
-
 /*
 ***************点位配置结构体***************
  */

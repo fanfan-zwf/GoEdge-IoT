@@ -167,7 +167,7 @@ type Packet_df struct {
 	Function uint8 // 功能码
 }
 
-func (c *Modbus_Tcp) New(Drive mysql.Drive_Config_type, Points []mysql.CollectorGet_Point_Config_type) (err error) {
+func (c *Modbus_Tcp) New(Drive mysql.CollectorGet_Drive_Config_type, Points []mysql.CollectorGet_Point_Config_type) (err error) {
 
 	// 解析驱动配置字符串格式: IP;Port;RetryTimeout;ConnectTimeout;ResponseTimeout;DelayBetweenPolls;PacketMax
 	c.Drive.Config, err = Drive_Config_Switch(Drive.Config)

@@ -62,7 +62,7 @@ func InitializeDrivers() error {
 }
 
 // initSingleDriver 初始化单个驱动：创建 → New → Connect
-func initSingleDriver(drive mysql.Drive_Config_type, points []mysql.CollectorGet_Point_Config_type) error {
+func initSingleDriver(drive mysql.CollectorGet_Drive_Config_type, points []mysql.CollectorGet_Point_Config_type) error {
 	// 1. 创建驱动实例
 	_, err := CreateDriver(drive.Type, drive.Id)
 	if err != nil {

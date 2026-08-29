@@ -5,6 +5,7 @@ import (
 	"log"
 	"main/IO/byte_util"
 	"main/IO/manager/fullConfig"
+	"main/db/mysql"
 	"time"
 
 	"github.com/robinson/gos7"
@@ -13,17 +14,21 @@ import (
 type Config_type struct {
 	Address             string        // 地址
 	Retry_timeout       time.Duration // 重试间隔（可选，默认3s）
+	Connect_timeout     time.Duration // 连接超时（可选，默认10s）
+	Response_timeout    time.Duration // 响应超时（可选，默认10s）
 	Rack                int           // 机架号
 	Slot                int           // 槽位号
-	Delay_between_polls time.Duration // 轮询间隔（可选，默认20ms）
+	Delay_between_polls time.Duration // 轮询间隔（可选，默认0）
+	MaxPacketLen        int           // 组包最大长度（可选，默认480） Smart200=240 300=240 400=960 1200=480 1500=960
+	ConnectionType      int           // 连接类型（可选，默认2） 1=PG编程设备 2=OP操作面板 3=Basic
 }
 
 type Points_type struct {
 	Id            uint // 点位id
-	Area          int  // 存储区：0x84 = DB块
+	Area          int  // 存储区 0x81=I(输入) 0x82=Q(输出) 0x83=M(标志) 0x84=DB(数据块) 0x1C=T(定时器) 0x1B=C(计数器)
 	DBNumber      int  // DB号
 	Start         int  // 字节偏移
-	Type          int  // 数据类型（bool/int8/float32等）
+	Type          int  // 采集数据类型 1=bool(Bool) 2=int8(SInt) 3=uint8(USInt) 4=int16(Int) 5=uint16(UInt) 6=int32(DInt) 7=uint32(UDInt) 8=int64(LInt) 9=uint64(ULInt) 10=int 11=uint 12=float32(Real) 13=float64(LReal) 14=float 15=string
 	Child_Address int  // 子地址（可选）
 
 	RW_Cancel  int // 读写方式读写方式 1：禁止； 2：只读； 3：只写； 4：读写；
@@ -43,6 +48,42 @@ type Siemens_S7 struct {
 
 	Read_External_Mappings func([]fullConfig.Value_type) error // 外部映射回调
 }
+
+/*******************驱动初始化*******************/
+
+// New 解析驱动配置和点位配置，构建读取数据包
+func (c *Siemens_S7) New(Drive mysql.CollectorGet_Drive_Config_type, Points []mysql.CollectorGet_Point_Config_type) (err error) {
+
+	// 1. 解析驱动配置字符串
+	c.Config, err = Drive_Config_Switch(Drive.Config)
+	if err != nil {
+		return fmt.Errorf("解析驱动配置失败: %w", err)
+	}
+
+	// 2. 解析点位配置
+	var points []Points_type
+	for _, v := range Points {
+		point, err := Point_Config_Switch(v.Config)
+		if err != nil {
+			log.Printf("WARN 点位 id=%d 配置解析失败，跳过: %v", v.Id, err)
+			continue
+		}
+		point.Id = v.Id
+		point.RW_Cancel = v.RW_Cancel
+		point.Value_Type = v.Value_Type
+		points = append(points, point)
+	}
+	c.Points = points
+
+	// 3. 组包
+	if err := c.Read_Packet(); err != nil {
+		return fmt.Errorf("组包失败: %w", err)
+	}
+
+	return nil
+}
+
+/*******************驱动连接*******************/
 
 // packet 组包：筛选可读点位（RW_Cancel=2只读/4读写），按 Area+DBNumber 分组合并连续地址，
 // 构建 Read_Packet_S7DataItem 和 Read_Packet_S7DataItem_Point
@@ -69,12 +110,14 @@ func (c *Siemens_S7) Read_Packet() error {
 	}
 
 	if len(packPoints) == 0 {
+		log.Printf("WARN siemens_s7: 无有效的可读点位，跳过组包")
 		return fmt.Errorf("无有效的可读点位")
 	}
 
 	// 2. 调用组包函数
-	packs, err := PackS7AddressPackages(packPoints, 0)
+	packs, err := PackS7AddressPackages(packPoints, c.Config.MaxPacketLen)
 	if err != nil {
+		log.Printf("WARN siemens_s7: S7 组包失败: %v", err)
 		return fmt.Errorf("S7 组包失败: %w", err)
 	}
 
@@ -125,9 +168,20 @@ func (c *Siemens_S7) Connect(Read_External_Mappings func([]fullConfig.Value_type
 
 // connect 建立 S7 TCP 连接
 func (c *Siemens_S7) connect() error {
-	handler := gos7.NewTCPClientHandler(c.Config.Address, c.Config.Rack, c.Config.Slot)
-	handler.Timeout = 10 * time.Second
-	handler.IdleTimeout = 60 * time.Second
+	connType := c.Config.ConnectionType
+	if connType <= 0 {
+		connType = 2 // 默认 OP 连接
+	}
+	handler := gos7.NewTCPClientHandlerWithConnectType(c.Config.Address, c.Config.Rack, c.Config.Slot, connType)
+
+	// 连接超时（默认 10s）
+	if c.Config.Connect_timeout > 0 {
+		handler.Timeout = c.Config.Connect_timeout
+	}
+	// 响应超时（默认 10s）
+	if c.Config.Response_timeout > 0 {
+		handler.IdleTimeout = c.Config.Response_timeout
+	}
 
 	err := handler.Connect()
 	if err != nil {
