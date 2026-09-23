@@ -86,11 +86,8 @@ type Config_type struct {
 		BufferSize    int           `yaml:"buffer_size"`    // 缓冲区大小
 		FlushInterval time.Duration `yaml:"flush_interval"` // 刷新间隔
 
-		Write_Quantity_Tag string `yaml:"write_quantity_tag"` // 写入时序数据库的点数量
+		Write_Quantity_Id uint `yaml:"write_quantity_id"` // 写入时序数据库的点数量
 
-		Redis_Cache_Enable        bool          `yaml:"redis_cache_enable"`         // 是否启用redis缓存
-		Redis_Cache_ufferSize     int           `yaml:"redis_cache_buffer_size"`    // 缓冲区大小
-		Redis_Cache_FlushInterval time.Duration `yaml:"redis_cache_flush_interval"` // 刷新间隔
 	} `yaml:"Influxdb"` // 时序数据库
 
 	LOG struct {
@@ -117,6 +114,10 @@ type Config_type struct {
 		Point_Down_value  string `yaml:"point_down_value"`  // 点下发值
 		Point_Alarm_Value string `yaml:"point_alarm_value"` // 点更新值
 	} `yaml:"Mqtt_Rpc"` // mqtt版的rpc通信
+
+	ALARM struct {
+		Config_CacheTTL time.Duration `yaml:"Config_CacheTTL"` // 报警配置缓存TTL，0s=永久保存
+	} `yaml:"ALARM"` // 报警配置
 
 	Mqtt map[string]MqttItem `yaml:"Mqtt"` // mqtt版的rpc通信
 }
@@ -152,6 +153,9 @@ func init() {
 	// API 默认值
 	Config.API.Ip = "0.0.0.0"
 	Config.API.Post = 8102
+
+	// ALARM 默认值
+	Config.ALARM.Config_CacheTTL = 1 * time.Hour
 
 	// log
 	Config.LOG.Path = "./log"

@@ -16,9 +16,8 @@ import (
 )
 
 type History_Value_type struct {
-	DeviceId string    // 设备id
-	PointId  uint      // 点位id
-	Time     time.Time // 记录时间
+	PointId uint      // 点位id
+	Time    time.Time // 记录时间
 
 	Msg   string // 状态信息
 	Value any    // 记录值
@@ -26,30 +25,29 @@ type History_Value_type struct {
 }
 
 type History_Config_type struct {
-	DeviceId string // 设备id
-	PointId  uint   // 点位id
-	Config   string // 配置
+	PointId uint   // 点位id
+	Config  string // 配置
 }
 
 var (
-	History_Config      map[Config_key_type]History_Config_type
+	History_Config      map[uint]History_Config_type
 	History_Config_RWMu sync.RWMutex
 )
 
 func init() {
-	History_Config = make(map[Config_key_type]History_Config_type)
+	History_Config = make(map[uint]History_Config_type)
 }
 
 // 读取配置
-func History_Config__Query(key Config_key_type) (History_Config_type, bool) {
+func History_Config__Query(pointId uint) (History_Config_type, bool) {
 	History_Config_RWMu.RLock()
 	defer History_Config_RWMu.RUnlock()
-	v, ok := History_Config[key]
+	v, ok := History_Config[pointId]
 	return v, ok
 }
-func History_Config__Query_list(keys []Config_key_type) (r []History_Config_type) {
-	for _, key := range keys {
-		v, ok := History_Config__Query(key)
+func History_Config__Query_list(keys []uint) (r []History_Config_type) {
+	for _, pointId := range keys {
+		v, ok := History_Config__Query(pointId)
 		if ok {
 			r = append(r, v)
 		}
@@ -65,12 +63,7 @@ func History_Config__Add(configs []History_Config_type) error {
 	defer History_Config_RWMu.Unlock()
 
 	for _, config := range configs {
-		key := Config_key_type{
-			DeviceId: config.DeviceId, // 设备id
-			PointId:  config.PointId,  // 点位id
-		}
-
-		History_Config[key] = config
+		History_Config[config.PointId] = config
 	}
 	return nil
 }
@@ -115,19 +108,11 @@ func History_Subscriber(value History_func) error {
  */
 
 func History_Judgment(new fullConfig.Value_type) (History_Value_type, bool) {
-	if new.DeviceId == "" {
-		log.Printf("ERROR 获取记录配置失败: DeviceId=='' ")
-		return History_Value_type{}, false
-	}
 	if new.PointId == 0 {
 		log.Printf("ERROR 获取记录配置失败: PointId==0 ")
 		return History_Value_type{}, false
 	}
-	key := Config_key_type{
-		DeviceId: new.DeviceId, // 设备id
-		PointId:  new.PointId,  // 点位id
-	}
-	cfg, ok := History_Config__Query(key)
+	cfg, ok := History_Config__Query(new.PointId)
 	if !ok {
 		return History_Value_type{}, false
 	}
@@ -138,15 +123,14 @@ func History_Judgment(new fullConfig.Value_type) (History_Value_type, bool) {
 
 	v, ok := byte_util.ConvBool(new.Value, new.Type)
 	if !ok {
-		err := fmt.Errorf("ERROR modbus_tcp: 读取值类型不匹配, 设备id: %s, 点位id: %d, 配置类型: %s, 值类型: %t", new.DeviceId, new.PointId, new.Type, v)
+		err := fmt.Errorf("ERROR modbus_tcp: 读取值类型不匹配, 点位id: %d, 配置类型: %s, 值类型: %t", new.PointId, new.Type, v)
 		log.Print(err)
 		return History_Value_type{}, false
 	}
 
 	r := History_Value_type{
-		DeviceId: new.DeviceId, // 设备id
-		PointId:  new.PointId,  // 点位id
-		Time:     new.Time,     // 记录时间
+		PointId: new.PointId, // 点位id
+		Time:    new.Time,    // 记录时间
 
 		Msg:   new.Msg,   // 状态信息
 		Value: new.Value, // 记录值

@@ -15,10 +15,15 @@ REDIS:
   database: 2
  
 Influxdb :
-  url : "http://192.168.220.40:8086"
-  token : "XGwVLBQDWuqQ5F3l62E_IZ7U1BacqKpYablCj5EWkC3gCoU0SUjfC2K-qemC3TH3g0iJVsJineiSViuUvVgElw=="
-  org : "default_group"
+  enable: true
+  url : "http://127.0.0.1:8086"
+  token : "YgJqi_kS9zx2e_G4d514f9IAU_LNM8O5iSFXwzckJqEiW_d8x4hni3rMpoO4dThCIhdBPhseyaBKS-Cvb_8bsg=="
+  org : "group1"
   bucket : "my1"
+  write_timeout: 5000        # 写入超时（毫秒）
+  buffer_size: 1000          # 缓冲区大小
+  flush_interval: 1s         # 刷新间隔
+  write_quantity_id: 1000000
 
 LOG:
   enable: true
@@ -65,6 +70,9 @@ Mqtt:
     keep_alive: 30s # 心跳保活
 
  
+ALARM:
+  Config_CacheTTL: 1h # 报警配置缓存TTL，0s=永久保存不过期
+
 Config_Service:
   enable: True
   address: "http://127.0.0.1:8102"

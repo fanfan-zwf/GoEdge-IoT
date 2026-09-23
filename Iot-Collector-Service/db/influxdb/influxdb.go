@@ -10,6 +10,7 @@ import (
 	"main/IO/manager/fullConfig"
 	"main/Init"
 	"main/db/db_point"
+	"sync"
 
 	"context"
 	"fmt"
@@ -65,6 +66,15 @@ type Connect_struct struct {
 
 	// 写入
 	write_timeout uint // 写入超时时间
+
+	// 批量写入缓冲区
+	bufferMu      sync.Mutex
+	buffer        []fullConfig.Value_type
+	bufferSize    int           // 缓冲区大小阈值
+	flushInterval time.Duration // 刷新间隔
+	lastFlushTime time.Time     // 上次刷新时间
+	stopChan      chan struct{} // 停止信号
+	isRunning     bool          // 后台刷新协程是否运行
 }
 
 // 定义接口
@@ -101,6 +111,14 @@ func (c *Connect_struct) initInfluxDB() (err error) {
 		c.write_timeout = 5000
 	}
 
+	// 设置批量写入缓冲区参数
+	if c.bufferSize == 0 {
+		c.bufferSize = 100 // 默认缓冲区大小：100条数据
+	}
+	if c.flushInterval == 0 {
+		c.flushInterval = 2 * time.Second // 默认刷新间隔：2秒
+	}
+
 	// 创建客户端（全局复用，不要每次创建）
 	c.client = influxdb2.NewClient(c.url, c.token)
 	// 初始化阻塞式写入客户端（关联org和bucket）
@@ -110,37 +128,356 @@ func (c *Connect_struct) initInfluxDB() (err error) {
 	return
 }
 
-// 批量写入函数
+// Close 关闭连接
+func (c *Connect_struct) Close() error {
+	// 停止后台刷新协程
+	c.stopBackgroundFlush()
+
+	// 刷新剩余数据
+	c.flushBuffer()
+
+	if c.client != nil {
+		c.client.Close()
+	}
+
+	// 清理所有缓存
+	writeCache.Range(func(key, value interface{}) bool {
+		writeCache.Delete(key)
+		return true
+	})
+
+	return nil
+}
+
+// 批量写入函数（使用缓冲区机制）
 func (c *Connect_struct) Write(data []fullConfig.Value_type) (err error) {
 	if c.client == nil || len(data) == 0 {
 		err = fmt.Errorf("客户端未连接")
 		return
 	}
 
+	// 使用缓冲区机制，将数据添加到缓冲区
+	c.addToBuffer(data)
+	return nil
+}
+
+// startBackgroundFlush 启动后台定时刷新协程
+func (c *Connect_struct) startBackgroundFlush() {
+	c.bufferMu.Lock()
+	if c.isRunning {
+		c.bufferMu.Unlock()
+		return
+	}
+	c.isRunning = true
+	c.stopChan = make(chan struct{})
+	c.lastFlushTime = time.Now()
+	c.bufferMu.Unlock()
+
+	go func() {
+		ticker := time.NewTicker(c.flushInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				c.flushBuffer()
+			case <-c.stopChan:
+				return
+			}
+		}
+	}()
+}
+
+// stopBackgroundFlush 停止后台刷新协程
+func (c *Connect_struct) stopBackgroundFlush() {
+	c.bufferMu.Lock()
+	if !c.isRunning {
+		c.bufferMu.Unlock()
+		return
+	}
+	close(c.stopChan)
+	c.isRunning = false
+	c.bufferMu.Unlock()
+}
+
+// flushBuffer 刷新缓冲区，将数据批量写入 InfluxDB
+func (c *Connect_struct) flushBuffer() error {
+	c.bufferMu.Lock()
+	if len(c.buffer) == 0 {
+		c.bufferMu.Unlock()
+		return nil
+	}
+
+	// 取出缓冲区数据
+	data := make([]fullConfig.Value_type, len(c.buffer))
+	copy(data, c.buffer)
+	c.buffer = c.buffer[:0] // 清空缓冲区
+	c.lastFlushTime = time.Now()
+	c.bufferMu.Unlock()
+
+	// 执行实际写入
+	if err := c.doWrite(Init.Config.APP.Label, data); err != nil {
+		log.Printf("InfluxDB 批量写入失败，数据量: %d, 错误: %v", len(data), err)
+		// 写入失败时，将数据重新放回缓冲区（可选策略）
+		c.bufferMu.Lock()
+		c.buffer = append(c.buffer, data...)
+		c.bufferMu.Unlock()
+		return err
+	}
+
+	// 定期清理过期的缓存键，防止内存泄漏
+	c.cleanupWriteCache()
+
+	return nil
+}
+
+// cleanupWriteCache 清理过期的写入缓存键
+func (c *Connect_struct) cleanupWriteCache() {
+	cacheCleanupMu.Lock()
+	defer cacheCleanupMu.Unlock()
+
+	now := time.Now()
+	if now.Sub(lastCleanupTime) < cacheMaxAge/2 {
+		// 距离上次清理时间不足一半，跳过
+		return
+	}
+
+	lastCleanupTime = now
+	cutoffTime := now.Add(-cacheMaxAge).UnixNano()
+
+	// 遍历并删除过期的缓存键
+	writeCache.Range(func(key, value interface{}) bool {
+		if keyStr, ok := key.(string); ok {
+			// 从 cacheKey 格式 "pointId_timestamp" 中提取时间戳部分
+			for i := len(keyStr) - 1; i >= 0; i-- {
+				if keyStr[i] == '_' {
+					if i < len(keyStr)-1 {
+						// 提取时间戳字符串
+						tsStr := keyStr[i+1:]
+						var ts int64
+						fmt.Sscanf(tsStr, "%d", &ts)
+						if ts < cutoffTime {
+							writeCache.Delete(key)
+						}
+					}
+					break
+				}
+			}
+		}
+		return true
+	})
+}
+
+// addToBuffer 添加数据到缓冲区，达到阈值时自动刷新
+func (c *Connect_struct) addToBuffer(data []fullConfig.Value_type) {
+	c.bufferMu.Lock()
+	c.buffer = append(c.buffer, data...)
+
+	// 检查是否达到缓冲区大小阈值
+	shouldFlush := len(c.buffer) >= c.bufferSize
+	c.bufferMu.Unlock()
+
+	// 如果达到阈值，立即刷新
+	if shouldFlush {
+		c.flushBuffer()
+	}
+}
+
+// doWrite 实际执行批量写入操作（内部方法）
+func (c *Connect_struct) doWrite(deviceID string, data []fullConfig.Value_type) error {
+	if c.client == nil {
+		return fmt.Errorf("客户端未连接")
+	}
+	if len(data) == 0 {
+		return nil
+	}
+
 	var points []*write.Point
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.write_timeout)*time.Millisecond)
+	defer cancel()
 
 	for _, v := range data {
+		// Tag + 时间戳 作为唯一键，防重复写入
+		cacheKey := fmt.Sprintf("%d_%d", v.PointId, v.Time.UnixNano())
+		if _, exists := writeCache.Load(cacheKey); exists {
+			continue
+		}
+
+		// measurement: 设备唯一标识符（APP.SN）
+		// tags: 点位 ID（PointId）
+		// fields: value_bool/value_int/value_uint/value_float/value_string（按类型分字段）, msg（状态）
+		fields := make(map[string]interface{})
+		fields["msg"] = v.Msg // 状态信息
+
+		// 根据实际类型存储到不同字段，避免 InfluxDB 类型冲突
+		switch val := v.Value.(type) {
+		case bool:
+			fields["value_bool"] = val
+		case int, int8, int16, int32, int64:
+			fields["value_int"] = val
+		case uint, uint8, uint16, uint32, uint64:
+			fields["value_uint"] = val
+		case float32, float64:
+			fields["value_float"] = val
+		case string:
+			fields["value_string"] = val
+		default:
+			// 其他类型转为字符串
+			fields["value_string"] = fmt.Sprintf("%v", v.Value)
+		}
 
 		point := influxdb2.NewPoint(
-			fmt.Sprintf("%d", v.PointId), // 测量名：点位ID
+			fmt.Sprintf("device_%s", deviceID), // measurement: 设备标识
 			map[string]string{
-				"_msg": v.Msg,
-			}, // 标签：点位ID唯一标识
-			map[string]interface{}{v.Type + "_value": v.Value}, // 字段：存储int/float/string值
+				"point_id": fmt.Sprintf("%d", v.PointId), // tag: 点位ID
+			},
+			fields,
 			v.Time, // 时间戳
 		)
 		points = append(points, point)
+		writeCache.Store(cacheKey, struct{}{})
 	}
 
-	// 批量写入数据，设置5秒超时
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		time.Duration(c.write_timeout)*time.Millisecond,
-	)
-	defer cancel()
-	err = c.writeAPI.WritePoint(ctx, points...)
+	// 批量写入
+	if len(points) == 0 {
+		return nil
+	}
 
-	return
+	err := c.writeAPI.WritePoint(ctx, points...)
+	if err != nil {
+		log.Printf("写入失败: %v", err)
+		return fmt.Errorf("写入失败: %w", err)
+	}
+
+	return nil
+}
+
+// QueryByPointIdAndTime 按点位ID和时间范围查询历史数据
+func QueryByPointIdAndTime(pointId uint, startTime, endTime time.Time, page, pageSize uint) ([]map[string]interface{}, int64, error) {
+	return c.queryByPointIdAndTime(pointId, startTime, endTime, page, pageSize)
+}
+
+// queryByPointIdAndTime 内部实现
+func (c *Connect_struct) queryByPointIdAndTime(pointId uint, startTime, endTime time.Time, page, pageSize uint) ([]map[string]interface{}, int64, error) {
+	if c.client == nil {
+		return nil, 0, fmt.Errorf("客户端未连接")
+	}
+
+	deviceID := Init.Config.APP.Label
+	if deviceID == "" {
+		return nil, 0, fmt.Errorf("设备标识(APP.Label)未配置")
+	}
+
+	queryAPI := c.client.QueryAPI(c.org)
+	measurement := fmt.Sprintf("device_%s", deviceID)
+	pointIdStr := fmt.Sprintf("%d", pointId)
+
+	// 构造 Flux 查询语句
+	fluxQuery := fmt.Sprintf(`
+		from(bucket: "%s")
+			|> range(start: time(v: "%s"), stop: time(v: "%s"))
+			|> filter(fn: (r) => r._measurement == "%s")
+			|> filter(fn: (r) => r.point_id == "%s")
+			|> sort(columns: ["_time"], desc: true)
+	`,
+		c.bucket,
+		startTime.Format(time.RFC3339),
+		endTime.Format(time.RFC3339),
+		measurement,
+		pointIdStr,
+	)
+
+	// 执行查询
+	result, err := queryAPI.Query(context.Background(), fluxQuery)
+	if err != nil {
+		return nil, 0, fmt.Errorf("查询失败: %w", err)
+	}
+	defer result.Close()
+
+	// 解析结果
+	// InfluxDB v2 的 Flux 查询会为每个 field 返回一条记录，需要按时间戳分组
+	// 使用毫秒级时间戳作为 key（截断到毫秒）
+	typeTimeData := make(map[int64]map[string]interface{})
+	var timeOrder []int64 // 保持时间顺序
+
+	for result.Next() {
+		record := result.Record()
+		if record == nil {
+			continue
+		}
+
+		// 截断到毫秒级精度
+		timestampMs := record.Time().UnixMilli()
+		field := record.Field()
+		value := record.Value()
+
+		// 初始化该时间点的数据
+		if _, exists := typeTimeData[timestampMs]; !exists {
+			typeTimeData[timestampMs] = map[string]interface{}{
+				"Time": record.Time(),
+			}
+			timeOrder = append(timeOrder, timestampMs)
+		}
+
+		// 存储 field 值
+		typeTimeData[timestampMs][field] = value
+	}
+
+	if err := result.Err(); err != nil {
+		return nil, 0, fmt.Errorf("解析结果失败: %w", err)
+	}
+
+	// 转换为数组并按时间排序
+	var allData []map[string]interface{}
+	for _, timestamp := range timeOrder {
+		item := typeTimeData[timestamp]
+
+		// 提取 msg 和主要的 value 字段
+		msg := ""
+		if msgVal, ok := item["msg"]; ok {
+			if s, ok := msgVal.(string); ok {
+				msg = s
+			}
+		}
+
+		// 找到第一个 value_* 字段作为主要值
+		var mainValue interface{}
+		var mainField string
+		for key, val := range item {
+			if len(key) >= 6 && key[:6] == "value_" {
+				mainValue = val
+				mainField = key
+				break
+			}
+		}
+
+		allData = append(allData, map[string]interface{}{
+			"Time":  item["Time"],
+			"Field": mainField,
+			"Value": mainValue,
+			"Msg":   msg,
+		})
+	}
+
+	// 计算总数
+	total := int64(len(allData))
+
+	// 分页处理
+	if pageSize > 0 {
+		startIdx := int((page - 1) * pageSize)
+		endIdx := startIdx + int(pageSize)
+
+		if startIdx >= len(allData) {
+			return []map[string]interface{}{}, total, nil
+		}
+		if endIdx > len(allData) {
+			endIdx = len(allData)
+		}
+
+		allData = allData[startIdx:endIdx]
+	}
+
+	return allData, total, nil
 }
 
 // 批量读取函数（严格匹配你的结构体定义）
@@ -264,11 +601,33 @@ func (c *Connect_struct) Read(scopes []Read_Scope_type) (readResults []Read_Scop
 
 var c Connect_struct
 
+// 写入缓存: key = point_id + 纳秒时间戳，防重复写入（PointId + Time 作为唯一索引）
+// 优化：使用带过期时间的 map，定期清理旧数据防止内存泄漏
+var (
+	writeCache      sync.Map
+	cacheCleanupMu  sync.Mutex
+	lastCleanupTime time.Time
+	cacheMaxAge     = 1 * time.Hour // 缓存最大保留时间
+)
+
 func init() {
 	db_point.Update_Subscriber(a)
 }
 
 func a(value []fullConfig.Value_type) error {
+	index := len(value)
+	if index == 0 {
+		return nil
+	}
+
+	value = append(value, fullConfig.Value_type{
+		PointId: Init.Config.Influxdb.Write_Quantity_Id,
+		Value:   index,
+		Type:    "int",
+		Msg:     "ok",
+		Time:    time.Now(),
+	})
+
 	err := c.Write(value)
 	if err != nil {
 		log.Print(err.Error())
@@ -278,13 +637,41 @@ func a(value []fullConfig.Value_type) error {
 }
 
 func New() (err error) {
+	cfg := Init.Config.Influxdb
+	if cfg.Url == "" || cfg.Token == "" || cfg.Org == "" || cfg.Bucket == "" {
+		err = fmt.Errorf("InfluxDB 配置不完整，请检查配置文件")
+		return
+	}
+
+	// 设置默认值
+	writeTimeout := cfg.Write_Timeout
+	if writeTimeout == 0 {
+		writeTimeout = 5000 // 默认写入超时时间：5秒
+	}
+
+	bufferSize := cfg.BufferSize
+	if bufferSize == 0 {
+		bufferSize = 100 // 默认缓冲区大小：100条数据
+	}
+
+	flushInterval := cfg.FlushInterval
+	if flushInterval == 0 {
+		flushInterval = 2 * time.Second // 默认刷新间隔：2秒
+	}
+
 	c = Connect_struct{
-		url:    Init.Config.Influxdb.Url,
-		token:  Init.Config.Influxdb.Token,
-		org:    Init.Config.Influxdb.Org,
-		bucket: Init.Config.Influxdb.Bucket,
+		url:           cfg.Url,
+		token:         cfg.Token,
+		org:           cfg.Org,
+		bucket:        cfg.Bucket,
+		write_timeout: writeTimeout,
+		bufferSize:    bufferSize,
+		flushInterval: flushInterval,
 	}
 	err = c.initInfluxDB()
+
+	// 启动后台定时刷新协程
+	c.startBackgroundFlush()
 
 	return
 }

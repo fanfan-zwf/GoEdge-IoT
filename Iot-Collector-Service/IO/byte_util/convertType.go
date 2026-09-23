@@ -890,3 +890,42 @@ func ConvertType(value any, fromType, toType string) (any, bool) {
 		return nil, false
 	}
 }
+
+// AnyToBool 将 any 转为布尔值，支持数字 1/1.0=true，0/0.0=false
+// 支持类型：bool,int,int8,int16,int32,int64,uint,uint8,uint16,uint32,uint64,uintptr,float32,float64
+// nil、字符串、其他未知类型默认返回 false
+func AnyToBool(v any) bool {
+	switch val := v.(type) {
+	case bool:
+		return val
+	case int:
+		return val != 0
+	case int8:
+		return val != 0
+	case int16:
+		return val != 0
+	case int32:
+		return val != 0
+	case int64:
+		return val != 0
+	case uint:
+		return val != 0
+	case uint8:
+		return val != 0
+	case uint16:
+		return val != 0
+	case uint32:
+		return val != 0
+	case uint64:
+		return val != 0
+	case uintptr:
+		return val != 0
+	case float32:
+		return val != 0
+	case float64:
+		return val != 0
+	default:
+		// nil、string、slice、map等其他类型
+		return false
+	}
+}

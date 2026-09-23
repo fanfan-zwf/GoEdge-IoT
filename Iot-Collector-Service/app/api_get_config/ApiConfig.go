@@ -1,4 +1,4 @@
-package apigetconfig
+package api_get_config
 
 import (
 	"encoding/base64"
@@ -16,6 +16,7 @@ import (
 
 const (
 	url_collector_GetBasicAuth        = "/api/app/v1.0/login"                        // 配置登录接口
+	url_collector_ConfigUpdateTime    = "/api/app/v1.0/collector/ConfigUpdateTime"   // 配置最新时间
 	url_collector_Drive_Config__Query = "/api/app/v1.0/collector/drive/config/query" // 配置查询驱动接口
 	url_collector_Point_Config__Query = "/api/app/v1.0/collector/point/config/query" // 配置查询点位接口
 )
@@ -92,7 +93,62 @@ func Collector_GetBasicAuth() (string, error) {
 
 }
 
-func Collector_Drive_Config__Query() (data []mysql.CollectorGet_Drive_Config_type, err error) {
+// Collector_ConfigUpdate 查询配置最新更新时间
+func Collector_ConfigUpdate() (updateTime time.Time, err error) {
+	client := resty.New().
+		SetTimeout(Init.Config.Config_Service.SetTimeout).
+		SetRetryCount(Init.Config.Config_Service.SetRetryCount).
+		SetRetryWaitTime(Init.Config.Config_Service.SetRetryWaitTime)
+
+	// 1. 每次请求发送前，自动带上 token
+	client.AddRequestMiddleware(func(c *resty.Client, req *resty.Request) error {
+		req.SetHeader("Collector_Token", collector_AccessToken)
+		return nil
+	})
+
+	// 2. 设置重试条件：401 时重试
+	client.AddRetryConditions(func(resp *resty.Response, err error) bool {
+		if err != nil {
+			return true
+		}
+		return resp.StatusCode() == http.StatusUnauthorized
+	})
+
+	// 3. 重试前刷新 token
+	client.AddRetryHooks(func(resp *resty.Response, err error) {
+		if resp != nil && resp.StatusCode() == http.StatusUnauthorized {
+			if _, errRefresh := Collector_GetBasicAuth(); errRefresh != nil {
+				log.Printf("ERROR 刷新token失败：%v\n", errRefresh)
+			}
+		}
+	})
+
+	reqURL, err := configServiceBaseURL(url_collector_ConfigUpdateTime)
+	if err != nil {
+		return updateTime, err
+	}
+
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		Get(reqURL)
+
+	if err != nil {
+		return updateTime, fmt.Errorf("查询配置更新时间异常: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return updateTime, fmt.Errorf("查询配置更新时间失败，状态码: %d", resp.StatusCode())
+	}
+
+	respBody, err := parseResponseBody[time.Time](resp.Bytes())
+	if err != nil {
+		return updateTime, fmt.Errorf("解析配置更新时间失败: %w", err)
+	}
+
+	return respBody.Data, nil
+}
+
+func Collector_Drive_Config__Query() (data []mysql.Drive_Config_Query_type, err error) {
 	client := resty.New().
 		SetTimeout(Init.Config.Config_Service.SetTimeout).            // 设置超时时间
 		SetRetryCount(Init.Config.Config_Service.SetRetryCount).      // 401 最多重试 1 次，避免死循环
@@ -141,14 +197,14 @@ func Collector_Drive_Config__Query() (data []mysql.CollectorGet_Drive_Config_typ
 		return nil, fmt.Errorf("驱动配置请求失败，状态码: %d", resp.StatusCode())
 	}
 
-	respBody, err := parseResponseBody[[]mysql.CollectorGet_Drive_Config_type](resp.Bytes())
+	respBody, err := parseResponseBody[[]mysql.Drive_Config_Query_type](resp.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("驱动配置响应解析失败: %w", err)
 	}
 	return respBody.Data, nil
 }
 
-func Collector_Point_Config__Query() (data []mysql.CollectorGet_Point_Config_type, err error) {
+func Collector_Point_Config__Query() (data []mysql.Point_Config_Query_type, err error) {
 	client := resty.New().
 		SetTimeout(Init.Config.Config_Service.SetTimeout).            // 设置超时时间
 		SetRetryCount(Init.Config.Config_Service.SetRetryCount).      // 401 最多重试 1 次，避免死循环
@@ -197,7 +253,7 @@ func Collector_Point_Config__Query() (data []mysql.CollectorGet_Point_Config_typ
 		return nil, fmt.Errorf("点位配置请求失败，状态码: %d", resp.StatusCode())
 	}
 
-	respBody, err := parseResponseBody[[]mysql.CollectorGet_Point_Config_type](resp.Bytes())
+	respBody, err := parseResponseBody[[]mysql.Point_Config_Query_type](resp.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("点位配置响应解析失败: %w", err)
 	}

@@ -41,32 +41,54 @@ type TableRule struct {
 // ---------------------- 3. 程序预期的表规则（精简版） ----------------------
 // 定义程序预期的表规则（按需修改为你的实际表/字段）
 var expectTableRules = []TableRule{
-	// {
-	// 	TableName: "Drive_Config",
-	// 	// TableComment: "驱动配置",
-	// 	Columns: []ColumnRule{
-	// 		{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true},
-	// 		{ColumnName: "Type", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
-	// 		{ColumnName: "Name", ColumnType: "varchar(100)", IsRequired: true},
-	// 		{ColumnName: "Config", ColumnType: "varchar(200)"},
-	// 		{ColumnName: "Points_Length", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0"},
-	// 		{ColumnName: "Collector_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
-	// 		{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
-	// 	},
-	// }, {
-	// 	TableName: "Point_Config",
-	// 	// TableComment: "点位配置",
-	// 	Columns: []ColumnRule{
-	// 		{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
-	// 		{ColumnName: "Drive_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
-	// 		{ColumnName: "Name", ColumnType: "varchar(300)", IsRequired: true},
-	// 		{ColumnName: "Description", ColumnType: "varchar(300)"},
-	// 		{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
-	// 		{ColumnName: "RW_Cancel", ColumnType: "varchar(100)", IsRequired: true, DefaultValue: "N"},
-	// 		{ColumnName: "Value_Type", ColumnType: "varchar(100)", IsRequired: true},
-	// 		{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
-	// 	},
-	// },
+	{
+		TableName: "APP_Config", // 采集配置信息
+		Columns: []ColumnRule{
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true},
+			{ColumnName: "Ket", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
+			{ColumnName: "Value", ColumnType: "varchar(200)"},
+		},
+	}, {
+		TableName: "Drive_Config", // 驱动配置
+		Columns: []ColumnRule{
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsUnique: true},
+			{ColumnName: "Type", ColumnType: "varchar(100)", IsRequired: true, IsIndex: true},
+			{ColumnName: "Name", ColumnType: "varchar(100)", IsRequired: true},
+			{ColumnName: "Config", ColumnType: "varchar(200)"},
+			{ColumnName: "Points_Length", ColumnType: "int unsigned", IsRequired: true, DefaultValue: "0"},
+			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+		},
+	}, {
+		TableName: "Point_Config", // 点位配置
+		Columns: []ColumnRule{
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
+			{ColumnName: "Drive_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+			{ColumnName: "Name", ColumnType: "varchar(300)", IsRequired: true},
+			{ColumnName: "Description", ColumnType: "varchar(300)"},
+			{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
+			{ColumnName: "RW_Cancel", ColumnType: "varchar(100)", IsRequired: true, DefaultValue: "N"},
+			{ColumnName: "Value_Type", ColumnType: "varchar(100)", IsRequired: true},
+			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+		},
+	}, {
+		TableName: "Alarm_Config", // 报警配置
+		Columns: []ColumnRule{
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
+			{ColumnName: "Point_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+			{ColumnName: "Name", ColumnType: "varchar(100)", IsRequired: true},
+			{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
+			{ColumnName: "Group", ColumnType: "int unsigned", IsRequired: true},
+			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+		},
+	}, {
+		TableName: "History_Config", // 历史配置
+		Columns: []ColumnRule{
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
+			{ColumnName: "Point_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+			{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
+			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+		},
+	},
 }
 
 // ---------------------- 5. 核心工具函数 ----------------------

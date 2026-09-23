@@ -22,13 +22,15 @@ import (
 
 // driverEntry 单个驱动的入口（函数 + 实例）
 type driverEntry struct {
-	instance any // 驱动实例（如 *Modbus_Tcp.Modbus_Tcp）
+	instance any // 驱动实例（如 *Modbus_Tcp.modbus_Tcp）
 
 	// 函数绑定：创建时根据驱动类型赋值，调用时直接执行，无需类型断言
-	New      func(mysql.CollectorGet_Drive_Config_type, []mysql.CollectorGet_Point_Config_type) error
-	Connect  func(func([]fullConfig.Value_type) error) error
-	Close    func() error
-	callback func([]fullConfig.Value_type) error // 存储回调，供 ResetConfig 重连时复用
+	New          func(mysql.Drive_Config_Query_type, []mysql.Point_Config_Query_type) error
+	Connect      func(func([]fullConfig.Value_type) error) error
+	Close        func() error
+	UpdatePoints func([]mysql.Point_Config_Query_type) error // 动态更新点位（不断连接）
+	Write        func([]fullConfig.Value_type) error         // 写入函数
+	callback     func([]fullConfig.Value_type) error         // 存储回调，供 ResetConfig 重连时复用
 }
 
 // 最关键：驱动管理器（支持 N 个驱动）
@@ -57,18 +59,22 @@ func CreateDriver(driveType string, driveId uint) (any, error) {
 	case "Modbus_Tcp":
 		inst := &Modbus_Tcp.Modbus_Tcp{}
 		entry = &driverEntry{
-			instance: inst,
-			New:      inst.New,
-			Connect:  inst.Connect,
-			Close:    inst.Close,
+			instance:     inst,
+			New:          inst.New,
+			Connect:      inst.Connect,
+			Close:        inst.Close,
+			UpdatePoints: inst.UpdatePoints,
+			Write:        inst.Write,
 		}
 	case "Siemens_S7":
 		inst := &Siemens_S7.Siemens_S7{}
 		entry = &driverEntry{
-			instance: inst,
-			New:      inst.New,
-			Connect:  inst.Connect,
-			Close:    inst.Close,
+			instance:     inst,
+			New:          inst.New,
+			Connect:      inst.Connect,
+			Close:        inst.Close,
+			UpdatePoints: inst.UpdatePoints,
+			Write:        inst.Write,
 		}
 	default:
 		return nil, errors.New("不支持的驱动类型: " + driveType)
@@ -136,8 +142,21 @@ func unlockDrive(l *sync.Mutex) {
 	l.Unlock()
 }
 
+// IsDriverBusy 检查驱动是否正在操作中（不阻塞，立即返回）
+func IsDriverBusy(id uint) bool {
+	l := getDriverLock(id)
+	if l == nil {
+		return false // 驱动不存在，不算忙碌
+	}
+	if !l.TryLock() {
+		return true // 无法获取锁，驱动正在操作中
+	}
+	l.Unlock() // 获取成功，立即释放
+	return false
+}
+
 // DriveNew 初始化指定驱动（解析配置、组包等）
-func DriveNew(id uint, Drive mysql.CollectorGet_Drive_Config_type, Points []mysql.CollectorGet_Point_Config_type) error {
+func DriveNew(id uint, Drive mysql.Drive_Config_Query_type, Points []mysql.Point_Config_Query_type) error {
 
 	l, err := tryLockDrive(id)
 	if err != nil {
@@ -185,7 +204,14 @@ func DriveClose(id uint) error {
 
 // DriveResetConfig 重置驱动配置：Close → 6秒后 New → 3秒后 Connect
 // 整个过程锁定该 id，同 id 的并发调用立即返回 error
-func DriveResetConfig(id uint, Drive mysql.CollectorGet_Drive_Config_type, Points []mysql.CollectorGet_Point_Config_type) error {
+func DriveResetConfig(id uint, Drive mysql.Drive_Config_Query_type, Points []mysql.Point_Config_Query_type) error {
+	// 如果驱动在内存中不存在（新添加的），先创建实例
+	if _, err := getEntry(id); err != nil {
+		if _, err := CreateDriver(Drive.Type, id); err != nil {
+			return fmt.Errorf("DriveResetConfig 驱动 id=%d 创建失败: %w", id, err)
+		}
+	}
+
 	l, err := tryLockDrive(id)
 	if err != nil {
 		return err
@@ -215,4 +241,28 @@ func DriveResetConfig(id uint, Drive mysql.CollectorGet_Drive_Config_type, Point
 	}
 
 	return nil
+}
+
+// DriveUpdatePoints 动态更新指定驱动的点位配置（不断连接，只重组包）
+func DriveUpdatePoints(id uint, Points []mysql.Point_Config_Query_type) error {
+	e, err := getEntry(id)
+	if err != nil {
+		return err
+	}
+	if e.UpdatePoints == nil {
+		return fmt.Errorf("驱动 id=%d 不支持动态更新点位", id)
+	}
+	return e.UpdatePoints(Points)
+}
+
+// DriveWrite 写入指定驱动的点位值
+func DriveWrite(id uint, values []fullConfig.Value_type) error {
+	e, err := getEntry(id)
+	if err != nil {
+		return err
+	}
+	if e.Write == nil {
+		return fmt.Errorf("驱动 id=%d 不支持写入", id)
+	}
+	return e.Write(values)
 }

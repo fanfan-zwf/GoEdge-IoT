@@ -2,9 +2,12 @@ package main
 
 import (
 	"main/IO/manager"
+	"main/Init"
 	_ "main/Init"
+	"main/app/api_get_config"
 	"main/app/mqttbase"
 	"main/db/db_point"
+	"main/db/influxdb"
 	"main/web"
 
 	"log"
@@ -29,6 +32,12 @@ func app() {
 	if err := db_point.New(); err != nil {
 		log.Printf("ERROR 数据点初始化失败: %v", err)
 	}
+	if Init.Config.Influxdb.Enable {
+		if err := influxdb.New(); err != nil {
+			log.Printf("ERROR InfluxDB 初始化失败: %v", err)
+		}
+
+	}
 
 	time.Sleep(200 * time.Millisecond)
 
@@ -43,10 +52,16 @@ func exit() {
 
 func main() {
 	log.Print("INFO 程序开始 =======================================")
-	// 关键：defer 执行顺序是“后进先出”，建议把日志defer放在最前面，确保最后执行
+	// 关键：defer 执行顺序是"后进先出"，建议把日志defer放在最前面，确保最后执行
 	defer log.Print("INFO 程序结束 ---------------------------------------")
 
 	defer exit()
+
+	// 启动前检查配置是否有更新，有更新则同步到 MySQL
+	if Init.Config.Config_Service.Enable {
+		syncConfigOnStartup()
+	}
+
 	app()
 
 	// ********** 关键2：提前初始化退出信号监听（app之前）**********
@@ -62,4 +77,20 @@ func main() {
 	)
 
 	_ = <-sigChan
+}
+
+// syncConfigOnStartup 启动时检查配置服务是否有更新，有更新则同步配置到 MySQL
+func syncConfigOnStartup() {
+
+	configUpdateTime, err := api_get_config.IsConfigUpdated()
+	if err != nil {
+		log.Printf("WARN 配置更新检查失败: %v", err)
+		return
+	}
+	if configUpdateTime.IsZero() {
+		return
+	}
+	if err := api_get_config.SyncConfigFromService(configUpdateTime); err != nil {
+		log.Printf("ERROR 配置同步失败: %v", err)
+	}
 }

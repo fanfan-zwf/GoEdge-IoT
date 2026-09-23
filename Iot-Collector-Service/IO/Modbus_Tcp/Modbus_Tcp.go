@@ -9,7 +9,6 @@ package Modbus_Tcp
 import (
 	"main/IO/byte_util"
 	"main/IO/manager/fullConfig"
-	"main/Init"
 	"main/db/mysql"
 	"sync"
 
@@ -167,7 +166,7 @@ type Packet_df struct {
 	Function uint8 // 功能码
 }
 
-func (c *Modbus_Tcp) New(Drive mysql.CollectorGet_Drive_Config_type, Points []mysql.CollectorGet_Point_Config_type) (err error) {
+func (c *Modbus_Tcp) New(Drive mysql.Drive_Config_Query_type, Points []mysql.Point_Config_Query_type) (err error) {
 
 	// 解析驱动配置字符串格式: IP;Port;RetryTimeout;ConnectTimeout;ResponseTimeout;DelayBetweenPolls;PacketMax
 	c.Drive.Config, err = Drive_Config_Switch(Drive.Config)
@@ -209,6 +208,41 @@ func (c *Modbus_Tcp) New(Drive mysql.CollectorGet_Drive_Config_type, Points []my
 		return fmt.Errorf("组包失败: %w", err)
 	}
 
+	return nil
+}
+
+// UpdatePoints 动态更新点位配置（重新解析点位+重组包，不断连接）
+func (c *Modbus_Tcp) UpdatePoints(Points []mysql.Point_Config_Query_type) error {
+	c.Tag_Pointsindex_Map = make(map[uint]int, len(Points))
+
+	var points []Point_Config_type
+	for _, v := range Points {
+		point, err := Point_Config_Switch(v.Config)
+		if err != nil {
+			log.Printf("WARN UpdatePoints 点位 id=%d 配置解析失败，跳过: %v", v.Id, err)
+			continue
+		}
+		outputType := ValueTypeIntToString(v.Value_Type)
+		if v.Value_Type == 0 {
+			outputType = point.Type
+		}
+		points = append(points, Point_Config_type{
+			Id:         v.Id,
+			Config:     point,
+			RW_Cancel:  v.RW_Cancel,
+			Value_Type: outputType,
+		})
+		c.Tag_Pointsindex_Map[v.Id] = len(points) - 1
+	}
+	c.Points = points
+
+	packets, err := c.packet(c.Points, map[int]bool{2: true, 4: true})
+	if err != nil {
+		return fmt.Errorf("UpdatePoints 组包失败: %w", err)
+	}
+	c.packets = packets
+
+	log.Printf("INFO modbus_tcp 驱动:%d 点位动态更新完成，点位数=%d，轮询包数=%d", c.Drive.Id, len(c.Points), len(c.packets))
 	return nil
 }
 
@@ -283,6 +317,7 @@ func (c *Modbus_Tcp) packet(Points []Point_Config_type, RW_Cancel map[int]bool) 
 // 开始连接外部映射
 func (c *Modbus_Tcp) Connect(Read_External_Mappings func([]fullConfig.Value_type) error) error {
 	c.Read_External_Mappings = Read_External_Mappings
+	c.closed = false // 重连时重置关闭标志
 
 	err := c.connect()
 	if err != nil {
@@ -329,11 +364,10 @@ func (c *Modbus_Tcp) Error_External_Mappings(msg string) error {
 	read_list := make([]fullConfig.Value_type, 0, len(c.Points))
 	for _, point := range c.Points {
 		read_list = append(read_list, fullConfig.Value_type{
-			DeviceId: Init.Config.APP.Uuid, // 设备id
-			PointId:  point.Id,             // 点位id
-			Type:     point.Value_Type,     // 输出类型
-			Msg:      msg,                  // 状态信息
-			Time:     time.Now(),           // 读取时间
+			PointId: point.Id,         // 点位id
+			Type:    point.Value_Type, // 输出类型
+			Msg:     msg,              // 状态信息
+			Time:    time.Now(),       // 读取时间
 		})
 	}
 	return c.Read_External_Mappings(read_list)
@@ -351,11 +385,10 @@ func (c *Modbus_Tcp) Error_External_Mappings_list(ids []uint, msg string) error 
 			continue
 		}
 		read_list = append(read_list, fullConfig.Value_type{
-			DeviceId: Init.Config.APP.Uuid, // 设备id
-			PointId:  id,
-			Type:     cfg.Value_Type,
-			Msg:      msg,
-			Time:     time.Now(),
+			PointId: id,
+			Type:    cfg.Value_Type,
+			Msg:     msg,
+			Time:    time.Now(),
 		})
 	}
 	return c.Read_External_Mappings(read_list)
@@ -456,7 +489,6 @@ func (c *Modbus_Tcp) analysis(packet Packet_type, results []byte) ([]fullConfig.
 				id, cfg.Config.Type, cfg.Value_Type, v)
 			continue
 		}
-		read.DeviceId = Init.Config.APP.Label // 设备id
 		read_list = append(read_list, read)
 
 	}
@@ -582,18 +614,20 @@ func (c *Modbus_Tcp) write_packet(packet Packet_type, tag_points_map map[uint]fu
 			if !ok {
 				return fmt.Errorf("点位 id=%d 值类型断言失败: 期望 bool, 实际 %T", id, v.Value)
 			}
-			if !bool_value_address[cfg.Config.Address] {
-				byte_list, err = (*c.conn).ReadHoldingRegistersBytes(cfg.Config.SlaveID, cfg.Config.Address, 1)
-				if err != nil {
-					return fmt.Errorf("点位 id=%d 读取保持寄存器失败: %w", id, err)
-				}
-				byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(byte_list, 0, 2))
-			}
-			a := byte_util.Get_list_index(byte_list, int(index)*2, 2)
-			bool_list := byte_util.Get_list_index(byte_util.BytesToBool(a), 0, 16)
 			if cfg.Config.Child_Address > 15 {
 				return fmt.Errorf("点位 id=%d 子地址超出范围: child_address=%d, 最大15", id, cfg.Config.Child_Address)
 			}
+			if !bool_value_address[cfg.Config.Address] {
+				// 同地址只读一次 PLC，读取结果通过 Update_List_Slice 累积到 byte_list
+				regData, readErr := (*c.conn).ReadHoldingRegistersBytes(cfg.Config.SlaveID, cfg.Config.Address, 1)
+				if readErr != nil {
+					return fmt.Errorf("点位 id=%d 读取保持寄存器失败: %w", id, readErr)
+				}
+				byte_util.Update_List_Slice(&byte_list, int(index)*2, byte_util.Get_list_index(regData, 0, 2))
+				bool_value_address[cfg.Config.Address] = true
+			}
+			a := byte_util.Get_list_index(byte_list, int(index)*2, 2)
+			bool_list := byte_util.Get_list_index(byte_util.BytesToBool(a), 0, 16)
 			bool_list[cfg.Config.Child_Address] = boolVal
 			b := byte_util.Get_list_index(byte_util.BoolToBytes(bool_list), 0, 2)
 			byte_util.Update_List_Slice(&byte_list, int(index)*2, b)

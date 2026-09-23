@@ -96,7 +96,30 @@
 
 # 项目文档
 
+## 📖 核心服务文档
+
+### Iot-Collector-Service（边缘采集服务）
+[📘 Iot-Collector-Service 总览](./Iot-Collector-Service/README.md)
+
+**子模块文档**：
 - [IO 层 — 工业协议驱动与数据采集](./Iot-Collector-Service/IO/README.md)
+  - [Modbus TCP 驱动](./Iot-Collector-Service/IO/Modbus_Tcp/README.md)
+  - [Siemens S7 驱动](./Iot-Collector-Service/IO/Siemens_S7/README.md)
+- [db_point — 实时数据与报警管理](./Iot-Collector-Service/db/db_point/README.md)
+- [Web API 接口文档](./Iot-Collector-Service/web/README.md)
+- [远程配置同步](./Iot-Collector-Service/app/api_get_config/README.md)
+
+### Iot-Config-Service（配置管理服务）
+*文档待补充*
+
+### Iot-Data-Service（实时数据服务）
+*文档待补充*
+
+### Iot-User-Service（用户权限服务）
+*文档待补充*
+
+### Iot-Web（前端管理平台）
+*文档待补充*
 
 # 适用场景
 

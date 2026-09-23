@@ -21,12 +21,12 @@ import (
 type Write_value_func_type func([]fullConfig.Value_type) (err error)
 
 var (
-	Write_value    map[Config_key_type]*Write_value_func_type // 存储点位和写入函数的关系
+	Write_value    map[uint]*Write_value_func_type // 存储点位和写入函数的关系
 	Write_value_mu sync.Mutex
 )
 
 func init() {
-	Write_value = make(map[Config_key_type]*Write_value_func_type)
+	Write_value = make(map[uint]*Write_value_func_type)
 }
 
 // 变化更新 发布 发送
@@ -45,7 +45,7 @@ func Write_value_Publisher(values []fullConfig.Value_type) error {
 	var order []uintptr
 
 	for _, v := range values {
-		key := Config_key_type{DeviceId: v.DeviceId, PointId: v.PointId}
+		key := v.PointId
 		fn, ok := Write_value[key]
 		if !ok {
 			continue
@@ -73,16 +73,16 @@ func Write_value_Publisher(values []fullConfig.Value_type) error {
 }
 
 // 变化更新 订阅 接收
-func Write_value_Subscriber(keys []Config_key_type, value Write_value_func_type) error {
+func Write_value_Subscriber(keys []uint, value Write_value_func_type) error {
 	Write_value_mu.Lock()
 	defer Write_value_mu.Unlock()
 
-	for _, key := range keys {
-		_, ok := Write_value[key]
+	for _, pointId := range keys {
+		_, ok := Write_value[pointId]
 		if !ok {
-			Write_value[key] = &value
+			Write_value[pointId] = &value
 		} else {
-			log.Printf("ERROR 重复点位 设备id:%s, 点位id:%d", key.DeviceId, key.PointId)
+			log.Printf("ERROR 重复点位 id:%d", pointId)
 		}
 	}
 

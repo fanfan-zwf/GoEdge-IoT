@@ -15,19 +15,14 @@ import (
 	"sync"
 )
 
-type Config_key_type struct {
-	DeviceId string // 设备id
-	PointId  uint   // 点位id
-}
-
 var (
 	Err_Publisher_Close = fmt.Errorf("Close")
-	Value_Map           map[Config_key_type]Update_Value_type
+	Value_Map           map[uint]Update_Value_type
 	Value_Map_Mu        sync.RWMutex
 )
 
 func init() {
-	Value_Map = make(map[Config_key_type]Update_Value_type)
+	Value_Map = make(map[uint]Update_Value_type)
 }
 
 /*
@@ -111,10 +106,7 @@ func Update_Subscriber(value Update_func) error {
 
 // 单条数据更新判断
 func Update_Value_Judgment(new fullConfig.Value_type) (bool, error) {
-	key := Config_key_type{
-		DeviceId: new.DeviceId, // 设备id
-		PointId:  new.PointId,  // 点位id
-	}
+	key := new.PointId
 
 	// 优化：使用写锁保护整个读写过程，避免竞态窗口
 	Value_Map_Mu.Lock()
@@ -126,12 +118,11 @@ func Update_Value_Judgment(new fullConfig.Value_type) (bool, error) {
 		// 修复Bug: 新点位需要完整初始化所有字段
 		Value_Map[key] = Update_Value_type{
 			Value_type: fullConfig.Value_type{
-				DeviceId: new.DeviceId, // 设备id
-				PointId:  new.PointId,  // 点位id
-				Time:     new.Time,
-				Value:    new.Value,
-				Type:     new.Type,
-				Msg:      new.Msg,
+				PointId: new.PointId, // 点位id
+				Time:    new.Time,
+				Value:   new.Value,
+				Type:    new.Type,
+				Msg:     new.Msg,
 			},
 			Last_Value: new.Value, // 首次更新时，Last_Value 与当前值相同
 			Last_Time:  new.Time,  // 首次更新时，Last_Time 与当前时间相同
@@ -139,17 +130,13 @@ func Update_Value_Judgment(new fullConfig.Value_type) (bool, error) {
 		return true, nil
 	}
 
-	// 状态消息更新
-	if new.Msg != "ok" {
-		old.Msg = new.Msg
-	}
-
 	// 值变化检测
-	if new.Value != old.Value {
+	if new.Value != old.Value || new.Msg != "ok" {
 		old.Last_Value = old.Value
 		old.Last_Time = old.Time
 		old.Value = new.Value
 		old.Time = new.Time
+		old.Msg = new.Msg
 
 		// 在锁内直接更新，避免二次加锁
 		Value_Map[key] = old
@@ -192,6 +179,19 @@ func init() {
 	Collection_Subscriber(Update_Value_Judgment_list)
 }
 
+// Value_Map 实时值查询（批量）
+func Value_Map__Query_list(keys []uint) (r []Update_Value_type) {
+	Value_Map_Mu.RLock()
+	defer Value_Map_Mu.RUnlock()
+	for _, pointId := range keys {
+		v, ok := Value_Map[pointId]
+		if ok {
+			r = append(r, v)
+		}
+	}
+	return
+}
+
 // 初始化
 func New() error {
 	return nil
@@ -200,7 +200,7 @@ func New() error {
 func init() {
 	Update_Subscriber(func(v []fullConfig.Value_type) error {
 		for _, val := range v {
-			fmt.Printf("数据更新 设备id: %s, 点位id: %d, Value: %v, Msg: %s, Time: %s\n", val.DeviceId, val.PointId, val.Value, val.Msg, val.Time.Format(time.RFC3339))
+			fmt.Printf("数据更新 点位id: %d, Value: %v, Msg: %s, Time: %s\n", val.PointId, val.Value, val.Msg, val.Time.Format(time.RFC3339))
 		}
 		return nil
 	})
