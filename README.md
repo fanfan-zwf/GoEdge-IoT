@@ -137,5 +137,11 @@
 - 扩展性强：支持不断接入新设备、新功能
 - 体验流畅：实时数据 + 历史曲线 + 视频同屏展示
 
+# 📞 联系方式
+
+- **项目主页**：[https://github.com/fanfan-zwf](https://github.com/fanfan-zwf)
+- **问题反馈**：提交 [GitHub Issue](https://github.com/fanfan-zwf/GoEdge-IoT/issues)
+- **技术支持**：查看各模块 README 文档
+
 <img src="https://github.com/fanfan-zwf/GoEdge-IoT/blob/main/weixin.jpg" />
  

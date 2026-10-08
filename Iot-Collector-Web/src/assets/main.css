@@ -331,11 +331,22 @@ img {
   color: #303133;
 }
 
+/* ======== 头部操作区样式 ======== */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ======== 分页样式 ======== */
 .pagination-wrapper {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+.pagination-wrapper .el-pagination .el-input {
+  width: 80px;
 }
 
 /* ======== 全局统一输入框高度 ======== */

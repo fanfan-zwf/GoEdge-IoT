@@ -4,6 +4,11 @@ export default {
     edit: 'Edit',
     del: 'Delete',
     export: 'Export',
+    import: 'Import',
+    importTitle: 'Import Excel Config',
+    importTip: 'Upload an exported Excel file. Data will be synced by Id (records in DB but not in file will be deleted)',
+    importSelectFile: 'Please select an Excel file',
+    importSuccess: 'Import success: added {added}, updated {updated}, deleted {deleted}',
     restart: 'Restart',
     restartConfirm: 'Are you sure to restart {name}? It takes about 9 seconds',
     restartSuccess: 'Restart command sent, please refresh later',
@@ -26,7 +31,9 @@ export default {
     config: 'Config',
     creationTime: 'Created',
     viewDoc: 'View Documentation',
+    doc: 'Docs',
     search: 'Search',
+    searchPlaceholder: 'Enter search content',
     configPlaceholder: 'Enter config, semicolon separated',
     modbusConfigTip: '[Modbus TCP]\nFormat: IP;Retry;ConnectTimeout;ResponseTimeout;PollInterval;MaxPacketLen\nExample: 192.168.1.1;3s;3s;180s;1s;256\nMinimal: 192.168.1.1',
     s7ConfigTip: '[Siemens S7]\nFormat: IP;Rack;Slot;Retry;Poll;ConnTimeout;RespTimeout;PDUSize;ConnType\nExample: 192.168.1.1;0;2;3s;0;10s;10s;480;2\nMinimal: 192.168.1.1;0;2',
@@ -67,6 +74,8 @@ export default {
     driveId: 'Drive ID',
     driveIdPlaceholder: 'Select a drive',
     config: 'Config',
+    conversion: 'Conversion',
+    conversionPlaceholder: 'Formula, e.g. x*1.5+10',
     rwCancel: 'R/W Mode',
     rwN: 'N (No Collect)',
     rwR: 'R (Read Only)',
@@ -75,7 +84,7 @@ export default {
     valueType: 'Value Type',
     addTitle: 'Add Point',
     editTitle: 'Edit Point',
-    name: 'Point Name',
+    tag: 'Point Tag',
     description: 'Description',
     configFormat: 'Point Config Format',
     currentValue: 'Current Value',
@@ -99,7 +108,9 @@ export default {
     writeType: 'Type',
     writeValueLabel: 'Write Value',
     writeValuePlaceholder: 'Enter value to write',
-    writeValueRequired: 'Please enter a value'
+    writeValueRequired: 'Please enter a value',
+    writeBoolTrue: 'ON',
+    writeBoolFalse: 'OFF'
   },
   alarm: {
     title: 'Alarm Config',
@@ -110,9 +121,10 @@ export default {
     group: 'Alarm Group',
     addTitle: 'Add Alarm',
     editTitle: 'Edit Alarm',
-    name: 'Alarm Name',
+    tag: 'Alarm Tag',
     status: 'Status',
-    lastAlarmTime: 'Last Alarm Time'
+    lastAlarmTime: 'Last Alarm Time',
+    viewData: 'View Data'
   },
   history: {
     title: 'History Config',
@@ -121,7 +133,8 @@ export default {
     pointIdPlaceholder: 'Select a point',
     config: 'Config',
     addTitle: 'Add History',
-    editTitle: 'Edit History'
+    editTitle: 'Edit History',
+    viewData: 'View Data'
   },
   historyData: {
     title: 'History Data',
@@ -134,6 +147,16 @@ export default {
     time: 'Time',
     value: 'Value',
     status: 'Status'
+  },
+  alarmData: {
+    title: 'Alarm Data',
+    id: 'ID',
+    alarmId: 'Alarm ID',
+    status: 'Status',
+    time: 'Alarm Time',
+    timeRange: 'Time Range',
+    startTime: 'Start Time',
+    endTime: 'End Time'
   },
   lang: {
     zh: '中文',

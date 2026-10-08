@@ -63,11 +63,12 @@ var expectTableRules = []TableRule{
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
 			{ColumnName: "Drive_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
-			{ColumnName: "Name", ColumnType: "varchar(300)", IsRequired: true},
+			{ColumnName: "Tag", ColumnType: "varchar(300)", IsRequired: true, IsUnique: true},
 			{ColumnName: "Description", ColumnType: "varchar(300)"},
 			{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
-			{ColumnName: "RW_Cancel", ColumnType: "varchar(100)", IsRequired: true, DefaultValue: "N"},
-			{ColumnName: "Value_Type", ColumnType: "varchar(100)", IsRequired: true},
+			{ColumnName: "Conversion", ColumnType: "varchar(255)", IsRequired: true, DefaultValue: ""},
+			{ColumnName: "RW_Cancel", ColumnType: "tinyint", IsRequired: true},
+			{ColumnName: "Value_Type", ColumnType: "tinyint", IsRequired: true},
 			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
 		},
 	}, {
@@ -75,10 +76,18 @@ var expectTableRules = []TableRule{
 		Columns: []ColumnRule{
 			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
 			{ColumnName: "Point_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
-			{ColumnName: "Name", ColumnType: "varchar(100)", IsRequired: true},
+			{ColumnName: "Tag", ColumnType: "varchar(300)", IsRequired: true, IsUnique: true},
 			{ColumnName: "Config", ColumnType: "varchar(200)", IsRequired: true},
 			{ColumnName: "Group", ColumnType: "int unsigned", IsRequired: true},
 			{ColumnName: "Creation_Time", ColumnType: "datetime", IsRequired: true},
+		},
+	}, {
+		TableName: "Alarm_Data", // 报警数据
+		Columns: []ColumnRule{
+			{ColumnName: "Id", ColumnType: "int unsigned", IsAutoInc: true, IsRequired: true, IsPrimaryKey: true, IsIndex: true, IsUnique: true},
+			{ColumnName: "Alarm_Id", ColumnType: "int unsigned", IsRequired: true, IsIndex: true},
+			{ColumnName: "Status", ColumnType: "varchar(300)", IsRequired: true},
+			{ColumnName: "Time", ColumnType: "datetime", IsRequired: true},
 		},
 	}, {
 		TableName: "History_Config", // 历史配置
@@ -296,12 +305,8 @@ func getTableColumns(tableName string) (map[string]ColumnRule, error) {
 			// 数据库COLUMN_DEFAULT为NULL → 标记为"NULL"
 			defaultValue = "NULL"
 		} else {
-			// 数据库有默认值 → 直接映射
+			// 数据库有默认值 → 直接映射（空字符串保持为空字符串）
 			defaultValue = colDefault.String
-			// 特殊处理：空字符串默认值（数据库中是''，程序中映射为'\'\''）
-			if defaultValue == "" {
-				defaultValue = "'''"
-			}
 		}
 
 		actualColumns[colName] = ColumnRule{
@@ -542,9 +547,23 @@ func CheckAndFixTableStructure(tableRule TableRule) {
 		if actualCol.ColumnType != expectCol.ColumnType {
 			errMsg = append(errMsg, fmt.Sprintf("类型不匹配（预期：%s，实际：%s）", expectCol.ColumnType, actualCol.ColumnType))
 		}
-		// 自增校验
+		// 自增校验 → 自动修复
 		if actualCol.IsAutoInc != expectCol.IsAutoInc {
-			errMsg = append(errMsg, fmt.Sprintf("自增属性不匹配（预期：%t，实际：%t）", expectCol.IsAutoInc, actualCol.IsAutoInc))
+			colName := escapeKeyword(expectCol.ColumnName)
+			escapedTableName := escapeKeyword(tableName)
+			var alterSQL string
+			if expectCol.IsAutoInc {
+				// 实际缺少 AUTO_INCREMENT → 添加
+				alterSQL = fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s %s NOT NULL AUTO_INCREMENT", escapedTableName, colName, expectCol.ColumnType)
+			} else {
+				// 实际多了 AUTO_INCREMENT → 移除
+				alterSQL = fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s %s NOT NULL", escapedTableName, colName, expectCol.ColumnType)
+			}
+			if _, fixErr := DB.Exec(alterSQL); fixErr != nil {
+				panic(fmt.Sprintf("表[%s]字段[%s]修复AUTO_INCREMENT失败：%v，SQL：%s", tableName, expectCol.ColumnName, fixErr, alterSQL))
+			}
+			log.Printf("表[%s]字段[%s]自增属性已修复（预期：%t，实际：%t）", tableName, expectCol.ColumnName, expectCol.IsAutoInc, actualCol.IsAutoInc)
+			actualCol.IsAutoInc = expectCol.IsAutoInc // 更新实际状态，避免后续误报
 		}
 		// 非空校验
 		if actualCol.IsRequired != expectCol.IsRequired {
@@ -580,7 +599,7 @@ func CheckAndFixTableStructure(tableRule TableRule) {
 			}
 		}
 		if !isDefaultMatch {
-			errMsg = append(errMsg, fmt.Sprintf("默认值不匹配（预期：%s，实际：%s）", expectCol.DefaultValue, actualCol.DefaultValue))
+			errMsg = append(errMsg, fmt.Sprintf("默认值不匹配（预期：%q，实际：%q）", expectCol.DefaultValue, actualCol.DefaultValue))
 		}
 
 		// 属性不匹配 → Panic

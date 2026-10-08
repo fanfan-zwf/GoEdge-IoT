@@ -4,6 +4,11 @@ export default {
     edit: 'تعديل',
     del: 'حذف',
     export: 'تصدير',
+    import: 'استيراد',
+    importTitle: 'استيراد تكوين Excel',
+    importTip: 'قم بتحميل ملف Excel مُصدَّر. سيتم مزامنة البيانات حسب Id (سيتم حذف السجلات في قاعدة البيانات ولكن ليس في الملف)',
+    importSelectFile: 'يرجى اختيار ملف Excel',
+    importSuccess: 'تم الاستيراد بنجاح: تمت إضافة {added}، تم تحديث {updated}، تم حذف {deleted}',
     restart: 'إعادة تشغيل',
     restartConfirm: 'هل أنت متأكد من إعادة تشغيل {name}؟ يستغرق حوالي 9 ثوانٍ',
     restartSuccess: 'تم إرسال أمر إعادة التشغيل، يرجى التحديث',
@@ -23,7 +28,9 @@ export default {
     config: 'التكوين',
     creationTime: 'تاريخ الإنشاء',
     viewDoc: 'عرض الوثائق',
+    doc: 'الوثائق',
     search: 'بحث',
+    searchPlaceholder: 'أدخل محتوى البحث',
     configPlaceholder: 'أدخل التكوين، مفصولاً بفاصلة منقوطة',
     modbusConfigTip: '[Modbus TCP]\nالتنسيق: IP;Retry;ConnectTimeout;ResponseTimeout;PollInterval;MaxPacketLen\nمثال: 192.168.1.1;3s;3s;180s;1s;256\nالحد الأدنى: 192.168.1.1',
     s7ConfigTip: '[Siemens S7]\nالتنسيق: IP;Rack;Slot;Retry;Poll;ConnTimeout;RespTimeout;PDUSize;ConnType\nمثال: 192.168.1.1;0;2;3s;0;10s;10s;480;2\nالحد الأدنى: 192.168.1.1;0;2',
@@ -63,6 +70,8 @@ export default {
     driveId: 'ID السائق',
     driveIdPlaceholder: 'اختر سائقاً',
     config: 'التكوين',
+    conversion: 'التحويل',
+    conversionPlaceholder: 'معادلة، مثال x*1.5+10',
     rwCancel: 'وضع ق/ك',
     rwN: 'N (بدون جمع)',
     rwR: 'R (قراءة فقط)',
@@ -71,7 +80,7 @@ export default {
     valueType: 'نوع القيمة',
     addTitle: 'إضافة نقطة',
     editTitle: 'تعديل النقطة',
-    name: 'اسم النقطة',
+    tag: 'علامة النقطة',
     description: 'الوصف',
     configFormat: 'تنسيق تكوين النقطة',
     currentValue: 'القيمة الحالية',
@@ -95,7 +104,9 @@ export default {
     writeType: 'النوع',
     writeValueLabel: 'القيمة للكتابة',
     writeValuePlaceholder: 'أدخل القيمة للكتابة',
-    writeValueRequired: 'الرجاء إدخال قيمة'
+    writeValueRequired: 'الرجاء إدخال قيمة',
+    writeBoolTrue: 'تشغيل',
+    writeBoolFalse: 'إيقاف'
   },
   alarm: {
     title: 'تكوين الإنذار',
@@ -106,9 +117,10 @@ export default {
     group: 'مجموعة الإنذار',
     addTitle: 'إضافة إنذار',
     editTitle: 'تعديل الإنذار',
-    name: 'اسم الإنذار',
+    tag: 'علامة الإنذار',
     status: 'الحالة',
-    lastAlarmTime: 'آخر إنذار'
+    lastAlarmTime: 'آخر إنذار',
+    viewData: 'عرض البيانات'
   },
   history: {
     title: 'تكوين السجل',
@@ -117,7 +129,18 @@ export default {
     pointIdPlaceholder: 'اختر نقطة',
     config: 'التكوين',
     addTitle: 'إضافة سجل',
-    editTitle: 'تعديل السجل'
+    editTitle: 'تعديل السجل',
+    viewData: 'عرض البيانات'
+  },
+  alarmData: {
+    title: 'بيانات الإنذار',
+    id: 'ID',
+    alarmId: 'ID الإنذار',
+    status: 'الحالة',
+    time: 'وقت الإنذار',
+    timeRange: 'النطاق الزمني',
+    startTime: 'وقت البدء',
+    endTime: 'وقت الانتهاء'
   },
   lang: {
     zh: '中文',

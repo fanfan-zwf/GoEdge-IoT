@@ -2,9 +2,16 @@
   <div class="page-card">
     <div class="page-header">
       <h3>{{ t('drive.title') }}</h3>
-      <div>
+      <div class="header-actions">
+        <el-input v-model="searchName" :placeholder="t('common.searchPlaceholder')" clearable style="width: 200px" @keyup.enter="handleSearch" />
+        <el-select v-model="searchType" :placeholder="t('drive.type')" clearable style="width: 160px">
+          <el-option v-for="item in driveTypes" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+        <el-button @click="handleSearch">{{ t('common.search') }}</el-button>
+        <el-button @click="handleReset">{{ t('common.reset') }}</el-button>
         <el-button type="primary" @click="openAdd">{{ t('common.add') }}</el-button>
         <el-button @click="handleExport">{{ t('common.export') }}</el-button>
+        <el-button @click="importDialogVisible = true">{{ t('common.import') }}</el-button>
       </div>
     </div>
 
@@ -14,7 +21,12 @@
       <el-table-column prop="Name" :label="t('drive.name')" width="150" />
       <el-table-column prop="Config" :label="t('drive.config')" />
       <el-table-column prop="Points_Length" :label="t('drive.pointsLength')" width="100" />
-      <el-table-column prop="Creation_Time" :label="t('common.creationTime')" width="170" />
+      <el-table-column prop="Creation_Time" :label="t('common.creationTime')" width="120">
+        <template #default="{ row }">
+          <div>{{ formatDate(row.Creation_Time) }}</div>
+          <div>{{ formatTime(row.Creation_Time) }}</div>
+        </template>
+      </el-table-column>
       <el-table-column :label="t('common.operation')" width="220">
         <template #default="{ row }">
           <el-button size="small" @click="openEdit(row)">{{ t('common.edit') }}</el-button>
@@ -29,8 +41,8 @@
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
+        :page-sizes="[10, 20, 30, 50, 100, 150]"
+        layout="total, sizes, prev, pager, next, jumper"
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
       />
@@ -70,6 +82,24 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
+    <!-- 导入对话框 -->
+    <el-dialog v-model="importDialogVisible" :title="t('common.importTitle')" width="480px" @close="importFile = null">
+      <p style="color: #909399; font-size: 13px; margin-bottom: 16px;">{{ t('common.importTip') }}</p>
+      <el-upload
+        ref="uploadRef"
+        :auto-upload="false"
+        :limit="1"
+        accept=".xlsx"
+        :on-change="(file: any) => importFile = file.raw"
+        :on-remove="() => importFile = null"
+      >
+        <el-button type="primary">{{ t('common.importSelectFile') }}</el-button>
+      </el-upload>
+      <template #footer>
+        <el-button @click="importDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="importLoading" @click="handleImport">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -77,7 +107,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { configApi, exportUrl } from '@/api/config'
+import { configApi, exportUrl, importConfig } from '@/api/config'
 
 const { t } = useI18n()
 
@@ -105,6 +135,11 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
+// 搜索相关
+const searchName = ref('%%')
+const searchType = ref('')
+const isSearching = ref(false)
+
 // 对话框相关
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -124,8 +159,28 @@ const rules = reactive<FormRules>({
   Config: [{ required: true, message: () => t('common.required', { field: t('common.config') }), trigger: 'blur' }]
 })
 
+const formatDate = (time: string) => {
+  if (!time) return '-'
+  return new Date(time).toLocaleDateString()
+}
+
+const formatTime = (time: string) => {
+  if (!time) return '-'
+  return new Date(time).toLocaleTimeString() + '+08:00'
+}
+
 const loadData = async () => {
   try {
+    if (isSearching.value) {
+      const res = await configApi.drive.search({
+        name: searchName.value,
+        types: searchType.value ? [searchType.value] : undefined,
+        quantity: 30
+      }) as any
+      tableData.value = res.Data || []
+      total.value = tableData.value.length
+      return
+    }
     const countRes = await configApi.drive.count({ page: 0, pageSize: 0 }) as any
     total.value = countRes.Data || 0
     if (total.value === 0) {
@@ -140,11 +195,25 @@ const loadData = async () => {
 const handleSizeChange = (val: number) => {
   pageSize.value = val
   page.value = 1
+  isSearching.value = false
   loadData()
 }
 
 const handleCurrentChange = (val: number) => {
   page.value = val
+  isSearching.value = false
+  loadData()
+}
+
+const handleSearch = () => {
+  isSearching.value = true
+  loadData()
+}
+
+const handleReset = () => {
+  searchName.value = '%%'
+  searchType.value = ''
+  isSearching.value = false
   loadData()
 }
 
@@ -223,6 +292,31 @@ const handleRestart = async (row: any) => {
 
 const handleExport = () => {
   window.open(`${exportUrl}?type=drive`, '_blank')
+}
+
+// ======== 导入功能 ========
+const importDialogVisible = ref(false)
+const importFile = ref<File | null>(null)
+const importLoading = ref(false)
+
+const handleImport = async () => {
+  if (!importFile.value) {
+    ElMessage.warning(t('common.importSelectFile'))
+    return
+  }
+  importLoading.value = true
+  try {
+    const res = await importConfig(importFile.value) as any
+    const data = res.Data || {}
+    const drive = data.drive_config || { added: 0, updated: 0, deleted: 0 }
+    ElMessage.success(t('common.importSuccess', { added: drive.added, updated: drive.updated, deleted: drive.deleted }))
+    importDialogVisible.value = false
+    loadData()
+  } catch (e: any) {
+    ElMessage.error(e.message || '导入失败')
+  } finally {
+    importLoading.value = false
+  }
 }
 
 // 页面加载时初始化数据

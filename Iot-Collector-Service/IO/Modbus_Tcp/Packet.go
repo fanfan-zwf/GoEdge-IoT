@@ -15,21 +15,21 @@ import (
 
 // 你定义的结构体（完全保留）
 type PackAddressPackages_Point_type struct {
-	Id        uint   // 点位id
-	StartAddr uint16 // 点位开始值
-	DataLen   uint16 // 点位类型长度
-	EndAddr   uint16 // 内部计算用
+	Id        uint // 点位id
+	StartAddr int  // 点位开始值
+	DataLen   int  // 点位类型长度
+	EndAddr   int  // 内部计算用
 }
 
 // 组包结果结构
 type PackageResult struct {
-	StartAddr uint16
-	DataLen   uint16
+	StartAddr int
+	DataLen   int
 	Id        []uint // 改成 uint 匹配你的结构
 }
 
 // PackAddressPackages 终极修复版 → 连续地址1、2、3一定会合并！
-func PackAddressPackages(addrList []PackAddressPackages_Point_type, maxPackageLen uint16) ([]PackageResult, error) {
+func PackAddressPackages(addrList []PackAddressPackages_Point_type, maxPackageLen int) ([]PackageResult, error) {
 	if len(addrList) == 0 {
 		return nil, errors.New("输入点位列表不能为空")
 	}
@@ -38,7 +38,7 @@ func PackAddressPackages(addrList []PackAddressPackages_Point_type, maxPackageLe
 	var validPoints []PackAddressPackages_Point_type
 	for _, p := range addrList {
 		if p.DataLen <= 0 {
-			fmt.Printf("id=%d\n", p.Id)
+			fmt.Printf("WARN PackAddressPackages: 点位 id=%d DataLen=%d 无效，跳过\n", p.Id, p.DataLen)
 			continue
 		}
 		p.EndAddr = p.StartAddr + p.DataLen - 1

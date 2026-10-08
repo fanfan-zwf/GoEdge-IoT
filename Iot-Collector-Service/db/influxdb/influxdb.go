@@ -7,6 +7,7 @@
 package influxdb
 
 import (
+	"main/IO/conv"
 	"main/IO/manager/fullConfig"
 	"main/Init"
 	"main/db/db_point"
@@ -623,7 +624,7 @@ func a(value []fullConfig.Value_type) error {
 	value = append(value, fullConfig.Value_type{
 		PointId: Init.Config.Influxdb.Write_Quantity_Id,
 		Value:   index,
-		Type:    "int",
+		Type:    conv.TYPE_INT,
 		Msg:     "ok",
 		Time:    time.Now(),
 	})

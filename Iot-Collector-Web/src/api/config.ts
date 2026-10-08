@@ -1,8 +1,12 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
+// 服务器地址（IP:端口），供其他模块构建 HTTP / WebSocket URL 使用
+// export const BASE_SERVER = '172.21.1.231:8103'
+export const BASE_SERVER = '192.168.220.40:8103'
+
 const http = axios.create({
-  baseURL: 'http://192.168.220.40:8103/api/v1.0',
+  baseURL: `http://${BASE_SERVER}/api/v1.0`,
   timeout: 10000
 })
 
@@ -54,7 +58,9 @@ export const configApi = {
     add: (data: any[]) => http.post('/config/drive/add', data),
     update: (data: any[]) => http.post('/config/drive/update', data),
     del: (ids: number[]) => http.post('/config/drive/del', { ids }),
-    restart: (id: number) => http.post('/config/drive/restart', { id })
+    restart: (id: number) => http.post('/config/drive/restart', { id }),
+    search: (params: { name?: string; types?: string[]; quantity: number }) =>
+      http.post('/config/drive/search', params)
   },
   // 点位配置
   point: {
@@ -65,6 +71,8 @@ export const configApi = {
     add: (data: any[]) => http.post('/config/point/add', data),
     update: (data: any[]) => http.post('/config/point/update', data),
     del: (ids: number[]) => http.post('/config/point/del', { ids }),
+    search: (params: { tag?: string; driveIds?: number[]; quantity: number }) =>
+      http.post('/config/point/search', params),
     readValue: (pointIds: number[]) =>
       http.post('/point/read/value', pointIds),
     writeValue: (data: { PointId: number; Value: any; Type: string }[]) =>
@@ -79,8 +87,17 @@ export const configApi = {
     add: (data: any[]) => http.post('/config/alarm/add', data),
     update: (data: any[]) => http.post('/config/alarm/update', data),
     del: (ids: number[]) => http.post('/config/alarm/del', { ids }),
+    search: (params: { tag?: string; pointIds?: number[]; groups?: number[]; quantity: number }) =>
+      http.post('/config/alarm/search', params),
     status: (pointIds: number[]) =>
       http.post('/alarm/status', pointIds)
+  },
+  // 报警数据
+  alarmData: {
+    query: (params: { alarmId?: number[]; page: number; pageSize: number }) =>
+      http.post('/config/alarm-data/query', params),
+    count: (params: { alarmId?: number[]; page: number; pageSize: number }) =>
+      http.post('/config/alarm-data/count', params)
   },
   // 历史配置
   history: {
@@ -105,4 +122,13 @@ export const configApi = {
 }
 
 // 导出 Excel URL
-export const exportUrl = 'http://192.168.220.40:8103/api/v1.0/config/export'
+export const exportUrl = `http://${BASE_SERVER}/api/v1.0/config/export`
+
+// 导入 Excel 配置
+export function importConfig(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return http.post('/config/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}

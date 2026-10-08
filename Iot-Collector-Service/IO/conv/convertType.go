@@ -1,52 +1,108 @@
-package byte_util
+package conv
 
 import (
 	"fmt"
 	"strconv"
 )
 
-func ConvBool(v any, to string) (bool, bool) {
+const (
+	TYPE_BOOL int = iota + 1
+	TYPE_INT8
+	TYPE_UINT8
+	TYPE_INT16
+	TYPE_UINT16
+	TYPE_INT32
+	TYPE_UINT32
+	TYPE_INT64
+	TYPE_UINT64
+	TYPE_INT
+	TYPE_UINT
+	TYPE_FLOAT32
+	TYPE_FLOAT64
+	TYPE_FLOAT
+	TYPE_STRING
+)
+
+// 类型名称 → 类型编码 映射
+// bool→1 int8→2 uint8→3 int16→4 uint16→5 int32→6 uint32→7 int64→8 uint64→9 int→10 uint→11 float32→12 float64→13 float→14 string→15
+var ValueTypeCode = map[string]int{
+	"bool":    TYPE_BOOL,
+	"int8":    TYPE_INT8,
+	"uint8":   TYPE_UINT8,
+	"int16":   TYPE_INT16,
+	"uint16":  TYPE_UINT16,
+	"int32":   TYPE_INT32,
+	"uint32":  TYPE_UINT32,
+	"int64":   TYPE_INT64,
+	"uint64":  TYPE_UINT64,
+	"int":     TYPE_INT,
+	"uint":    TYPE_UINT,
+	"float32": TYPE_FLOAT32,
+	"float64": TYPE_FLOAT64,
+	"float":   TYPE_FLOAT,
+	"string":  TYPE_STRING,
+}
+
+// ValueTypeStringToInt 将类型名称转换为 int 类型编码
+// 返回: 类型编码, 是否找到
+func ValueTypeStringToInt(name string) (int, bool) {
+	code, ok := ValueTypeCode[name]
+	return code, ok
+}
+
+// ValueTypeIntToString 将 int 类型编码转换为 string 类型名称
+// 返回: 类型名称，未找到时返回 "unknown(N)"
+func ValueTypeIntToString(vt int) string {
+	for name, code := range ValueTypeCode {
+		if code == vt {
+			return name
+		}
+	}
+	return fmt.Sprintf("unknown(%d)", vt)
+}
+
+func ConvBool(v any, to int) (bool, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		b, ok := v.(bool)
 		return b, ok
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		b, ok := v.(uint8)
 		return b != 0, ok
-	case "int8":
+	case TYPE_INT8:
 		b, ok := v.(int8)
 		return b != 0, ok
-	case "uint16":
+	case TYPE_UINT16:
 		b, ok := v.(uint16)
 		return b != 0, ok
-	case "int16":
+	case TYPE_INT16:
 		b, ok := v.(int16)
 		return b != 0, ok
-	case "uint32":
+	case TYPE_UINT32:
 		b, ok := v.(uint32)
 		return b != 0, ok
-	case "int32":
+	case TYPE_INT32:
 		b, ok := v.(int32)
 		return b != 0, ok
-	case "uint64":
+	case TYPE_UINT64:
 		b, ok := v.(uint64)
 		return b != 0, ok
-	case "int64":
+	case TYPE_INT64:
 		b, ok := v.(int64)
 		return b != 0, ok
-	case "uint":
+	case TYPE_UINT:
 		b, ok := v.(uint)
 		return b != 0, ok
-	case "int":
+	case TYPE_INT:
 		b, ok := v.(int)
 		return b != 0, ok
-	case "float32":
+	case TYPE_FLOAT32:
 		b, ok := v.(float32)
 		return b != 0, ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		b, ok := v.(float64)
 		return b != 0, ok
-	case "string":
+	case TYPE_STRING:
 		s, ok := v.(string)
 		if !ok {
 			return false, false
@@ -57,9 +113,9 @@ func ConvBool(v any, to string) (bool, bool) {
 	}
 }
 
-func ConvUint8(v any, to string) (uint8, bool) {
+func ConvUint8(v any, to int) (uint8, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -68,43 +124,43 @@ func ConvUint8(v any, to string) (uint8, bool) {
 			return 1, true
 		}
 		return 0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return val, ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return uint8(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return uint8(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return uint8(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return uint8(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return uint8(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return uint8(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return uint8(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return uint8(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return uint8(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return uint8(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return uint8(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -119,9 +175,9 @@ func ConvUint8(v any, to string) (uint8, bool) {
 	}
 }
 
-func ConvInt8(v any, to string) (int8, bool) {
+func ConvInt8(v any, to int) (int8, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -130,43 +186,43 @@ func ConvInt8(v any, to string) (int8, bool) {
 			return 1, true
 		}
 		return 0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return int8(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return val, ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return int8(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return int8(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return int8(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return int8(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return int8(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return int8(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return int8(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return int8(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return int8(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return int8(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -181,9 +237,9 @@ func ConvInt8(v any, to string) (int8, bool) {
 	}
 }
 
-func ConvUint16(v any, to string) (uint16, bool) {
+func ConvUint16(v any, to int) (uint16, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -192,43 +248,43 @@ func ConvUint16(v any, to string) (uint16, bool) {
 			return 1, true
 		}
 		return 0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return uint16(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return uint16(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return val, ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return uint16(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return uint16(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return uint16(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return uint16(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return uint16(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return uint16(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return uint16(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return uint16(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return uint16(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -243,9 +299,9 @@ func ConvUint16(v any, to string) (uint16, bool) {
 	}
 }
 
-func ConvInt16(v any, to string) (int16, bool) {
+func ConvInt16(v any, to int) (int16, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -254,43 +310,43 @@ func ConvInt16(v any, to string) (int16, bool) {
 			return 1, true
 		}
 		return 0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return int16(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return int16(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return int16(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return val, ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return int16(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return int16(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return int16(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return int16(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return int16(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return int16(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return int16(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return int16(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -305,9 +361,9 @@ func ConvInt16(v any, to string) (int16, bool) {
 	}
 }
 
-func ConvUint32(v any, to string) (uint32, bool) {
+func ConvUint32(v any, to int) (uint32, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -316,43 +372,43 @@ func ConvUint32(v any, to string) (uint32, bool) {
 			return 1, true
 		}
 		return 0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return uint32(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return uint32(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return uint32(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return uint32(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return val, ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return uint32(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return uint32(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return uint32(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return uint32(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return uint32(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return uint32(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return uint32(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -367,9 +423,9 @@ func ConvUint32(v any, to string) (uint32, bool) {
 	}
 }
 
-func ConvInt32(v any, to string) (int32, bool) {
+func ConvInt32(v any, to int) (int32, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -378,43 +434,43 @@ func ConvInt32(v any, to string) (int32, bool) {
 			return 1, true
 		}
 		return 0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return int32(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return int32(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return int32(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return int32(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return int32(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return val, ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return int32(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return int32(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return int32(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return int32(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return int32(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return int32(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -429,9 +485,9 @@ func ConvInt32(v any, to string) (int32, bool) {
 	}
 }
 
-func ConvUint64(v any, to string) (uint64, bool) {
+func ConvUint64(v any, to int) (uint64, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -440,43 +496,43 @@ func ConvUint64(v any, to string) (uint64, bool) {
 			return 1, true
 		}
 		return 0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return uint64(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return uint64(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return uint64(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return uint64(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return uint64(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return uint64(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return val, ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return uint64(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return uint64(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return uint64(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return uint64(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return uint64(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -491,9 +547,9 @@ func ConvUint64(v any, to string) (uint64, bool) {
 	}
 }
 
-func ConvInt64(v any, to string) (int64, bool) {
+func ConvInt64(v any, to int) (int64, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -502,43 +558,43 @@ func ConvInt64(v any, to string) (int64, bool) {
 			return 1, true
 		}
 		return 0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return int64(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return int64(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return int64(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return int64(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return int64(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return int64(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return int64(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return val, ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return int64(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return int64(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return int64(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return int64(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -553,9 +609,9 @@ func ConvInt64(v any, to string) (int64, bool) {
 	}
 }
 
-func ConvUint(v any, to string) (uint, bool) {
+func ConvUint(v any, to int) (uint, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -564,43 +620,43 @@ func ConvUint(v any, to string) (uint, bool) {
 			return 1, true
 		}
 		return 0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return uint(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return uint(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return uint(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return uint(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return uint(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return uint(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return uint(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return uint(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return val, ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return uint(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return uint(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return uint(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -615,9 +671,9 @@ func ConvUint(v any, to string) (uint, bool) {
 	}
 }
 
-func ConvInt(v any, to string) (int, bool) {
+func ConvInt(v any, to int) (int, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -626,43 +682,43 @@ func ConvInt(v any, to string) (int, bool) {
 			return 1, true
 		}
 		return 0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return int(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return int(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return int(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return int(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return int(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return int(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return int(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return int(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return int(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return val, ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return int(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return int(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -677,9 +733,9 @@ func ConvInt(v any, to string) (int, bool) {
 	}
 }
 
-func ConvFloat32(v any, to string) (float32, bool) {
+func ConvFloat32(v any, to int) (float32, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -688,43 +744,43 @@ func ConvFloat32(v any, to string) (float32, bool) {
 			return 1.0, true
 		}
 		return 0.0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return float32(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return float32(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return float32(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return float32(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return float32(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return float32(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return float32(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return float32(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return float32(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return float32(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return val, ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return float32(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -739,9 +795,9 @@ func ConvFloat32(v any, to string) (float32, bool) {
 	}
 }
 
-func ConvFloat64(v any, to string) (float64, bool) {
+func ConvFloat64(v any, to int) (float64, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return 0, false
@@ -750,43 +806,43 @@ func ConvFloat64(v any, to string) (float64, bool) {
 			return 1.0, true
 		}
 		return 0.0, true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return float64(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return float64(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return float64(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return float64(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return float64(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return float64(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return float64(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return float64(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return float64(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return float64(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return float64(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return val, ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		if !ok {
 			return 0, false
@@ -801,9 +857,9 @@ func ConvFloat64(v any, to string) (float64, bool) {
 	}
 }
 
-func ConvString(v any, to string) (string, bool) {
+func ConvString(v any, to int) (string, bool) {
 	switch to {
-	case "bool":
+	case TYPE_BOOL:
 		val, ok := v.(bool)
 		if !ok {
 			return "", false
@@ -812,43 +868,43 @@ func ConvString(v any, to string) (string, bool) {
 			return "true", true
 		}
 		return "false", true
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		val, ok := v.(uint8)
 		return fmt.Sprint(val), ok
-	case "int8":
+	case TYPE_INT8:
 		val, ok := v.(int8)
 		return fmt.Sprint(val), ok
-	case "uint16":
+	case TYPE_UINT16:
 		val, ok := v.(uint16)
 		return fmt.Sprint(val), ok
-	case "int16":
+	case TYPE_INT16:
 		val, ok := v.(int16)
 		return fmt.Sprint(val), ok
-	case "uint32":
+	case TYPE_UINT32:
 		val, ok := v.(uint32)
 		return fmt.Sprint(val), ok
-	case "int32":
+	case TYPE_INT32:
 		val, ok := v.(int32)
 		return fmt.Sprint(val), ok
-	case "uint64":
+	case TYPE_UINT64:
 		val, ok := v.(uint64)
 		return fmt.Sprint(val), ok
-	case "int64":
+	case TYPE_INT64:
 		val, ok := v.(int64)
 		return fmt.Sprint(val), ok
-	case "uint":
+	case TYPE_UINT:
 		val, ok := v.(uint)
 		return fmt.Sprint(val), ok
-	case "int":
+	case TYPE_INT:
 		val, ok := v.(int)
 		return fmt.Sprint(val), ok
-	case "float32":
+	case TYPE_FLOAT32:
 		val, ok := v.(float32)
 		return fmt.Sprint(val), ok
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		val, ok := v.(float64)
 		return fmt.Sprint(val), ok
-	case "string":
+	case TYPE_STRING:
 		str, ok := v.(string)
 		return str, ok
 	default:
@@ -856,35 +912,35 @@ func ConvString(v any, to string) (string, bool) {
 	}
 }
 
-func ConvertType(value any, fromType, toType string) (any, bool) {
+func ConvertType(value any, fromType, toType int) (any, bool) {
 	switch toType {
-	case "bool":
+	case TYPE_BOOL:
 		return ConvBool(value, fromType)
-	case "uint8", "byte":
+	case TYPE_UINT8:
 		return ConvUint8(value, fromType)
-	case "int8":
+	case TYPE_INT8:
 		return ConvInt8(value, fromType)
-	case "uint16":
+	case TYPE_UINT16:
 		return ConvUint16(value, fromType)
-	case "int16":
+	case TYPE_INT16:
 		return ConvInt16(value, fromType)
-	case "uint32":
+	case TYPE_UINT32:
 		return ConvUint32(value, fromType)
-	case "int32":
+	case TYPE_INT32:
 		return ConvInt32(value, fromType)
-	case "uint64":
+	case TYPE_UINT64:
 		return ConvUint64(value, fromType)
-	case "int64":
+	case TYPE_INT64:
 		return ConvInt64(value, fromType)
-	case "uint":
+	case TYPE_UINT:
 		return ConvUint(value, fromType)
-	case "int":
+	case TYPE_INT:
 		return ConvInt(value, fromType)
-	case "float32":
+	case TYPE_FLOAT32:
 		return ConvFloat32(value, fromType)
-	case "float64", "float":
+	case TYPE_FLOAT64, TYPE_FLOAT:
 		return ConvFloat64(value, fromType)
-	case "string":
+	case TYPE_STRING:
 		return ConvString(value, fromType)
 	default:
 		return nil, false

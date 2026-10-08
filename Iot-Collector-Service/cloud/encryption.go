@@ -268,6 +268,13 @@ func GetKVValue(str string, targetKey string) (string, error) {
 	return "", NilError
 }
 
+// SplitBySemicolon 根据 ; 分割字符串，获取数量
+func GetSplitLen(str string) int {
+	return len(strings.Split(str, ";"))
+}
+
+// index: 下标，0为第一个元素
+
 // SplitBySemicolon 根据 ; 分割字符串，按index获取元素，index从 0 开始
 // str: "1;03;4;BA;int16"
 // index: 下标，0为第一个元素
@@ -329,6 +336,29 @@ func GetSplitBool(str string, index int, errstr ...string) (bool, error) {
 		msg = errstr[0] + " 解析失败 无效的布尔值"
 	}
 	return false, fmt.Errorf("ERROR %s", msg)
+}
+
+// GetSplitDuration 根据;分割，取index位置，直接转Duration返回
+// 空值（越界或空串）返回 0 + NilError，解析失败返回 error
+func GetSplitFloat64(str string, index int, errstr ...string) (float64, error) {
+	s, err := GetSplitStr(str, index, errstr...)
+	if err != nil {
+		return 0, NilError // 越界 → 未配置
+	}
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, NilError // 空值 → 未配置
+	}
+	d, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		msg := "解析失败"
+		if len(errstr) > 0 {
+			msg = errstr[0] + " 解析失败"
+		}
+		return 0, fmt.Errorf("ERROR %s: %w", msg, err)
+	}
+	return d, nil
+
 }
 
 // GetSplitDuration 根据;分割，取index位置，直接转Duration返回

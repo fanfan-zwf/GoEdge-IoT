@@ -10,9 +10,30 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
+)
+
+const (
+	// tag 格式正则：支持两种格式
+	// 1. //设备id//标识符（包含设备id）
+	// 2. /标识符（不包含设备id）
+	// - 设备id不能为空，不含/
+	// - 标识符不能为空，中间可有/，但不能以/结尾，不能有//
+	Regex_Tag_Format = `^(//[^/]+//[^/]+(/[^/]+)*|/[^/]+(/[^/]+)*)$`
+
+	// Config 格式正则：xx;xx;xx 格式
+	// - 前后不能有;
+	// - 中间可以有多个;，甚至可以连续;;
+	Regex_Config_Format = `^[^;]+(;+[^;]+)*$`
+
+	// Conversion 格式正则：空字符串、"0" 或一元一次方程表达式
+	// - 空字符串或 "0" 表示无换算
+	// - 非空非"0"时必须包含变量 x，只允许数字、运算符(+,-,*,/)、括号、小数点、空白
+	// - 示例：x*2+10、(x-32)*5/9、x/100.0*3600
+	Regex_Conversion_Format = `^(|0|[0-9\s\+\-\*\/\.\(\)]*x[0-9x\s\+\-\*\/\.\(\)]*)$`
 )
 
 /*
@@ -69,7 +90,7 @@ type Drive_Config_type struct {
 	Id            uint      // 递增id
 	Type          string    // 驱动类型
 	Name          string    // 驱动名称
-	Config        string    // json配置参数
+	Config        string    //
 	Points_Length uint      // 点位数量
 	Creation_Time time.Time // 创建时间
 }
@@ -79,179 +100,15 @@ type Drive_Config_Add_type struct {
 	Id     uint   // 递增id
 	Type   string // 驱动类型
 	Name   string // 驱动名称
-	Config string // json配置参数
+	Config string //
 }
 
 // Drive_Config_Update_type 驱动配置更新结构体
 type Drive_Config_Update_type struct {
 	Id     uint   // 驱动id
 	Name   string // 驱动名称
-	Config string // json配置参数
+	Config string //
 }
-
-/*
-***************点位配置结构体***************
- */
-type Point_Config_Query_type struct {
-	Id            uint      // 点位id
-	Drive_Id      uint      // 驱动id
-	Name          string    // 点位名称
-	Description   string    // 说明
-	Config        string    // 配置信息
-	RW_Cancel     int       // 读写方式
-	Value_Type    int       // 输出类型
-	Creation_Time time.Time // 创建时间
-}
-
-type Point_Config_type struct {
-	Id            uint      // 点位id
-	Drive_Id      uint      // 驱动id
-	Name          string    // 点位名称
-	Description   string    // 说明
-	Config        string    // 配置信息
-	RW_Cancel     int       // 读写方式读写方式 1：禁止； 2：只读； 3：只写； 4：读写；
-	Value_Type    int       // 输出类型
-	Creation_Time time.Time // 创建时间
-}
-
-// 点位配置增加结构体
-type Point_Config_Add_type struct {
-	Id          uint   // 点位id
-	Drive_Id    uint   // 驱动id
-	Name        string // 点位名称
-	Description string // 说明
-	Config      string // 配置信息
-	RW_Cancel   int    // 读写方式
-	Value_Type  int    // 输出类型
-}
-
-// 点位配置更新结构体
-type Point_Config_Update_type struct {
-	Id          uint   // 点位id
-	Drive_Id    uint   // 驱动id
-	Name        string // 点位名称
-	Description string // 说明
-	Config      string // 配置信息
-	RW_Cancel   int    // 读写方式
-	Value_Type  int    // 输出类型
-}
-
-/*
-***************报警***************
- */
-
-type Alarm_Config_Query_type struct {
-	Id            uint      // 报警id
-	Point_Id      uint      // 点位id
-	Name          string    // 报警名称
-	Config        string    // 报警配置
-	Group         int       // 报警组
-	Creation_Time time.Time // 创建时间
-}
-
-type Alarm_Config_type struct {
-	Id            uint      // 报警id
-	Point_Id      uint      // 点位id
-	Name          string    // 报警名称
-	Config        string    // 报警配置
-	Group         int       // 报警组
-	Creation_Time time.Time // 创建时间
-}
-
-// 报警配置增加结构体
-type Alarm_Config_Add_type struct {
-	Id       uint   // 报警id
-	Point_Id uint   // 点位id
-	Name     string // 报警名称
-	Config   string // 报警配置
-	Group    int    // 报警组
-}
-
-// 报警配置更新结构体
-type Alarm_Config_Update_type struct {
-	Id       uint   // 报警id
-	Point_Id uint   // 点位id
-	Name     string // 报警名称
-	Config   string // 报警配置
-	Group    int    // 报警组
-}
-
-/*
-***************历史配置***************
- */
-
-type History_Config_Query_type struct {
-	Id            uint      // 历史id
-	Point_Id      uint      // 点位id
-	Config        string    // 历史配置
-	Creation_Time time.Time // 创建时间
-}
-
-type History_Config_type struct {
-	Id            uint      // 历史id
-	Point_Id      uint      // 点位id
-	Config        string    // 历史配置
-	Creation_Time time.Time // 创建时间
-}
-
-// 历史配置增加结构体
-type History_Config_Add_type struct {
-	Id       uint   // 历史id
-	Point_Id uint   // 点位id
-	Config   string // 历史配置
-}
-
-// 历史配置更新结构体
-type History_Config_Update_type struct {
-	Id       uint   // 历史id
-	Point_Id uint   // 点位id
-	Config   string // 历史配置
-}
-
-const (
-	Value_Type__Bool    = 1 // 常用
-	Value_Type__Int8    = 2
-	Value_Type__Uint8   = 3
-	Value_Type__Int16   = 4
-	Value_Type__Uint16  = 5
-	Value_Type__Int32   = 6
-	Value_Type__Uint32  = 7
-	Value_Type__Int64   = 8
-	Value_Type__Uint64  = 9
-	Value_Type__Int     = 10 // 常用
-	Value_Type__Uint    = 11 // 常用
-	Value_Type__Float32 = 12
-	Value_Type__Float64 = 13
-	Value_Type__Float   = 14 // 常用
-	Value_Type__String  = 15 // 常用
-)
-
-var (
-	RW_Cancel_map = map[int]string{
-		1: "N",
-		2: "R",
-		3: "W",
-		4: "R/W",
-	}
-
-	Value_Type_map = map[int]string{
-		Value_Type__Bool:    "bool", // 常用
-		Value_Type__Int8:    "int8",
-		Value_Type__Uint8:   "uint8",
-		Value_Type__Int16:   "int16",
-		Value_Type__Uint16:  "uint16",
-		Value_Type__Int32:   "int32",
-		Value_Type__Uint32:  "uint32",
-		Value_Type__Int64:   "int64",
-		Value_Type__Uint64:  "uint64",
-		Value_Type__Int:     "int", // 常用
-		Value_Type__Uint:    "uint",
-		Value_Type__Float32: "float32",
-		Value_Type__Float64: "float64",
-		Value_Type__Float:   "float",  // 常用
-		Value_Type__String:  "string", // 常用
-	}
-)
 
 // 驱动-》查询配置（回调）
 func Drive_Config__Query_Callback(page uint, pageSize uint, callback func(Drive_Config_Query_type)) (err error) {
@@ -327,24 +184,30 @@ func Drive_Config__Add(configs ...Drive_Config_Add_type) (err error) {
 	if len(configs) == 0 {
 		return
 	}
-	baseQuery := "INSERT INTO `Drive_Config`(`Type`, `Name`, `Config`, `Points_Length`, `Creation_Time`) VALUES "
+	baseQuery := "INSERT INTO `Drive_Config`(`Id`, `Type`, `Name`, `Config`, `Points_Length`, `Creation_Time`) VALUES "
 	var args []interface{}
 	var valuePlaceholders []string
 	createTime := time.Now()
+	configRegex := regexp.MustCompile(Regex_Config_Format)
 
 	for i, cfg := range configs {
-		if cfg.Type == "" || cfg.Config == "" {
-			err = fmt.Errorf("批量新增失败：第%d条配置Type/Config不能为空", i+1)
-			return
+		if cfg.Type == "" {
+			return fmt.Errorf("批量新增失败：第%d条配置Type不能为空", i+1)
 		}
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?)")
-		args = append(args, cfg.Type, cfg.Name, cfg.Config, 0, createTime)
+		if cfg.Config == "" {
+			return fmt.Errorf("批量新增失败：第%d条配置Config不能为空", i+1)
+		}
+		if !configRegex.MatchString(cfg.Config) {
+			return fmt.Errorf("批量新增失败：第%d条配置Config格式不正确", i+1)
+		}
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?)")
+		args = append(args, cfg.Id, cfg.Type, cfg.Name, cfg.Config, 0, createTime)
 	}
 
 	query := baseQuery + strings.Join(valuePlaceholders, ", ")
 	_, err = DB.Exec(query, args...)
 	if err != nil {
-		err = fmt.Errorf("批量新增驱动配置失败: %v", err)
+		err = fmt.Errorf("批量新增驱动配置失败: %w", err)
 	}
 	return
 }
@@ -355,6 +218,8 @@ func Drive_Config__Update(configs ...Drive_Config_Update_type) (err error) {
 		err = fmt.Errorf("ERROR 待更新配置列表为空")
 		return
 	}
+
+	configRegex := regexp.MustCompile(Regex_Config_Format)
 
 	for idx, config := range configs {
 		if config.Id == 0 {
@@ -369,6 +234,10 @@ func Drive_Config__Update(configs ...Drive_Config_Update_type) (err error) {
 			args = append(args, config.Name)
 		}
 		if config.Config != "" {
+			if !configRegex.MatchString(config.Config) {
+				err = fmt.Errorf("ERROR 第%d条配置Config格式不正确", idx+1)
+				return
+			}
 			setClauses = append(setClauses, "`Config` = ?")
 			args = append(args, config.Config)
 		}
@@ -479,8 +348,11 @@ func Drive_Config__Sync(configs []Drive_Config_Query_type) (err error) {
 	return nil
 }
 
-// 驱动-》按名称搜索
-func Drive_Config__Search__Name(quantity uint, value string) (configs []Drive_Config_Query_type, err error) {
+// Drive_Config__Search 搜索驱动配置
+// 功能：按 Name 模糊搜索 + Type 精确过滤，返回匹配结果
+// 传入：name — 驱动名称（LIKE 匹配，调用方需自带 % 通配符，空串不过滤）；types — 驱动类型列表（IN 精确匹配，空切片不过滤）；quantity — 返回数量上限（最大 30）
+// 返回：匹配的驱动配置列表，错误
+func Drive_Config__Search(name string, types []string, quantity uint) (configs []Drive_Config_Query_type, err error) {
 	if quantity > 30 {
 		quantity = 30
 	}
@@ -488,12 +360,31 @@ func Drive_Config__Search__Name(quantity uint, value string) (configs []Drive_Co
 	baseQuery := `
 		SELECT Id, Type, Name, Config, Points_Length, Creation_Time
 		FROM Drive_Config
-		WHERE ` + "`Name`" + ` = ? LIMIT ?
 	`
+	var whereConditions []string
+	var args []interface{}
 
-	rows, err := DB.Query(baseQuery, value, quantity)
+	if name != "" {
+		whereConditions = append(whereConditions, "`Name` LIKE ?")
+		args = append(args, name)
+	}
+	if len(types) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(types)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Type` IN (%s)", placeholders))
+		for _, t := range types {
+			args = append(args, t)
+		}
+	}
+
+	if len(whereConditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
+	}
+	baseQuery += " LIMIT ?"
+	args = append(args, quantity)
+
+	rows, err := DB.Query(baseQuery, args...)
 	if err != nil {
-		err = fmt.Errorf("ERROR 查询驱动配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, []interface{}{value, quantity})
+		err = fmt.Errorf("ERROR 搜索驱动配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
 		log.Print(err)
 		return nil, err
 	}
@@ -551,12 +442,71 @@ func Drive_Config__Update__PointsLength(ids ...uint) (err error) {
 /*
 ***************点位配置查询***************
  */
+/*
+***************点位配置结构体***************
+ */
+type Point_Config_Query_type struct {
+	Id            uint      // 点位id
+	Drive_Id      uint      // 驱动id
+	Tag           string    // 点位标签
+	Description   string    // 说明
+	Config        string    // 配置信息
+	Conversion    string    // 换算
+	RW_Cancel     int       // 读写方式
+	Value_Type    int       // 输出类型
+	Creation_Time time.Time // 创建时间
+}
+
+type Point_Config_type struct {
+	Id            uint      // 点位id
+	Drive_Id      uint      // 驱动id
+	Tag           string    // 点位标签
+	Description   string    // 说明
+	Config        string    // 配置信息
+	Conversion    string    // 换算
+	RW_Cancel     int       // 读写方式读写方式 1：禁止； 2：只读； 3：只写； 4：读写；
+	Value_Type    int       // 输出类型
+	Creation_Time time.Time // 创建时间
+}
+
+// 点位配置增加结构体
+type Point_Config_Add_type struct {
+	Id          uint   // 点位id
+	Drive_Id    uint   // 驱动id
+	Tag         string // 点位标签
+	Description string // 说明
+	Config      string // 配置信息
+	Conversion  string // 换算
+	RW_Cancel   int    // 读写方式
+	Value_Type  int    // 输出类型
+}
+
+// 点位配置更新结构体
+type Point_Config_Update_type struct {
+	Id          uint   // 点位id
+	Drive_Id    uint   // 驱动id
+	Tag         string // 点位标签
+	Description string // 说明
+	Config      string // 配置信息
+	Conversion  string // 换算
+	RW_Cancel   int    // 读写方式
+	Value_Type  int    // 输出类型
+}
+
+var (
+	RW_Cancel_map = map[int]string{
+		1: "N",
+		2: "R",
+		3: "W",
+		4: "R/W",
+	}
+)
 
 // 点位-》查询配置（回调）
 // 传递：driveid 设备id，page 页码，pageSize 每页数量，callback 回调函数
 func Point_Config__Query_Callback(driveid []uint, page uint, pageSize uint, callback func(Point_Config_Query_type)) (err error) {
 	baseQuery := `
-		SELECT Id, Drive_Id, Name, Description, Config, RW_Cancel, Value_Type, Creation_Time
+		SELECT Id, Drive_Id, Tag, Description, Config, Conversion, RW_Cancel, Value_Type, Creation_Time
 		FROM Point_Config
 	`
 	var whereConditions []string
@@ -591,7 +541,7 @@ func Point_Config__Query_Callback(driveid []uint, page uint, pageSize uint, call
 	for rows.Next() {
 		var cfg Point_Config_Query_type
 		var desc sql.NullString
-		err = rows.Scan(&cfg.Id, &cfg.Drive_Id, &cfg.Name, &desc, &cfg.Config, &cfg.RW_Cancel, &cfg.Value_Type, &cfg.Creation_Time)
+		err = rows.Scan(&cfg.Id, &cfg.Drive_Id, &cfg.Tag, &desc, &cfg.Config, &cfg.Conversion, &cfg.RW_Cancel, &cfg.Value_Type, &cfg.Creation_Time)
 		if err != nil {
 			log.Print(err.Error())
 			return
@@ -656,24 +606,42 @@ func Point_Config__Add(configs ...Point_Config_Add_type) (err error) {
 	if len(configs) == 0 {
 		return fmt.Errorf("批量新增失败：待新增配置列表为空")
 	}
-	baseQuery := `INSERT INTO Point_Config (Drive_Id, Name, Description, Config, RW_Cancel, Value_Type, Creation_Time) VALUES `
+	baseQuery := `INSERT INTO Point_Config (Id, Drive_Id, Tag, Description, Config, Conversion, RW_Cancel, Value_Type, Creation_Time) VALUES `
 	var args []interface{}
 	var valuePlaceholders []string
 	t := time.Now()
+	tagRegex := regexp.MustCompile(Regex_Tag_Format)
+	configRegex := regexp.MustCompile(Regex_Config_Format)
+	conversionRegex := regexp.MustCompile(Regex_Conversion_Format)
 
 	for i, cfg := range configs {
 		if cfg.Drive_Id == 0 {
 			return fmt.Errorf("批量新增失败：第%d条数据 Drive_Id 等于0", i)
 		}
+		if cfg.Tag == "" {
+			return fmt.Errorf("批量新增失败：第%d条数据 Tag 不能为空", i)
+		}
+		if !tagRegex.MatchString(cfg.Tag) {
+			return fmt.Errorf("批量新增失败：第%d条数据 Tag 格式错误，必须符合 //设备id//标识符 格式", i)
+		}
 		if cfg.Config == "" {
 			return fmt.Errorf("批量新增失败：第%d条数据 Config 不能为空", i)
 		}
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?)")
+		if !configRegex.MatchString(cfg.Config) {
+			return fmt.Errorf("批量新增失败：第%d条数据 Config 格式错误，必须符合 xx;xx;xx 格式", i)
+		}
+		// Conversion 可选，但非空时必须符合一元一次方程格式
+		if cfg.Conversion != "" && cfg.Conversion != "0" && !conversionRegex.MatchString(cfg.Conversion) {
+			return fmt.Errorf("批量新增失败：第%d条数据 Conversion 格式错误，必须是一元一次方程（如 x*2+10）", i)
+		}
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?, ?, ?, ?)")
 		args = append(args,
+			cfg.Id,
 			cfg.Drive_Id,
-			cfg.Name,
+			cfg.Tag,
 			sql.NullString{String: cfg.Description, Valid: cfg.Description != "" && cfg.Description != "null"},
 			cfg.Config,
+			cfg.Conversion,
 			cfg.RW_Cancel,
 			cfg.Value_Type,
 			t,
@@ -711,6 +679,10 @@ func Point_Config__Update(configs ...Point_Config_Update_type) (err error) {
 	var sqlPieces []string
 	var allArgs []interface{}
 
+	tagRegex := regexp.MustCompile(Regex_Tag_Format)
+	configRegex := regexp.MustCompile(Regex_Config_Format)
+	conversionRegex := regexp.MustCompile(Regex_Conversion_Format)
+
 	for i, cfg := range configs {
 		if cfg.Id == 0 {
 			err = fmt.Errorf("批量更新失败：第%d条配置Id不能为空", i)
@@ -722,17 +694,34 @@ func Point_Config__Update(configs ...Point_Config_Update_type) (err error) {
 			setClauses = append(setClauses, "`Drive_Id`=?")
 			allArgs = append(allArgs, cfg.Drive_Id)
 		}
-		if cfg.Name != "" {
-			setClauses = append(setClauses, "`Name`=?")
-			allArgs = append(allArgs, cfg.Name)
+		if cfg.Tag != "" {
+			if !tagRegex.MatchString(cfg.Tag) {
+				err = fmt.Errorf("批量更新失败：第%d条配置Tag格式错误，必须符合 //设备id//标识符 格式", i)
+				return
+			}
+			setClauses = append(setClauses, "`Tag`=?")
+			allArgs = append(allArgs, cfg.Tag)
 		}
 		if cfg.Description != "" {
 			setClauses = append(setClauses, "`Description` = ?")
 			allArgs = append(allArgs, sql.NullString{String: cfg.Description, Valid: cfg.Description != "null"})
 		}
 		if cfg.Config != "" {
+			if !configRegex.MatchString(cfg.Config) {
+				err = fmt.Errorf("批量更新失败：第%d条配置Config格式错误，必须符合 xx;xx;xx 格式", i)
+				return
+			}
 			setClauses = append(setClauses, "`Config`=?")
 			allArgs = append(allArgs, cfg.Config)
+		}
+		if cfg.Conversion != "" {
+			// Conversion 非空时必须符合一元一次方程格式（"0" 表示无换算）
+			if cfg.Conversion != "0" && !conversionRegex.MatchString(cfg.Conversion) {
+				err = fmt.Errorf("批量更新失败：第%d条配置Conversion格式错误，必须是一元一次方程（如 x*2+10）", i)
+				return
+			}
+			setClauses = append(setClauses, "`Conversion`=?")
+			allArgs = append(allArgs, cfg.Conversion)
 		}
 		if cfg.RW_Cancel != 0 {
 			setClauses = append(setClauses, "`RW_Cancel`=?")
@@ -809,18 +798,20 @@ func Point_Config__Sync(configs []Point_Config_Query_type) (err error) {
 				Id:         cfg.Id,
 				Drive_Id:   cfg.Drive_Id,
 				Config:     cfg.Config,
+				Conversion: cfg.Conversion,
 				RW_Cancel:  cfg.RW_Cancel,
 				Value_Type: cfg.Value_Type,
 			})
 		} else {
 			// 比对是否有变化
-			if cfg.Drive_Id == ex.Drive_Id && cfg.Config == ex.Config && cfg.RW_Cancel == ex.RW_Cancel && cfg.Value_Type == ex.Value_Type {
+			if cfg.Drive_Id == ex.Drive_Id && cfg.Config == ex.Config && cfg.Conversion == ex.Conversion && cfg.RW_Cancel == ex.RW_Cancel && cfg.Value_Type == ex.Value_Type {
 				continue
 			}
 			toUpdate = append(toUpdate, Point_Config_Update_type{
 				Id:         cfg.Id,
 				Drive_Id:   cfg.Drive_Id,
 				Config:     cfg.Config,
+				Conversion: cfg.Conversion,
 				RW_Cancel:  cfg.RW_Cancel,
 				Value_Type: cfg.Value_Type,
 			})
@@ -925,14 +916,112 @@ func Point_Config__Query__DriveIds(ids ...uint) (list []Point_Config__Query__Dri
 	return list, nil
 }
 
+// Point_Config__Search 搜索点位配置
+// 功能：按 Tag 模糊搜索 + Drive_Id 精确过滤，返回匹配结果
+// 传入：tag — 点位标签（LIKE 匹配，调用方需自带 % 通配符，空串不过滤）；driveIds — 驱动id列表（IN 精确匹配，空切片不过滤）；quantity — 返回数量上限（最大 30）
+// 返回：匹配的点位配置列表，错误
+func Point_Config__Search(tag string, driveIds []uint, quantity uint) (configs []Point_Config_Query_type, err error) {
+	if quantity > 30 {
+		quantity = 30
+	}
+
+	baseQuery := `
+		SELECT Id, Drive_Id, Tag, Description, Config, Conversion, RW_Cancel, Value_Type, Creation_Time
+		FROM Point_Config
+	`
+	var whereConditions []string
+	var args []interface{}
+
+	if tag != "" {
+		whereConditions = append(whereConditions, "`Tag` LIKE ?")
+		args = append(args, tag)
+	}
+	if len(driveIds) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(driveIds)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Drive_Id` IN (%s)", placeholders))
+		for _, id := range driveIds {
+			args = append(args, id)
+		}
+	}
+
+	if len(whereConditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
+	}
+	baseQuery += " LIMIT ?"
+	args = append(args, quantity)
+
+	rows, err := DB.Query(baseQuery, args...)
+	if err != nil {
+		err = fmt.Errorf("ERROR 搜索点位配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
+		log.Print(err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cfg Point_Config_Query_type
+		var desc sql.NullString
+		err = rows.Scan(&cfg.Id, &cfg.Drive_Id, &cfg.Tag, &desc, &cfg.Config, &cfg.Conversion, &cfg.RW_Cancel, &cfg.Value_Type, &cfg.Creation_Time)
+		if err != nil {
+			log.Print(err.Error())
+			return
+		}
+		cfg.Description = desc.String
+		configs = append(configs, cfg)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		err = fmt.Errorf("ERROR 遍历点位配置结果集失败，错误:%v", err)
+		log.Print(err)
+	}
+	return
+}
+
 /*
-***************报警配置查询（按Point_Id）***************
+***************报警配置查询***************
  */
+
+type Alarm_Config_Query_type struct {
+	Id            uint      // 报警id
+	Point_Id      uint      // 点位id
+	Tag           string    // 报警标识符
+	Config        string    // 报警配置
+	Group         int       // 报警组
+	Creation_Time time.Time // 创建时间
+}
+
+type Alarm_Config_type struct {
+	Id            uint      // 报警id
+	Point_Id      uint      // 点位id
+	Tag           string    // 报警标识符
+	Config        string    // 报警配置
+	Group         int       // 报警组
+	Creation_Time time.Time // 创建时间
+}
+
+// 报警配置增加结构体
+type Alarm_Config_Add_type struct {
+	Id       uint   // 报警id
+	Point_Id uint   // 点位id
+	Tag      string // 报警标识符
+	Config   string // 报警配置
+	Group    int    // 报警组
+}
+
+// 报警配置更新结构体
+type Alarm_Config_Update_type struct {
+	Id       uint   // 报警id
+	Point_Id uint   // 点位id
+	Tag      string // 报警标识符
+	Config   string // 报警配置
+	Group    int    // 报警组
+}
 
 // 报警-》查询配置（回调）
 func Alarm_Config__Query_Callback(pointid []uint, page uint, pageSize uint, callback func(Alarm_Config_Query_type)) (err error) {
 	baseQuery := `
-		SELECT Id, Point_Id, Name, Config, ` + "`Group`" + `, Creation_Time
+		SELECT Id, Point_Id, Tag, Config, ` + "`Group`" + `, Creation_Time
 		FROM Alarm_Config
 	`
 	var whereConditions []string
@@ -966,7 +1055,7 @@ func Alarm_Config__Query_Callback(pointid []uint, page uint, pageSize uint, call
 
 	for rows.Next() {
 		var cfg Alarm_Config_Query_type
-		err = rows.Scan(&cfg.Id, &cfg.Point_Id, &cfg.Name, &cfg.Config, &cfg.Group, &cfg.Creation_Time)
+		err = rows.Scan(&cfg.Id, &cfg.Point_Id, &cfg.Tag, &cfg.Config, &cfg.Group, &cfg.Creation_Time)
 		if err != nil {
 			log.Print(err.Error())
 			return
@@ -1029,14 +1118,21 @@ func Alarm_Config__Add(configs ...Alarm_Config_Add_type) (err error) {
 	if len(configs) == 0 {
 		return fmt.Errorf("批量新增失败：待新增配置列表为空")
 	}
-	baseQuery := `INSERT INTO Alarm_Config (Point_Id, Name, Config, ` + "`Group`" + `, Creation_Time) VALUES `
+	baseQuery := `INSERT INTO Alarm_Config (Id, Point_Id, Tag, Config, ` + "`Group`" + `, Creation_Time) VALUES `
 	var args []interface{}
 	var valuePlaceholders []string
 	t := time.Now()
+	tagRegex := regexp.MustCompile(Regex_Tag_Format)
 
 	for i, cfg := range configs {
 		if cfg.Point_Id == 0 {
 			return fmt.Errorf("批量新增失败：第%d条数据 Point_Id 等于0", i)
+		}
+		if cfg.Tag == "" {
+			return fmt.Errorf("批量新增失败：第%d条数据 Tag 不能为空", i)
+		}
+		if !tagRegex.MatchString(cfg.Tag) {
+			return fmt.Errorf("批量新增失败：第%d条数据 Tag 格式不正确", i)
 		}
 		if cfg.Config == "" {
 			return fmt.Errorf("批量新增失败：第%d条数据 Config 不能为空", i)
@@ -1044,8 +1140,8 @@ func Alarm_Config__Add(configs ...Alarm_Config_Add_type) (err error) {
 		if cfg.Group == 0 {
 			return fmt.Errorf("批量新增失败：第%d条数据 Group 不能等于0", i)
 		}
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?)")
-		args = append(args, cfg.Point_Id, cfg.Name, cfg.Config, cfg.Group, t)
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?, ?, ?)")
+		args = append(args, cfg.Id, cfg.Point_Id, cfg.Tag, cfg.Config, cfg.Group, t)
 	}
 
 	query := baseQuery + strings.Join(valuePlaceholders, ", ")
@@ -1078,6 +1174,7 @@ func Alarm_Config__Update(configs ...Alarm_Config_Update_type) (err error) {
 
 	var sqlPieces []string
 	var allArgs []interface{}
+	tagRegex := regexp.MustCompile(Regex_Tag_Format)
 
 	for i, cfg := range configs {
 		if cfg.Id == 0 {
@@ -1090,9 +1187,13 @@ func Alarm_Config__Update(configs ...Alarm_Config_Update_type) (err error) {
 			setClauses = append(setClauses, "`Point_Id`=?")
 			allArgs = append(allArgs, cfg.Point_Id)
 		}
-		if cfg.Name != "" {
-			setClauses = append(setClauses, "`Name`=?")
-			allArgs = append(allArgs, cfg.Name)
+		if cfg.Tag != "" {
+			if !tagRegex.MatchString(cfg.Tag) {
+				err = fmt.Errorf("批量更新失败：第[%d]条配置Tag格式不正确", i)
+				return
+			}
+			setClauses = append(setClauses, "`Tag`=?")
+			allArgs = append(allArgs, cfg.Tag)
 		}
 		if cfg.Config != "" {
 			setClauses = append(setClauses, "`Config`=?")
@@ -1174,7 +1275,7 @@ func Alarm_Config__Sync(configs []Alarm_Config_Add_type) (err error) {
 			toUpdate = append(toUpdate, Alarm_Config_Update_type{
 				Id:       cfg.Id,
 				Point_Id: cfg.Point_Id,
-				Name:     cfg.Name,
+				Tag:      cfg.Tag,
 				Config:   cfg.Config,
 				Group:    cfg.Group,
 			})
@@ -1212,9 +1313,406 @@ func Alarm_Config__Sync(configs []Alarm_Config_Add_type) (err error) {
 	return nil
 }
 
+// Alarm_Config__Search 搜索报警配置
+// 功能：按 Tag 模糊搜索 + Point_Id 精确过滤 + Group 精确过滤，返回匹配结果
+// 传入：tag — 报警标签（LIKE 匹配，调用方需自带 % 通配符，空串不过滤）；pointIds — 点位id列表（IN 精确匹配，空切片不过滤）；groups — 报警组列表（IN 精确匹配，空切片不过滤）；quantity — 返回数量上限（最大 30）
+// 返回：匹配的报警配置列表，错误
+func Alarm_Config__Search(tag string, pointIds []uint, groups []int, quantity uint) (configs []Alarm_Config_Query_type, err error) {
+	if quantity > 30 {
+		quantity = 30
+	}
+
+	baseQuery := `
+		SELECT Id, Point_Id, Tag, Config, ` + "`Group`" + `, Creation_Time
+		FROM Alarm_Config
+	`
+	var whereConditions []string
+	var args []interface{}
+
+	if tag != "" {
+		whereConditions = append(whereConditions, "`Tag` LIKE ?")
+		args = append(args, tag)
+	}
+	if len(pointIds) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(pointIds)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Point_Id` IN (%s)", placeholders))
+		for _, id := range pointIds {
+			args = append(args, id)
+		}
+	}
+	if len(groups) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(groups)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Group` IN (%s)", placeholders))
+		for _, g := range groups {
+			args = append(args, g)
+		}
+	}
+
+	if len(whereConditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
+	}
+	baseQuery += " LIMIT ?"
+	args = append(args, quantity)
+
+	rows, err := DB.Query(baseQuery, args...)
+	if err != nil {
+		err = fmt.Errorf("ERROR 搜索报警配置失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
+		log.Print(err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cfg Alarm_Config_Query_type
+		err = rows.Scan(&cfg.Id, &cfg.Point_Id, &cfg.Tag, &cfg.Config, &cfg.Group, &cfg.Creation_Time)
+		if err != nil {
+			log.Print(err.Error())
+			return
+		}
+		configs = append(configs, cfg)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		err = fmt.Errorf("ERROR 遍历报警配置结果集失败，错误:%v", err)
+		log.Print(err)
+	}
+	return
+}
+
+/*
+***************报警数据查询***************
+ */
+
+type Alarm_Data_Query_type struct {
+	Id       uint      // 报警数据id
+	Alarm_Id uint      // 报警配置id
+	Status   string    // 报警状态
+	Time     time.Time // 报警时间
+}
+
+type Alarm_Data_type struct {
+	Id       uint      // 报警数据id
+	Alarm_Id uint      // 报警配置id
+	Status   string    // 报警状态
+	Time     time.Time // 报警时间
+}
+
+// 报警数据增加结构体
+type Alarm_Data_Add_type struct {
+	Id       uint      // 报警数据id（0=自增）
+	Alarm_Id uint      // 报警配置id
+	Status   string    // 报警状态
+	Time     time.Time // 报警时间
+}
+
+// 报警数据更新结构体
+type Alarm_Data_Update_type struct {
+	Id       uint   // 报警数据id
+	Alarm_Id uint   // 报警配置id
+	Status   string // 报警状态
+}
+
+// 报警数据-》查询（回调）
+func Alarm_Data__Query_Callback(alarmIds []uint, page uint, pageSize uint, callback func(Alarm_Data_Query_type)) (err error) {
+	baseQuery := `
+		SELECT Id, Alarm_Id, Status, ` + "`Time`" + `
+		FROM Alarm_Data
+	`
+	var whereConditions []string
+	var args []interface{}
+
+	if len(alarmIds) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(alarmIds)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Alarm_Id` IN (%s)", placeholders))
+		for _, id := range alarmIds {
+			args = append(args, id)
+		}
+	}
+
+	if len(whereConditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
+	}
+
+	if page != 0 {
+		offset := (page - 1) * pageSize
+		baseQuery += " LIMIT ?, ?"
+		args = append(args, offset, pageSize)
+	}
+
+	rows, err := DB.Query(baseQuery, args...)
+	if err != nil {
+		err = fmt.Errorf("ERROR 查询报警数据失败，错误:%v, SQL:%s, 参数:%v", err, baseQuery, args)
+		log.Print(err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var d Alarm_Data_Query_type
+		err = rows.Scan(&d.Id, &d.Alarm_Id, &d.Status, &d.Time)
+		if err != nil {
+			log.Print(err.Error())
+			return
+		}
+		callback(d)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		err = fmt.Errorf("ERROR 遍历报警数据结果集失败，错误:%v", err)
+		log.Print(err)
+	}
+	return
+}
+
+// 报警数据-》查询
+func Alarm_Data__Query(alarmIds []uint, page uint, pageSize uint) (data []Alarm_Data_Query_type, err error) {
+	err = Alarm_Data__Query_Callback(alarmIds, page, pageSize, func(d Alarm_Data_Query_type) {
+		data = append(data, d)
+	})
+	return
+}
+
+// 报警数据-》查询数量
+func Alarm_Data__Count(alarmIds []uint, page uint, pageSize uint) (count uint, err error) {
+	baseQuery := "SELECT COUNT(`Id`) FROM `Alarm_Data`"
+	var whereConditions []string
+	var args []interface{}
+
+	if len(alarmIds) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(alarmIds)), ",")
+		whereConditions = append(whereConditions, fmt.Sprintf("`Alarm_Id` IN (%s)", placeholders))
+		for _, id := range alarmIds {
+			args = append(args, id)
+		}
+	}
+
+	if len(whereConditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(whereConditions, " AND ")
+	}
+
+	if page != 0 {
+		offset := (page - 1) * pageSize
+		baseQuery += " LIMIT ?, ?"
+		args = append(args, offset, pageSize)
+	}
+
+	err = DB.QueryRow(baseQuery, args...).Scan(&count)
+	if err == sql.ErrNoRows {
+		count = 0
+	} else if err != nil {
+		err = fmt.Errorf("[Alarm_Data__Count] 查询失败 | SQL=%s | err=%w", baseQuery, err)
+		log.Print(err)
+	}
+	return
+}
+
+// 报警数据-》增加
+func Alarm_Data__Add(data ...Alarm_Data_Add_type) (err error) {
+	if len(data) == 0 {
+		return fmt.Errorf("批量新增失败：待新增数据列表为空")
+	}
+	baseQuery := `INSERT INTO Alarm_Data (Id, Alarm_Id, Status, ` + "`Time`" + `) VALUES `
+	var args []interface{}
+	var valuePlaceholders []string
+
+	for i, d := range data {
+		if d.Alarm_Id == 0 {
+			return fmt.Errorf("批量新增失败：第[%d]条数据 Alarm_Id 等于0", i)
+		}
+		if d.Status == "" {
+			return fmt.Errorf("批量新增失败：第[%d]条数据 Status 不能为空", i)
+		}
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?)")
+		args = append(args, d.Id, d.Alarm_Id, d.Status, d.Time)
+	}
+
+	query := baseQuery + strings.Join(valuePlaceholders, ", ")
+	_, err = DB.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("批量插入 Alarm_Data 失败: %w", err)
+	}
+	return nil
+}
+
+// 报警数据-》修改
+func Alarm_Data__Update(data ...Alarm_Data_Update_type) (err error) {
+	if len(data) == 0 {
+		return
+	}
+	tx, err := DB.Begin()
+	if err != nil {
+		return fmt.Errorf("开启事务失败: %w", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			_ = tx.Rollback()
+		}
+		if err != nil {
+			_ = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	var sqlPieces []string
+	var allArgs []interface{}
+
+	for i, d := range data {
+		if d.Id == 0 {
+			err = fmt.Errorf("批量更新失败：第[%d]条配置Id不能为空", i)
+			return
+		}
+		var setClauses []string
+
+		if d.Alarm_Id != 0 {
+			setClauses = append(setClauses, "`Alarm_Id`=?")
+			allArgs = append(allArgs, d.Alarm_Id)
+		}
+		if d.Status != "" {
+			setClauses = append(setClauses, "`Status`=?")
+			allArgs = append(allArgs, d.Status)
+		}
+
+		if len(setClauses) == 0 {
+			err = fmt.Errorf("第[%d]条配置未指定任何更新字段", i)
+			return
+		}
+
+		sql := fmt.Sprintf("UPDATE `Alarm_Data` SET %s WHERE `Id` = ?", strings.Join(setClauses, ", "))
+		allArgs = append(allArgs, d.Id)
+		sqlPieces = append(sqlPieces, sql)
+	}
+
+	fullSql := strings.Join(sqlPieces, ";")
+	_, err = tx.Exec(fullSql, allArgs...)
+	if err != nil {
+		err = fmt.Errorf("批量更新执行失败, SQL:%s, args:%v, err:%w", fullSql, allArgs, err)
+		return err
+	}
+	log.Printf("批量更新成功，共更新%d条报警数据", len(data))
+	return
+}
+
+// 报警数据-》删除
+func Alarm_Data__Del(ids ...uint) (err error) {
+	if len(ids) == 0 {
+		return
+	}
+	for idx, id := range ids {
+		if id == 0 {
+			err = fmt.Errorf("ERROR 第%d条配置ID(Id)不能为空", idx+1)
+			return
+		}
+		query := "DELETE FROM `Alarm_Data` WHERE `Id` = ?"
+		_, err = DB.Exec(query, id)
+		if err != nil {
+			err = fmt.Errorf("ERROR 第%d条报警数据删除失败, ID:%d, 错误:%v", idx+1, id, err)
+			return
+		}
+	}
+	return
+}
+
+// 报警数据-》同步（根据Id比对：新增/更新/删除）
+func Alarm_Data__Sync(data []Alarm_Data_Add_type) (err error) {
+	// 1. 读取 MySQL 全部数据
+	existing, err := Alarm_Data__Query(nil, 0, 0)
+	if err != nil {
+		return fmt.Errorf("同步报警数据：读取现有数据失败: %w", err)
+	}
+
+	// 2. 构建现有数据映射
+	existingMap := make(map[uint]Alarm_Data_Query_type, len(existing))
+	for _, d := range existing {
+		existingMap[d.Id] = d
+	}
+
+	// 3. 遍历传入数据，分为新增和更新
+	incomingIds := make(map[uint]bool, len(data))
+	var toAdd []Alarm_Data_Add_type
+	var toUpdate []Alarm_Data_Update_type
+
+	for _, d := range data {
+		incomingIds[d.Id] = true
+		if ex, ok := existingMap[d.Id]; !ok {
+			toAdd = append(toAdd, d)
+		} else {
+			// 比对是否有变化
+			if d.Alarm_Id == ex.Alarm_Id && d.Status == ex.Status {
+				continue
+			}
+			toUpdate = append(toUpdate, Alarm_Data_Update_type{
+				Id:       d.Id,
+				Alarm_Id: d.Alarm_Id,
+				Status:   d.Status,
+			})
+		}
+	}
+
+	// 4. 找出现有但传入中没有的，需要删除
+	var toDel []uint
+	for _, d := range existing {
+		if !incomingIds[d.Id] {
+			toDel = append(toDel, d.Id)
+		}
+	}
+
+	// 5. 执行增删改
+	if len(toAdd) > 0 {
+		if err = Alarm_Data__Add(toAdd...); err != nil {
+			return fmt.Errorf("同步报警数据：新增失败: %w", err)
+		}
+		log.Printf("同步报警数据：新增 %d 条", len(toAdd))
+	}
+	if len(toUpdate) > 0 {
+		if err = Alarm_Data__Update(toUpdate...); err != nil {
+			return fmt.Errorf("同步报警数据：更新失败: %w", err)
+		}
+		log.Printf("同步报警数据：更新 %d 条", len(toUpdate))
+	}
+	if len(toDel) > 0 {
+		if err = Alarm_Data__Del(toDel...); err != nil {
+			return fmt.Errorf("同步报警数据：删除失败: %w", err)
+		}
+		log.Printf("同步报警数据：删除 %d 条", len(toDel))
+	}
+
+	return nil
+}
+
 /*
 ***************历史配置查询***************
  */
+
+type History_Config_Query_type struct {
+	Id            uint      // 历史id
+	Point_Id      uint      // 点位id
+	Config        string    // 历史配置
+	Creation_Time time.Time // 创建时间
+}
+
+type History_Config_type struct {
+	Id            uint      // 历史id
+	Point_Id      uint      // 点位id
+	Config        string    // 历史配置
+	Creation_Time time.Time // 创建时间
+}
+
+// 历史配置增加结构体
+type History_Config_Add_type struct {
+	Id       uint   // 历史id
+	Point_Id uint   // 点位id
+	Config   string // 历史配置
+}
+
+// 历史配置更新结构体
+type History_Config_Update_type struct {
+	Id       uint   // 历史id
+	Point_Id uint   // 点位id
+	Config   string // 历史配置
+}
 
 // 历史-》查询配置（回调）
 func History_Config__Query_Callback(pointid []uint, page uint, pageSize uint, callback func(History_Config_Query_type)) (err error) {
@@ -1316,7 +1814,7 @@ func History_Config__Add(configs ...History_Config_Add_type) (err error) {
 	if len(configs) == 0 {
 		return fmt.Errorf("批量新增失败：待新增配置列表为空")
 	}
-	baseQuery := `INSERT INTO History_Config (Point_Id, Config, Creation_Time) VALUES `
+	baseQuery := `INSERT INTO History_Config (Id, Point_Id, Config, Creation_Time) VALUES `
 	var args []interface{}
 	var valuePlaceholders []string
 	t := time.Now()
@@ -1328,8 +1826,8 @@ func History_Config__Add(configs ...History_Config_Add_type) (err error) {
 		if cfg.Config == "" {
 			return fmt.Errorf("批量新增失败：第[%d]条数据 Config 不能为空", i)
 		}
-		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?)")
-		args = append(args, cfg.Point_Id, cfg.Config, t)
+		valuePlaceholders = append(valuePlaceholders, "(?, ?, ?, ?)")
+		args = append(args, cfg.Id, cfg.Point_Id, cfg.Config, t)
 	}
 
 	query := baseQuery + strings.Join(valuePlaceholders, ", ")

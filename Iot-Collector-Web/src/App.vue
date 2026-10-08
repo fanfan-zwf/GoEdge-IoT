@@ -39,10 +39,6 @@
                 <el-icon><Clock /></el-icon>
                 <span>{{ t('menu.history') }}</span>
               </el-menu-item>
-              <el-menu-item index="/history-data">
-                <el-icon><TrendCharts /></el-icon>
-                <span>{{ t('menu.historyData') }}</span>
-              </el-menu-item>
             </el-menu>
 
             <!-- 折叠按钮 -->
@@ -81,6 +77,11 @@
               </el-breadcrumb>
             </div>
             <div class="header-right">
+              <!-- 文档链接 -->
+              <a href="https://github.com/fanfan-zwf/GoEdge-IoT/tree/main/Iot-Collector-Service" target="_blank" class="doc-link">
+                <el-icon><Document /></el-icon>
+                <span class="doc-link-text">{{ t('common.doc') }}</span>
+              </a>
               <!-- 语言切换 -->
               <el-dropdown @command="handleLangChange" trigger="click" style="margin-right: 16px">
                 <span class="lang-switch">
@@ -117,7 +118,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Fold, Expand, Monitor, Pointer, Bell, Clock, TrendCharts } from '@element-plus/icons-vue'
+import { Fold, Expand, Monitor, Pointer, Bell, Clock, Document } from '@element-plus/icons-vue'
 import { setLocale } from '@/i18n'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import enUs from 'element-plus/es/locale/lang/en'
@@ -174,8 +175,7 @@ const titleMap: Record<string, string> = {
   '/drive': t('menu.drive'),
   '/point': t('menu.point'),
   '/alarm': t('menu.alarm'),
-  '/history': t('menu.history'),
-  '/history-data': t('menu.historyData')
+  '/history': t('menu.history')
 }
 const currentTitle = computed(() => titleMap[route.path] || t('menu.title'))
 
@@ -274,6 +274,24 @@ onUnmounted(() => {
 }
 
 .lang-switch:hover {
+  color: #409eff;
+  background-color: rgba(64, 158, 255, 0.1);
+}
+
+.doc-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #606266;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-right: 12px;
+  transition: all 0.3s;
+}
+
+.doc-link:hover {
   color: #409eff;
   background-color: rgba(64, 158, 255, 0.1);
 }

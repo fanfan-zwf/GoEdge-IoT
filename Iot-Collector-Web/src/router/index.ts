@@ -28,9 +28,14 @@ const router = createRouter({
       component: () => import('@/views/HistoryConfig.vue')
     },
     {
-      path: '/history-data',
+      path: '/history-data/:pointId',
       name: 'historyData',
       component: () => import('@/views/HistoryData.vue')
+    },
+    {
+      path: '/alarm-data/:alarmId',
+      name: 'alarmData',
+      component: () => import('@/views/AlarmData.vue')
     }
   ]
 })

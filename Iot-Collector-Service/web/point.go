@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"main/IO/conv"
 	"main/IO/manager"
 	"main/IO/manager/fullConfig"
 	"main/db/db_point"
@@ -112,7 +113,7 @@ func api_point_write_value(ctx *gin.Context) {
 		driveGroups[driveId] = append(driveGroups[driveId], fullConfig.Value_type{
 			PointId: item.PointId,
 			Value:   realValue,
-			Type:    item.Type,
+			Type:    conv.ValueTypeCode[item.Type],
 			Time:    time.Now(),
 		})
 	}

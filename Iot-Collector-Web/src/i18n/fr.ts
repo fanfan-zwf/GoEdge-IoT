@@ -4,6 +4,11 @@ export default {
     edit: 'Modifier',
     del: 'Supprimer',
     export: 'Exporter',
+    import: 'Importer',
+    importTitle: 'Importer la configuration Excel',
+    importTip: 'Téléchargez un fichier Excel exporté. Les données seront synchronisées par Id (les enregistrements dans la BD mais pas dans le fichier seront supprimés)',
+    importSelectFile: 'Veuillez sélectionner un fichier Excel',
+    importSuccess: 'Import réussi : ajouté {added}, mis à jour {updated}, supprimé {deleted}',
     restart: 'Red\u00e9marrer',
     restartConfirm: 'Voulez-vous red\u00e9marrer {name} ? Cela prend environ 9 secondes',
     restartSuccess: 'Commande de red\u00e9marrage envoy\u00e9e, veuillez actualiser',
@@ -23,7 +28,9 @@ export default {
     config: 'Configuration',
     creationTime: 'Cr\u00e9\u00e9 le',
     viewDoc: 'Voir la documentation',
+    doc: 'Docs',
     search: 'Rechercher',
+    searchPlaceholder: 'Entrez le contenu de la recherche',
     configPlaceholder: 'Entrez la configuration, s\u00e9par\u00e9e par des points-virgules',
     modbusConfigTip: '[Modbus TCP]\nFormat: IP;Retry;ConnectTimeout;ResponseTimeout;PollInterval;MaxPacketLen\nExemple: 192.168.1.1;3s;3s;180s;1s;256\nMinimal: 192.168.1.1',
     s7ConfigTip: '[Siemens S7]\nFormat: IP;Rack;Slot;Retry;Poll;ConnTimeout;RespTimeout;PDUSize;ConnType\nExemple: 192.168.1.1;0;2;3s;0;10s;10s;480;2\nMinimal: 192.168.1.1;0;2',
@@ -63,6 +70,8 @@ export default {
     driveId: 'ID Lecteur',
     driveIdPlaceholder: 'S\u00e9lectionnez un lecteur',
     config: 'Configuration',
+    conversion: 'Conversion',
+    conversionPlaceholder: 'Formule, ex. x*1.5+10',
     rwCancel: 'Mode L/E',
     rwN: 'N (Pas de collecte)',
     rwR: 'R (Lecture seule)',
@@ -71,7 +80,7 @@ export default {
     valueType: 'Type de valeur',
     addTitle: 'Ajouter un point',
     editTitle: 'Modifier le point',
-    name: 'Nom du point',
+    tag: 'Balise du point',
     description: 'Description',
     configFormat: 'Format de config. du point',
     currentValue: 'Valeur actuelle',
@@ -95,7 +104,9 @@ export default {
     writeType: 'Type',
     writeValueLabel: 'Valeur \u00e0 \u00e9crire',
     writeValuePlaceholder: 'Entrez la valeur \u00e0 \u00e9crire',
-    writeValueRequired: 'Veuillez entrer une valeur'
+    writeValueRequired: 'Veuillez entrer une valeur',
+    writeBoolTrue: 'ON',
+    writeBoolFalse: 'OFF'
   },
   alarm: {
     title: 'Config. Alarme',
@@ -106,9 +117,10 @@ export default {
     group: "Groupe d'alarme",
     addTitle: 'Ajouter une alarme',
     editTitle: "Modifier l'alarme",
-    name: "Nom de l'alarme",
+    tag: "Tag de l'alarme",
     status: 'Statut',
-    lastAlarmTime: "Derni\u00e8re alarme"
+    lastAlarmTime: "Derni\u00e8re alarme",
+    viewData: 'Voir données'
   },
   history: {
     title: 'Config. Historique',
@@ -117,7 +129,18 @@ export default {
     pointIdPlaceholder: 'S\u00e9lectionnez un point',
     config: 'Configuration',
     addTitle: 'Ajouter un historique',
-    editTitle: "Modifier l'historique"
+    editTitle: "Modifier l'historique",
+    viewData: 'Voir données'
+  },
+  alarmData: {
+    title: 'Données alarme',
+    id: 'ID',
+    alarmId: 'ID Alarme',
+    status: 'Statut',
+    time: 'Heure alarme',
+    timeRange: 'Plage horaire',
+    startTime: 'Heure de début',
+    endTime: 'Heure de fin'
   },
   lang: {
     zh: '\u4e2d\u6587',

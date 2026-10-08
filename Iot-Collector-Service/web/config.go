@@ -101,6 +101,87 @@ func api_drive_config_count(ctx *gin.Context) {
 	ctx.Set("Response", []any{200, "ok", count})
 }
 
+// api_drive_config_restart 重启驱动配置（异步执行，约9秒完成）
+func api_drive_config_restart(ctx *gin.Context) {
+	var req struct {
+		Id uint `json:"id"`
+	}
+	if err := ctx.BindJSON(&req); err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	if req.Id == 0 {
+		ctx.Set("Response", []any{417, "驱动ID不能为空"})
+		return
+	}
+
+	// 检查驱动是否忙碌
+	if manager.IsDriverBusy(req.Id) {
+		ctx.Set("Response", []any{403, "驱动正在重启中，请稍后再试"})
+		return
+	}
+
+	// 查询驱动配置
+	driveConfigs, err := mysql.Drive_Config__Query(0, 0)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	var driveCfg mysql.Drive_Config_Query_type
+	found := false
+	for _, cfg := range driveConfigs {
+		if cfg.Id == req.Id {
+			driveCfg = cfg
+			found = true
+			break
+		}
+	}
+	if !found {
+		ctx.Set("Response", []any{404, "驱动不存在"})
+		return
+	}
+
+	// 查询点位配置
+	points, err := mysql.Point_Config__Query([]uint{req.Id}, 0, 0)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+
+	// 异步执行重启
+	go func() {
+		if err := manager.DriveResetConfig(req.Id, driveCfg, points); err != nil {
+			log.Printf("ERROR 驱动 id=%d 重启失败: %v", req.Id, err)
+		} else {
+			log.Printf("INFO 驱动 id=%d 重启成功", req.Id)
+		}
+	}()
+
+	ctx.Set("Response", []any{200, "驱动重启已启动，预计9秒完成"})
+}
+
+// api_drive_config_search 搜索驱动配置（Name 模糊 + Type 过滤）
+func api_drive_config_search(ctx *gin.Context) {
+	var req struct {
+		Name     string   `json:"name"`
+		Types    []string `json:"types"`
+		Quantity uint     `json:"quantity"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	configs, err := mysql.Drive_Config__Search(req.Name, req.Types, req.Quantity)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+	ctx.Set("Response", []any{200, "ok", configs})
+}
+
 // ======== 点位配置 API ========
 
 // api_point_config_query 查询点位配置
@@ -252,6 +333,26 @@ func api_point_config_count(ctx *gin.Context) {
 	ctx.Set("Response", []any{200, "ok", count})
 }
 
+// api_point_config_search 搜索点位配置（Tag 模糊 + Drive_Id 过滤）
+func api_point_config_search(ctx *gin.Context) {
+	var req struct {
+		Tag      string `json:"tag"`
+		DriveIds []uint `json:"driveIds"`
+		Quantity uint   `json:"quantity"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	configs, err := mysql.Point_Config__Search(req.Tag, req.DriveIds, req.Quantity)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+	ctx.Set("Response", []any{200, "ok", configs})
+}
+
 // ======== 报警配置 API ========
 
 // api_alarm_config_query 查询报警配置
@@ -344,7 +445,70 @@ func api_alarm_config_count(ctx *gin.Context) {
 	ctx.Set("Response", []any{200, "ok", count})
 }
 
-// ======== 历史配置 API ========
+// api_alarm_config_search 搜索报警配置（Tag 模糊 + Point_Id 过滤 + Group 过滤）
+func api_alarm_config_search(ctx *gin.Context) {
+	var req struct {
+		Tag      string `json:"tag"`
+		PointIds []uint `json:"pointIds"`
+		Groups   []int  `json:"groups"`
+		Quantity uint   `json:"quantity"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	configs, err := mysql.Alarm_Config__Search(req.Tag, req.PointIds, req.Groups, req.Quantity)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+	ctx.Set("Response", []any{200, "ok", configs})
+}
+
+// ======== 报警数据 API ========
+
+// api_alarm_data_query 查询报警数据
+func api_alarm_data_query(ctx *gin.Context) {
+	var req struct {
+		AlarmId  []uint `json:"alarmId"`
+		Page     uint   `json:"page"`
+		PageSize uint   `json:"pageSize"`
+	}
+	if err := ctx.BindJSON(&req); err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	data, err := mysql.Alarm_Data__Query(req.AlarmId, req.Page, req.PageSize)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+	ctx.Set("Response", []any{200, "ok", data})
+}
+
+// api_alarm_data_count 查询报警数据数量
+func api_alarm_data_count(ctx *gin.Context) {
+	var req struct {
+		AlarmId  []uint `json:"alarmId"`
+		Page     uint   `json:"page"`
+		PageSize uint   `json:"pageSize"`
+	}
+	if err := ctx.BindJSON(&req); err != nil {
+		ctx.Set("Response", []any{417, "请求格式不对"})
+		return
+	}
+
+	count, err := mysql.Alarm_Data__Count(req.AlarmId, req.Page, req.PageSize)
+	if err != nil {
+		ctx.Set("Response", []any{500, err.Error()})
+		return
+	}
+	ctx.Set("Response", []any{200, "ok", count})
+}
+
+// ======== 历史配置 API ==========
 
 // api_history_config_query 查询历史配置
 func api_history_config_query(ctx *gin.Context) {
@@ -378,6 +542,7 @@ func api_history_config_add(ctx *gin.Context) {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
+	db_point.History_Config__Reload()
 	ctx.Set("Response", []any{200, "ok"})
 }
 
@@ -393,6 +558,7 @@ func api_history_config_update(ctx *gin.Context) {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
+	db_point.History_Config__Reload()
 	ctx.Set("Response", []any{200, "ok"})
 }
 
@@ -410,6 +576,7 @@ func api_history_config_del(ctx *gin.Context) {
 		ctx.Set("Response", []any{500, err.Error()})
 		return
 	}
+	db_point.History_Config__Reload()
 	ctx.Set("Response", []any{200, "ok"})
 }
 
@@ -441,7 +608,8 @@ func config_api_register(r *gin.Engine) {
 	r.POST("/api/v1.0/config/drive/add", api_drive_config_add)
 	r.POST("/api/v1.0/config/drive/update", api_drive_config_update)
 	r.POST("/api/v1.0/config/drive/del", api_drive_config_del)
-	// r.POST("/api/v1.0/config/drive/restart", api_drive_config_restart) // TODO: 暂时禁用
+	r.POST("/api/v1.0/config/drive/restart", api_drive_config_restart)
+	r.POST("/api/v1.0/config/drive/search", api_drive_config_search)
 
 	// 点位配置
 	r.POST("/api/v1.0/config/point/query", api_point_config_query)
@@ -449,6 +617,7 @@ func config_api_register(r *gin.Engine) {
 	r.POST("/api/v1.0/config/point/add", api_point_config_add)
 	r.POST("/api/v1.0/config/point/update", api_point_config_update)
 	r.POST("/api/v1.0/config/point/del", api_point_config_del)
+	r.POST("/api/v1.0/config/point/search", api_point_config_search)
 
 	// 报警配置
 	r.POST("/api/v1.0/config/alarm/query", api_alarm_config_query)
@@ -456,6 +625,11 @@ func config_api_register(r *gin.Engine) {
 	r.POST("/api/v1.0/config/alarm/add", api_alarm_config_add)
 	r.POST("/api/v1.0/config/alarm/update", api_alarm_config_update)
 	r.POST("/api/v1.0/config/alarm/del", api_alarm_config_del)
+	r.POST("/api/v1.0/config/alarm/search", api_alarm_config_search)
+
+	// 报警数据
+	r.POST("/api/v1.0/config/alarm-data/query", api_alarm_data_query)
+	r.POST("/api/v1.0/config/alarm-data/count", api_alarm_data_count)
 
 	// 历史配置
 	r.POST("/api/v1.0/config/history/query", api_history_config_query)
@@ -466,4 +640,7 @@ func config_api_register(r *gin.Engine) {
 
 	// 导出 CSV
 	r.GET("/api/v1.0/config/export", api_config_export)
+
+	// 导入 Excel（以 Id 为准同步：新增/更新/删除）
+	r.POST("/api/v1.0/config/import", api_config_import)
 }

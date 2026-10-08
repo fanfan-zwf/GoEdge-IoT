@@ -2,7 +2,10 @@
   <div class="page-card">
     <div class="page-header">
       <h3>{{ t('alarm.title') }}</h3>
-      <div style="display: flex; align-items: center; gap: 8px">
+      <div class="header-actions">
+        <el-input v-model="searchTag" :placeholder="t('common.searchPlaceholder')" clearable style="width: 200px" @keyup.enter="handleSearch" />
+        <el-button @click="handleSearch">{{ t('common.search') }}</el-button>
+        <el-button @click="handleReset">{{ t('common.reset') }}</el-button>
         <el-select v-model="refreshInterval" size="small" style="width: 120px">
           <el-option :label="t('common.off')" :value="0" />
           <el-option label="1s" :value="1000" />
@@ -12,13 +15,14 @@
         <el-button size="small" @click="loadStatus">{{ t('common.manualRefresh') }}</el-button>
         <el-button type="primary" @click="openAdd">{{ t('common.add') }}</el-button>
         <el-button @click="handleExport">{{ t('common.export') }}</el-button>
+        <el-button @click="importDialogVisible = true">{{ t('common.import') }}</el-button>
       </div>
     </div>
 
     <el-table :data="tableData" border style="width: 100%">
       <el-table-column prop="Id" :label="t('alarm.id')" width="80" />
       <el-table-column prop="Point_Id" :label="t('alarm.pointId')" width="100" />
-      <el-table-column prop="Name" :label="t('alarm.name')" width="150" />
+      <el-table-column prop="Tag" :label="t('alarm.tag')" width="150" />
       <el-table-column prop="Config" :label="t('alarm.config')" />
       <el-table-column prop="Group" :label="t('alarm.group')" width="100" />
       <el-table-column :label="t('alarm.status')" width="120">
@@ -27,14 +31,22 @@
           <span v-else style="color: #999">-</span>
         </template>
       </el-table-column>
-      <el-table-column :label="t('alarm.lastAlarmTime')" width="170">
+      <el-table-column :label="t('alarm.lastAlarmTime')" width="120">
         <template #default="{ row }">
-          {{ row._time || '-' }}
+          <div v-if="row._time">{{ formatDate(row._time) }}</div>
+          <div v-if="row._time">{{ formatTime(row._time) }}</div>
+          <span v-else style="color: #999">-</span>
         </template>
       </el-table-column>
-      <el-table-column prop="Creation_Time" :label="t('common.creationTime')" width="170" />
-      <el-table-column :label="t('common.operation')" width="150">
+      <el-table-column prop="Creation_Time" :label="t('common.creationTime')" width="120">
         <template #default="{ row }">
+          <div>{{ formatDate(row.Creation_Time) }}</div>
+          <div>{{ formatTime(row.Creation_Time) }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column :label="t('common.operation')" width="220">
+        <template #default="{ row }">
+          <el-button size="small" type="primary" @click="viewAlarmData(row)">{{ t('alarm.viewData') }}</el-button>
           <el-button size="small" @click="openEdit(row)">{{ t('common.edit') }}</el-button>
           <el-button size="small" type="danger" @click="handleDel(row)">{{ t('common.del') }}</el-button>
         </template>
@@ -42,34 +54,31 @@
     </el-table>
 
     <div class="pagination-wrapper">
-      <el-pagination
-        v-model:current-page="page"
-        v-model:page-size="pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
+      <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total"
+        :page-sizes="[10, 20, 30, 50, 100, 150]" layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange" @current-change="handleCurrentChange" />
     </div>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? t('alarm.editTitle') : t('alarm.addTitle')" width="500px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="isEdit ? t('alarm.editTitle') : t('alarm.addTitle')" width="500px"
+      destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item :label="t('alarm.pointId')" prop="Point_Id">
-          <el-select v-model="form.Point_Id" :placeholder="t('alarm.pointIdPlaceholder')" filterable style="width: 100%">
-            <el-option v-for="p in pointList" :key="p.Id" :label="`[${p.Id}] ${p.Name || p.Config}`" :value="p.Id" />
+          <el-select v-model="form.Point_Id" :placeholder="t('alarm.pointIdPlaceholder')" filterable
+            style="width: 100%">
+            <el-option v-for="p in pointList" :key="p.Id" :label="`[${p.Id}] ${p.Tag || p.Config}`" :value="p.Id" />
           </el-select>
         </el-form-item>
-        <el-form-item :label="t('alarm.name')" prop="Name">
-          <el-input v-model="form.Name" />
+        <el-form-item :label="t('alarm.tag')" prop="Tag">
+          <el-input v-model="form.Tag" />
         </el-form-item>
         <el-form-item prop="Config">
           <template #label>
             <span class="label-with-help">
               <span>{{ t('alarm.config') }}</span>
               <el-tooltip :content="t('common.viewDoc')" placement="top">
-                <a href="https://github.com/fanfan-zwf/GoEdge-IoT/blob/main/Iot-Collector-Service/db/db_point/README.md" target="_blank" class="help-icon">?</a>
+                <a href="https://github.com/fanfan-zwf/GoEdge-IoT/blob/main/Iot-Collector-Service/db/db_point/README.md"
+                  target="_blank" class="help-icon">?</a>
               </el-tooltip>
             </span>
           </template>
@@ -85,15 +94,29 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
+    <!-- 导入对话框 -->
+    <el-dialog v-model="importDialogVisible" :title="t('common.importTitle')" width="480px" @close="importFile = null">
+      <p style="color: #909399; font-size: 13px; margin-bottom: 16px;">{{ t('common.importTip') }}</p>
+      <el-upload ref="uploadRef" :auto-upload="false" :limit="1" accept=".xlsx"
+        :on-change="(file: any) => importFile = file.raw" :on-remove="() => importFile = null">
+        <el-button type="primary">{{ t('common.importSelectFile') }}</el-button>
+      </el-upload>
+      <template #footer>
+        <el-button @click="importDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="importLoading" @click="handleImport">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { configApi, exportUrl } from '@/api/config'
+import { configApi, exportUrl, importConfig } from '@/api/config'
 
+const router = useRouter()
 const { t } = useI18n()
 
 // 报警配置格式提示
@@ -113,6 +136,10 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
+// 搜索相关
+const searchTag = ref('%%')
+const isSearching = ref(false)
+
 // 对话框相关
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -121,20 +148,39 @@ const formRef = ref<FormInstance>()
 const form = reactive({
   Id: 0,
   Point_Id: 1,
-  Name: '',
+  Tag: '',
   Config: '',
   Group: 1
 })
 
 const rules = reactive<FormRules>({
   Point_Id: [{ required: true, message: () => t('common.required', { field: t('alarm.pointId') }), trigger: 'blur' }],
-  Name: [{ required: true, message: () => t('common.required', { field: t('alarm.name') }), trigger: 'blur' }],
+  Tag: [{ required: true, message: () => t('common.required', { field: t('alarm.tag') }), trigger: 'blur' }],
   Config: [{ required: true, message: () => t('common.required', { field: t('alarm.config') }), trigger: 'blur' }],
   Group: [{ required: true, message: () => t('common.required', { field: t('alarm.group') }), trigger: 'blur' }]
 })
 
+const formatDate = (time: string) => {
+  if (!time) return '-'
+  return new Date(time).toLocaleDateString()
+}
+
+const formatTime = (time: string) => {
+  if (!time) return '-'
+  return new Date(time).toLocaleTimeString() + '+08:00'
+}
+
 const loadData = async () => {
   try {
+    if (isSearching.value) {
+      const res = await configApi.alarm.search({
+        tag: searchTag.value,
+        quantity: 30
+      }) as any
+      tableData.value = res.Data || []
+      total.value = tableData.value.length
+      return
+    }
     const countRes = await configApi.alarm.count({ page: 0, pageSize: 0 }) as any
     total.value = countRes.Data || 0
     if (total.value === 0) {
@@ -149,18 +195,31 @@ const loadData = async () => {
 const handleSizeChange = (val: number) => {
   pageSize.value = val
   page.value = 1
+  isSearching.value = false
   loadData()
 }
 
 const handleCurrentChange = (val: number) => {
   page.value = val
+  isSearching.value = false
+  loadData()
+}
+
+const handleSearch = () => {
+  isSearching.value = true
+  loadData()
+}
+
+const handleReset = () => {
+  searchTag.value = '%%'
+  isSearching.value = false
   loadData()
 }
 
 const resetForm = () => {
   form.Id = 0
   form.Point_Id = 1
-  form.Name = ''
+  form.Tag = ''
   form.Config = ''
   form.Group = 1
 }
@@ -177,7 +236,7 @@ const openEdit = (row: any) => {
   loadPointList()
   form.Id = row.Id
   form.Point_Id = row.Point_Id
-  form.Name = row.Name
+  form.Tag = row.Tag
   form.Config = row.Config
   form.Group = row.Group
   dialogVisible.value = true
@@ -188,7 +247,7 @@ const handleSubmit = async () => {
   await formRef.value.validate()
   submitting.value = true
   try {
-    const data = { Point_Id: form.Point_Id, Name: form.Name, Config: form.Config, Group: form.Group }
+    const data = { Point_Id: form.Point_Id, Tag: form.Tag, Config: form.Config, Group: form.Group }
     if (isEdit.value) {
       await configApi.alarm.update([{ Id: form.Id, ...data }])
       ElMessage.success(t('common.editSuccess'))
@@ -220,6 +279,35 @@ const handleDel = async (row: any) => {
 
 const handleExport = () => {
   window.open(`${exportUrl}?type=alarm`, '_blank')
+}
+
+const viewAlarmData = (row: any) => {
+  router.push({ name: 'alarmData', params: { alarmId: row.Id } })
+}
+
+// ======== 导入功能 ========
+const importDialogVisible = ref(false)
+const importFile = ref<File | null>(null)
+const importLoading = ref(false)
+
+const handleImport = async () => {
+  if (!importFile.value) {
+    ElMessage.warning(t('common.importSelectFile'))
+    return
+  }
+  importLoading.value = true
+  try {
+    const res = await importConfig(importFile.value) as any
+    const data = res.Data || {}
+    const alarm = data.alarm_config || { added: 0, updated: 0, deleted: 0 }
+    ElMessage.success(t('common.importSuccess', { added: alarm.added, updated: alarm.updated, deleted: alarm.deleted }))
+    importDialogVisible.value = false
+    loadData()
+  } catch (e: any) {
+    ElMessage.error(e.message || '导入失败')
+  } finally {
+    importLoading.value = false
+  }
 }
 
 // ======== 报警状态实时显示 ========
@@ -269,7 +357,7 @@ const loadStatus = async () => {
       const s = statusMap.get(row.Id)
       if (s) {
         row._status = s.Status || ''
-        row._time = s.Time ? new Date(s.Time).toLocaleString() : ''
+        row._time = s.Time || ''
       } else {
         row._status = ''
         row._time = ''

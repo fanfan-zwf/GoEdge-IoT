@@ -4,6 +4,11 @@ export default {
     edit: 'Редактировать',
     del: 'Удалить',
     export: 'Экспорт',
+    import: 'Импорт',
+    importTitle: 'Импорт конфигурации Excel',
+    importTip: 'Загрузите экспортированный файл Excel. Данные будут синхронизированы по Id (записи в БД, но не в файле, будут удалены)',
+    importSelectFile: 'Пожалуйста, выберите файл Excel',
+    importSuccess: 'Импорт успешен: добавлено {added}, обновлено {updated}, удалено {deleted}',
     restart: 'Перезапуск',
     restartConfirm: 'Вы уверены, что хотите перезапустить {name}? Это займёт около 9 секунд',
     restartSuccess: 'Команда перезаправки отправлена, обновите страницу',
@@ -23,7 +28,9 @@ export default {
     config: 'Конфигурация',
     creationTime: 'Дата создания',
     viewDoc: 'Просмотр документации',
+    doc: 'Документация',
     search: 'Поиск',
+    searchPlaceholder: 'Введите поисковый запрос',
     configPlaceholder: 'Введите конфигурацию, разделитель — точка с запятой',
     modbusConfigTip: '[Modbus TCP]\nФормат: IP;Retry;ConnectTimeout;ResponseTimeout;PollInterval;MaxPacketLen\nПример: 192.168.1.1;3s;3s;180s;1s;256\nМинимум: 192.168.1.1',
     s7ConfigTip: '[Siemens S7]\nФормат: IP;Rack;Slot;Retry;Poll;ConnTimeout;RespTimeout;PDUSize;ConnType\nПример: 192.168.1.1;0;2;3s;0;10s;10s;480;2\nМинимум: 192.168.1.1;0;2',
@@ -63,6 +70,8 @@ export default {
     driveId: 'ID драйвера',
     driveIdPlaceholder: 'Выберите драйвер',
     config: 'Конфигурация',
+    conversion: 'Пересчёт',
+    conversionPlaceholder: 'Формула, напр. x*1.5+10',
     rwCancel: 'Режим Ч/З',
     rwN: 'N (Без сбора)',
     rwR: 'R (Только чтение)',
@@ -71,7 +80,7 @@ export default {
     valueType: 'Тип значения',
     addTitle: 'Добавить точку',
     editTitle: 'Редактировать точку',
-    name: 'Имя точки',
+    tag: 'Метка точки',
     description: 'Описание',
     configFormat: 'Формат конфига точки',
     currentValue: 'Текущее значение',
@@ -95,7 +104,9 @@ export default {
     writeType: 'Тип',
     writeValueLabel: 'Значение для записи',
     writeValuePlaceholder: 'Введите значение для записи',
-    writeValueRequired: 'Пожалуйста, введите значение'
+    writeValueRequired: 'Пожалуйста, введите значение',
+    writeBoolTrue: 'ВКЛ',
+    writeBoolFalse: 'ВЫКЛ'
   },
   alarm: {
     title: 'Конфиг. тревоги',
@@ -106,9 +117,10 @@ export default {
     group: 'Группа тревоги',
     addTitle: 'Добавить тревогу',
     editTitle: 'Редактировать тревогу',
-    name: 'Имя тревоги',
+    tag: 'Метка тревоги',
     status: 'Статус',
-    lastAlarmTime: 'Последняя тревога'
+    lastAlarmTime: 'Последняя тревога',
+    viewData: 'Просмотр данных'
   },
   history: {
     title: 'Конфиг. истории',
@@ -117,7 +129,18 @@ export default {
     pointIdPlaceholder: 'Выберите точку',
     config: 'Конфигурация',
     addTitle: 'Добавить историю',
-    editTitle: 'Редактировать историю'
+    editTitle: 'Редактировать историю',
+    viewData: 'Просмотр данных'
+  },
+  alarmData: {
+    title: 'Данные тревоги',
+    id: 'ID',
+    alarmId: 'ID тревоги',
+    status: 'Статус',
+    time: 'Время тревоги',
+    timeRange: 'Диапазон времени',
+    startTime: 'Время начала',
+    endTime: 'Время окончания'
   },
   lang: {
     zh: '中文',

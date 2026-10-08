@@ -5,7 +5,7 @@
 * 修复: 修复8字节序HGFECDAB错误、越界panic、位序定义、代码规范
  */
 
-package byte_util
+package conv
 
 import (
 	"math"
@@ -82,6 +82,15 @@ func BytesToBool(in []byte) []bool {
 		out[i] = (in[i/8] & (1 << (i % 8))) != 0
 	}
 	return out
+}
+
+// SetBit 设置 data 中第 bit 位为 v（bit 可为任意值，自动计算字节偏移和位偏移）
+func SetBit(data []byte, bit int, v bool) {
+	if v {
+		data[bit/8] |= 1 << (bit % 8)
+	} else {
+		data[bit/8] &^= 1 << (bit % 8)
+	}
 }
 
 // ==============================

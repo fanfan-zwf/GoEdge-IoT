@@ -5,16 +5,23 @@
       <div>
         <el-button type="primary" @click="openAdd">{{ t('common.add') }}</el-button>
         <el-button @click="handleExport">{{ t('common.export') }}</el-button>
+        <el-button @click="importDialogVisible = true">{{ t('common.import') }}</el-button>
       </div>
     </div>
 
     <el-table :data="tableData" border style="width: 100%">
       <el-table-column prop="Id" :label="t('history.id')" width="80" />
       <el-table-column prop="Point_Id" :label="t('history.pointId')" width="100" />
-      <el-table-column prop="Config" :label="t('history.config')" />
-      <el-table-column prop="Creation_Time" :label="t('common.creationTime')" width="170" />
-      <el-table-column :label="t('common.operation')" width="150">
+      <el-table-column prop="Creation_Time" :label="t('common.creationTime')" width="120">
         <template #default="{ row }">
+          <div>{{ formatDate(row.Creation_Time) }}</div>
+          <div>{{ formatTime(row.Creation_Time) }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="Config" :label="t('history.config')" />
+      <el-table-column :label="t('common.operation')" width="220">
+        <template #default="{ row }">
+          <el-button size="small" type="primary" @click="viewHistoryData(row)">{{ t('history.viewData') }}</el-button>
           <el-button size="small" @click="openEdit(row)">{{ t('common.edit') }}</el-button>
           <el-button size="small" type="danger" @click="handleDel(row)">{{ t('common.del') }}</el-button>
         </template>
@@ -22,23 +29,19 @@
     </el-table>
 
     <div class="pagination-wrapper">
-      <el-pagination
-        v-model:current-page="page"
-        v-model:page-size="pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
+      <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total"
+        :page-sizes="[10, 20, 30, 50, 100, 150]" layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange" @current-change="handleCurrentChange" />
     </div>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? t('history.editTitle') : t('history.addTitle')" width="500px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="isEdit ? t('history.editTitle') : t('history.addTitle')" width="500px"
+      destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item :label="t('history.pointId')" prop="Point_Id">
-          <el-select v-model="form.Point_Id" :placeholder="t('history.pointIdPlaceholder')" filterable style="width: 100%">
-            <el-option v-for="p in pointList" :key="p.Id" :label="`[${p.Id}] ${p.Name || p.Config}`" :value="p.Id" />
+          <el-select v-model="form.Point_Id" :placeholder="t('history.pointIdPlaceholder')" filterable
+            style="width: 100%">
+            <el-option v-for="p in pointList" :key="p.Id" :label="`[${p.Id}] ${p.Tag || p.Config}`" :value="p.Id" />
           </el-select>
         </el-form-item>
         <el-form-item prop="Config">
@@ -46,7 +49,8 @@
             <span class="label-with-help">
               <span>{{ t('history.config') }}</span>
               <el-tooltip :content="t('common.viewDoc')" placement="top">
-                <a href="https://github.com/fanfan-zwf/GoEdge-IoT/blob/main/Iot-Collector-Service/db/db_point/README.md" target="_blank" class="help-icon">?</a>
+                <a href="https://github.com/fanfan-zwf/GoEdge-IoT/blob/main/Iot-Collector-Service/db/db_point/README.md"
+                  target="_blank" class="help-icon">?</a>
               </el-tooltip>
             </span>
           </template>
@@ -62,15 +66,29 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
+    <!-- 导入对话框 -->
+    <el-dialog v-model="importDialogVisible" :title="t('common.importTitle')" width="480px" @close="importFile = null">
+      <p style="color: #909399; font-size: 13px; margin-bottom: 16px;">{{ t('common.importTip') }}</p>
+      <el-upload ref="uploadRef" :auto-upload="false" :limit="1" accept=".xlsx"
+        :on-change="(file: any) => importFile = file.raw" :on-remove="() => importFile = null">
+        <el-button type="primary">{{ t('common.importSelectFile') }}</el-button>
+      </el-upload>
+      <template #footer>
+        <el-button @click="importDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="importLoading" @click="handleImport">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { configApi, exportUrl } from '@/api/config'
+import { configApi, exportUrl, importConfig } from '@/api/config'
 
+const router = useRouter()
 const { t } = useI18n()
 
 // 历史配置格式提示
@@ -105,6 +123,16 @@ const rules = reactive<FormRules>({
   Point_Id: [{ required: true, message: () => t('common.required', { field: t('history.pointId') }), trigger: 'blur' }],
   Config: [{ required: true, message: () => t('common.required', { field: t('history.config') }), trigger: 'blur' }]
 })
+
+const formatDate = (time: string) => {
+  if (!time) return '-'
+  return new Date(time).toLocaleDateString()
+}
+
+const formatTime = (time: string) => {
+  if (!time) return '-'
+  return new Date(time).toLocaleTimeString() + '+08:00'
+}
 
 const loadData = async () => {
   try {
@@ -189,6 +217,35 @@ const handleDel = async (row: any) => {
 
 const handleExport = () => {
   window.open(`${exportUrl}?type=history`, '_blank')
+}
+
+const viewHistoryData = (row: any) => {
+  router.push({ name: 'historyData', params: { pointId: row.Point_Id } })
+}
+
+// ======== 导入功能 ========
+const importDialogVisible = ref(false)
+const importFile = ref<File | null>(null)
+const importLoading = ref(false)
+
+const handleImport = async () => {
+  if (!importFile.value) {
+    ElMessage.warning(t('common.importSelectFile'))
+    return
+  }
+  importLoading.value = true
+  try {
+    const res = await importConfig(importFile.value) as any
+    const data = res.Data || {}
+    const history = data.history_config || { added: 0, updated: 0, deleted: 0 }
+    ElMessage.success(t('common.importSuccess', { added: history.added, updated: history.updated, deleted: history.deleted }))
+    importDialogVisible.value = false
+    loadData()
+  } catch (e: any) {
+    ElMessage.error(e.message || '导入失败')
+  } finally {
+    importLoading.value = false
+  }
 }
 
 onMounted(() => {

@@ -4,6 +4,11 @@ export default {
     edit: '编辑',
     del: '删除',
     export: '导出',
+    import: '导入',
+    importTitle: '导入 Excel 配置',
+    importTip: '上传导出的 Excel 文件，将以 Id 为准同步数据（数据库有但文件没有的将被删除）',
+    importSelectFile: '请选择 Excel 文件',
+    importSuccess: '导入成功：新增 {added}，更新 {updated}，删除 {deleted}',
     restart: '重启',
     restartConfirm: '确定要重启 {name} 吗？重启过程约 9 秒',
     restartSuccess: '重启指令已发送，请稍后刷新',
@@ -26,7 +31,9 @@ export default {
     config: '配置参数',
     creationTime: '创建时间',
     viewDoc: '查看文档',
+    doc: '文档',
     search: '搜索',
+    searchPlaceholder: '请输入搜索内容',
     configPlaceholder: '请输入配置，分号分隔',
     modbusConfigTip: '【Modbus TCP】\n格式: IP;重试间隔;连接超时;响应超时;轮询间隔;组包最大长度\n示例: 192.168.1.1;3s;3s;180s;1s;256\n最简: 192.168.1.1',
     s7ConfigTip: '【Siemens S7】\n格式: IP;机架号;槽位号;重试间隔;轮询间隔;连接超时;响应超时;组包大小;连接类型\n示例: 192.168.1.1;0;2;3s;0;10s;10s;480;2\n最简: 192.168.1.1;0;2',
@@ -67,6 +74,8 @@ export default {
     driveId: '驱动ID',
     driveIdPlaceholder: '请选择驱动',
     config: '配置',
+    conversion: '换算',
+    conversionPlaceholder: '换算公式，如 x*1.5+10',
     rwCancel: '读写方式',
     rwN: 'N（不采集）',
     rwR: 'R（只读）',
@@ -75,7 +84,7 @@ export default {
     valueType: '值类型',
     addTitle: '新增点位',
     editTitle: '编辑点位',
-    name: '点位名称',
+    tag: '点位标识',
     description: '描述',
     configFormat: '点位配置格式',
     currentValue: '当前值',
@@ -99,7 +108,9 @@ export default {
     writeType: '类型',
     writeValueLabel: '写入值',
     writeValuePlaceholder: '请输入要写入的值',
-    writeValueRequired: '请输入写入值'
+    writeValueRequired: '请输入写入值',
+    writeBoolTrue: '开',
+    writeBoolFalse: '关'
   },
   alarm: {
     title: '报警配置',
@@ -110,9 +121,10 @@ export default {
     group: '报警组',
     addTitle: '新增报警',
     editTitle: '编辑报警',
-    name: '报警名称',
+    tag: '报警标签',
     status: '状态',
-    lastAlarmTime: '最后报警时间'
+    lastAlarmTime: '最后报警时间',
+    viewData: '查看数据'
   },
   history: {
     title: '历史配置',
@@ -121,7 +133,8 @@ export default {
     pointIdPlaceholder: '请选择点位',
     config: '配置',
     addTitle: '新增历史',
-    editTitle: '编辑历史'
+    editTitle: '编辑历史',
+    viewData: '查看数据'
   },
   historyData: {
     title: '历史数据',
@@ -134,6 +147,16 @@ export default {
     time: '时间',
     value: '值',
     status: '状态'
+  },
+  alarmData: {
+    title: '报警数据',
+    id: 'ID',
+    alarmId: '报警ID',
+    status: '状态',
+    time: '报警时间',
+    timeRange: '时间范围',
+    startTime: '开始时间',
+    endTime: '结束时间'
   },
   lang: {
     zh: '中文',

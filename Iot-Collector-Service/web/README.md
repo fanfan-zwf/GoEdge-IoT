@@ -45,7 +45,7 @@ API:
 | `web.go` | 服务启动、CORS 中间件、统一响应中间件 |
 | `api.go` | 点位读写、报警状态查询接口 |
 | `config.go` | 配置管理 CRUD 接口（驱动/点位/报警/历史） |
-| `export.go` | 配置导出 Excel 接口（多 Sheet） |
+| `export.go` | 配置导出/导入 Excel 接口（多 Sheet 导出 + Id 同步导入） |
 
 ## 统一响应格式
 
@@ -497,7 +497,9 @@ SOFTWARE.
 
 ---
 
-## 三、配置导出
+## 三、配置导出与导入
+
+### 3.1 导出配置
 
 导出配置为 Excel 文件，支持同时导出多种配置（每种一个 Sheet）。
 
@@ -526,3 +528,60 @@ GET /api/v1.0/config/export?type=drive,point,alarm,history
 - **Content-Type**: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
 - **文件名**: `config_export_20260922_150405.xlsx`（自动带时间戳）
 - 全量导出，不分页
+
+### 3.2 导入配置
+
+从 Excel 文件导入配置，**以 Id 为准**进行全量同步（新增/更新/删除）。
+
+```
+POST /api/v1.0/config/import
+Content-Type: multipart/form-data
+```
+
+#### 请求参数
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| file | File | 是 | Excel 文件（.xlsx），字段名为 `file` |
+
+#### 同步规则
+
+| 场景 | 操作 |
+|------|------|
+| Excel 有，数据库没有 | **新增**（保留 Excel 中的 Id） |
+| Excel 有，数据库也有，数据不同 | **更新** |
+| 数据库有，Excel 没有 | **删除** |
+
+#### 支持的 Sheet
+
+| Sheet 名 | 对应表 | 必要列 |
+|----------|--------|--------|
+| drive_config | Drive_Config | Id, Type, Config |
+| point_config | Point_Config | Id, Drive_Id, Config, RW_Cancel, Value_Type |
+| alarm_config | Alarm_Config | Id, Point_Id, Config, Group |
+| history_config | History_Config | Id, Point_Id, Config |
+
+> **注意**：导入时 INSERT 操作保留原始 Id（不使用 MySQL 自增），确保后续导入能按 Id 正确匹配。
+
+#### 响应 Data 字段
+
+```json
+{
+  "drive_config": { "added": 2, "updated": 5, "deleted": 1 },
+  "point_config": { "added": 10, "updated": 3, "deleted": 0 }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| added | int | 新增记录数 |
+| updated | int | 更新记录数 |
+| deleted | int | 删除记录数 |
+
+#### 特性
+
+- **事务安全**：每种配置类型在独立事务中完成增删改
+- **变化检测**：只有数据真正变化时才执行 UPDATE
+- **Id 保留**：INSERT 时直接使用 Excel 中的 Id，不使用 MySQL 自增
+- **自动跳过**：空 Sheet 或只有表头的 Sheet 自动跳过
+- **详细日志**：每种配置的增删改数量都有后端日志输出

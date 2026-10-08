@@ -1,7 +1,7 @@
 <template>
   <div class="page-card">
     <div class="page-header">
-      <h3>{{ t('historyData.title') }}</h3>
+      <h3>{{ t('historyData.title') }} <span v-if="routePointId" class="point-badge">Point ID: {{ routePointId }}</span></h3>
       <div>
         <el-button type="primary" @click="handleQuery">{{ t('common.query') }}</el-button>
         <el-button @click="handleReset">{{ t('common.reset') }}</el-button>
@@ -10,11 +10,6 @@
 
     <!-- 查询条件 -->
     <el-form :inline="true" :model="queryForm" class="query-form">
-      <el-form-item :label="t('historyData.pointId')">
-        <el-select v-model="queryForm.pointId" :placeholder="t('historyData.selectPoint')" filterable style="width: 200px">
-          <el-option v-for="p in pointList" :key="p.Id" :label="`[${p.Id}] ${p.Name || p.Config}`" :value="p.Id" />
-        </el-select>
-      </el-form-item>
       <el-form-item :label="t('historyData.timeRange')">
         <el-date-picker
           v-model="queryForm.timeRange"
@@ -47,8 +42,8 @@
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :total="total"
-        :page-sizes="[20, 50, 100, 200]"
-        layout="total, sizes, prev, pager, next"
+        :page-sizes="[10, 20, 30, 50, 100, 150]"
+        layout="total, sizes, prev, pager, next, jumper"
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
       />
@@ -58,24 +53,20 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { configApi } from '@/api/config'
 
+const route = useRoute()
 const { t } = useI18n()
 
-// 点位列表
-const pointList = ref<any[]>([])
-const loadPointList = async () => {
-  try {
-    const res = await configApi.point.query({ page: 1, pageSize: 1000 }) as any
-    pointList.value = res.Data || []
-  } catch { /* ignore */ }
-}
+// 从路由参数获取点位 ID
+const routePointId = Number(route.params.pointId) || undefined
 
 // 查询表单
 const queryForm = reactive({
-  pointId: undefined as number | undefined,
+  pointId: routePointId as number | undefined,
   timeRange: [] as string[]
 })
 
@@ -89,7 +80,7 @@ const loading = ref(false)
 // 查询
 const handleQuery = async () => {
   if (!queryForm.pointId) {
-    ElMessage.warning(t('historyData.selectPoint'))
+    ElMessage.warning('Point ID is required')
     return
   }
   if (!queryForm.timeRange || queryForm.timeRange.length !== 2) {
@@ -117,12 +108,10 @@ const handleQuery = async () => {
     tableData.value = (responseData.data || []).map((item: any) => {
       console.log('单条数据:', item) // 调试日志
       
-      // 格式化为毫秒级时间：YYYY-MM-DD HH:mm:ss.SSS
+      // 格式化为毫秒级时间：YYYY-MM-DD HH:mm:ss.SSS+08:00
       const date = new Date(item.Time)
-      const timeStr = date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
+      const dateStr = date.toLocaleDateString()
+      const timeStr = date.toLocaleTimeString('zh-CN', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
@@ -131,7 +120,7 @@ const handleQuery = async () => {
       const ms = String(date.getMilliseconds()).padStart(3, '0')
       
       return {
-        time: `${timeStr}.${ms}`,
+        time: `${dateStr} ${timeStr}.${ms}+08:00`,
         value: item.Value,
         msg: item.Msg || '-'
       }
@@ -149,7 +138,7 @@ const handleQuery = async () => {
 
 // 重置
 const handleReset = () => {
-  queryForm.pointId = undefined
+  queryForm.pointId = routePointId // 重置时保留路由指定的点位
   queryForm.timeRange = []
   tableData.value = []
   total.value = 0
@@ -172,11 +161,24 @@ const handleCurrentChange = (val: number) => {
 }
 
 onMounted(() => {
-  loadPointList()
+  // 点位 ID 已从路由获取，无需加载点位列表
 })
 </script>
 
 <style scoped>
+.point-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #409eff;
+  background: #ecf5ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 12px;
+  vertical-align: middle;
+}
+
 .query-form {
   margin-bottom: 16px;
   padding: 16px;

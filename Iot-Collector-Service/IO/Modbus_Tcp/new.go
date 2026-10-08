@@ -1,7 +1,7 @@
 package Modbus_Tcp
 
 import (
-	"main/IO/byte_util"
+	"main/IO/conv"
 	"main/cloud"
 
 	"fmt"
@@ -10,6 +10,15 @@ import (
 )
 
 const (
+	// 正则表达式
+	regex__address                 = `^(\d+;[1-9]\d*ms;[1-9]\d*ms;[1-9]\d*ms;[1-9]\d*ms;[1-9]\d*)$` // 地址
+	regex__retryTimeout_index      = `^[+-]?((\d+(\.\d+)?)(ns|µs|us|ms|s|m|h))+$`                   // 重试间隔
+	regex__connectTimeout_index    = regex__retryTimeout_index                                      // 连接超时
+	regex__responseTimeout_index   = regex__retryTimeout_index                                      // 响应超时
+	regex__delayBetweenPolls_index = regex__retryTimeout_index                                      // 轮询间隔
+	regex__packetMax_index         = `^(0|[1-9]\d?|1[01]\d|12[0-5])$`                               // 组包最大长度
+
+	// 配置项索引
 	address_index           = 0 // 地址
 	retryTimeout_index      = 1 // 重试间隔
 	connectTimeout_index    = 2 // 连接超时
@@ -65,13 +74,21 @@ func Drive_Config_Switch(configStr string) (c Config_type, err error) {
 		Connect_timeout:     connectTimeout,
 		Response_timeout:    responseTimeout,
 		Delay_between_polls: delayBetweenPolls,
-		Packet_max:          uint8(packetMax),
+		Packet_max:          packetMax,
 	}
 
 	return
 }
 
 const (
+	// 正则表达式
+	regex__SlaveID    = `^(?:25[0-5]|2[0-4]\d|[01]?\d)$`                                         // 从机地址
+	regex__Function   = `^[1-4]$`                                                                // Modbus功能码
+	regex__Address    = `^(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[1-5]\d{4}|\d{1,4})$` // 寄存器地址
+	regex__Byte_Order = ""                                                                       // 字节序
+	regex__Type       = ""                                                                       // 数据类型
+
+	// 配置项索引
 	SlaveID_index    = 0 // 从机地址
 	Function_index   = 1 // Modbus功能码（如3=读保持寄存器）
 	Address_index    = 2 // 寄存器地址
@@ -119,6 +136,13 @@ func Point_Config_Switch(s string) (point Points_type, err error) {
 		return
 	}
 
+	// 解析数据类型名称为类型编码
+	typeCode, typeExists := conv.ValueTypeStringToInt(Type_str)
+	if !typeExists {
+		err = fmt.Errorf("无效的数据类型: %s", Type_str)
+		return
+	}
+
 	var Child_Address int
 	if (Function == 3 || Function == 4) && Type_str == "bool" {
 		if len(Address_str2) > 1 {
@@ -133,19 +157,20 @@ func Point_Config_Switch(s string) (point Points_type, err error) {
 	var Byte_Order int
 	if Function == 3 || Function == 4 {
 		var exists bool
-		Byte_Order, exists = byte_util.Byte_Value[Byte_Order_str]
+		Byte_Order, exists = conv.Byte_Value[Byte_Order_str]
 		if !exists {
 			err = fmt.Errorf("无效的字节序: %s", Byte_Order_str)
 			return
 		}
 	}
+
 	point = Points_type{
-		SlaveID:       uint8(slaveID),       // 从机地址
-		Function:      uint8(Function),      // Modbus功能码（如3=读保持寄存器）
-		Address:       uint16(Address - 1),  // 寄存器地址
-		Type:          Type_str,             // 数据类型（bool/int8/float32等）
-		Child_Address: uint8(Child_Address), // 子地址（可选）
-		Byte_Order:    Byte_Order,           // 字节序（如"ABCD"表示大端）
+		SlaveID:       slaveID,       // 从机地址
+		Function:      Function,      // Modbus功能码（如3=读保持寄存器）
+		Address:       Address,       // 寄存器地址
+		Type:          typeCode,      // 数据类型编码
+		Child_Address: Child_Address, // 子地址（可选）
+		Byte_Order:    Byte_Order,    // 字节序（如"ABCD"表示大端）
 	}
 
 	return

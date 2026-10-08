@@ -6,15 +6,18 @@ import (
 )
 
 const (
-	address_index         = 0 // 地址
-	rack_index            = 1 // 机架号
-	slot_index            = 2 // 槽位号
-	retryTimeout_index    = 3 // 重试间隔（可选，默认3s）
-	delayBetween_index    = 4 // 轮询间隔（可选，默认0）
-	connectTimeout_index  = 5 // 连接超时（可选，默认10s）
-	responseTimeout_index = 6 // 响应超时（可选，默认10s）
-	maxPacketLen_index    = 7 // 组包最大长度（可选，默认480） Smart200=240 300=240 400=960 1200=480 1500=960
-	connectionType_index  = 8 // 连接类型（可选，默认2） 1=PG 2=OP 3=Basic
+	address_index         = iota // 地址
+	rack_index                   // 机架号
+	slot_index                   // 槽位号
+	retryTimeout_index           // 重试间隔（可选，默认3s）
+	delayBetween_index           // 轮询间隔（可选，默认0）
+	sourceTSAP_index             // 本地TSAP
+	destinationTSAP_index        // 远端TSAP
+
+	connectTimeout_index  // 连接超时（可选，默认10s）
+	responseTimeout_index // 响应超时（可选，默认10s）
+	maxPacketLen_index    // 组包最大长度（可选，默认480） Smart200=240 300=240 400=960 1200=480 1500=960
+	connectionType_index  // 连接类型（可选，默认2） 1=PG 2=OP 3=Basic
 )
 
 // Drive_Config_Switch 解析驱动配置字符串 192.168.1.1;0;2;3s;0;10s;10s;480;2
@@ -77,6 +80,20 @@ func Drive_Config_Switch(configStr string) (c Config_type, err error) {
 		err = nil
 	}
 
+	// 本地TSAP（可选，默认0）
+	c.Source_TSAP, err = cloud.GetSplitInt(configStr, sourceTSAP_index, "本地TSAP")
+	if err != nil {
+		c.Source_TSAP = 0 // 默认 0 表示使用默认的 TSAP 值
+		err = nil
+	}
+
+	// 远端TSAP（可选，默认0）
+	c.Destination_TSAP, err = cloud.GetSplitInt(configStr, destinationTSAP_index, "远端TSAP")
+	if err != nil {
+		c.Destination_TSAP = 0 // 默认 0 表示使用默认的 TSAP 值
+		err = nil
+	}
+
 	return
 }
 
@@ -90,7 +107,7 @@ const (
 )
 
 // Point_Config_Switch 解析点位配置字符串 132;1;0;12;0
-func Point_Config_Switch(configStr string) (point Points_type, err error) {
+func Point_Config_Switch(configStr string) (point S7Points_type, err error) {
 
 	// Area（存储区，可选，默认 132=DB块）
 	point.Area, err = cloud.GetSplitInt(configStr, area_index, "存储区")

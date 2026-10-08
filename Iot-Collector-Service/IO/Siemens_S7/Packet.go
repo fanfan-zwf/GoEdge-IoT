@@ -9,6 +9,7 @@ package siemenss7
 import (
 	"errors"
 	"fmt"
+	"main/IO/conv"
 	"sort"
 	"time"
 )
@@ -16,6 +17,7 @@ import (
 const (
 	s7MaxItemsPerRead = 20  // S7 协议 AGReadMulti 单次最大 item 数
 	s7DefaultPDUSize  = 480 // 默认 PDU 长度（字节） Smart200=240 300=240 400=960 1200=480 1500=960
+	s7ItemOverhead    = 17  // 每个 DataItem 的协议开销（请求 12 字节 + 响应 5 字节）
 )
 
 // S7GroupKey S7 组包分组键：Area + DBNumber
@@ -148,26 +150,25 @@ type S7PackResult struct {
 }
 
 // ValueTypeToByteLen 将 Value_Type 整数编码转换为字节长度
-// 1:bool 2:int8 3:uint8 4:int16 5:uint16 6:int32 7:uint32 8:int64 9:uint64 10:int 11:uint 12:float32 13:float64 14:float 15:string
 func ValueTypeToByteLen(vt int) int {
 	switch vt {
-	case 1: // bool
+	case conv.TYPE_BOOL: // bool
 		return 1
-	case 2, 3: // int8, uint8
+	case conv.TYPE_INT8, conv.TYPE_UINT8: // int8, uint8
 		return 1
-	case 4, 5: // int16, uint16
+	case conv.TYPE_INT16, conv.TYPE_UINT16: // int16, uint16
 		return 2
-	case 6, 7: // int32, uint32
+	case conv.TYPE_INT32, conv.TYPE_UINT32: // int32, uint32
 		return 4
-	case 8, 9: // int64, uint64
+	case conv.TYPE_INT64, conv.TYPE_UINT64: // int64, uint64
 		return 8
-	case 10, 11: // int, uint
+	case conv.TYPE_INT, conv.TYPE_UINT: // int, uint
 		return 8
-	case 12, 14: // float32, float
+	case conv.TYPE_FLOAT32, conv.TYPE_FLOAT: // float32, float
 		return 4
-	case 13: // float64
+	case conv.TYPE_FLOAT64: // float64
 		return 8
-	case 15: // string（变长，默认按4字节处理）
+	case conv.TYPE_STRING: // string（变长，默认按4字节处理）
 		return 4
 	default:
 		return 0
@@ -208,7 +209,23 @@ func PackS7AddressPackages(points []S7PackPoint, maxPacketLen int) ([]S7PackResu
 			return groupPoints[i].Start < groupPoints[j].Start
 		})
 
-		// 合并连续/重叠地址
+		// Timer(0x1C) 和 Counter(0x1D) 区域不合并，每个点位单独成包
+		// 因为 Timer/Counter 的 Start 是编号而非字节偏移，ByteLen 固定为 2
+		if key.Area == S7AreaCT || key.Area == S7AreaTM {
+			for _, point := range groupPoints {
+				results = append(results, S7PackResult{
+					Area:     key.Area,
+					DBNumber: key.DBNumber,
+					Start:    point.Start,
+					ByteLen:  2, // 每个 Timer/Counter 固定 2 字节
+					Ids:      []uint{point.Id},
+					Types:    []int{point.ValueType},
+				})
+			}
+			continue
+		}
+
+		// 合并连续/重叠地址（仅适用于普通区域：PE/PA/MK/DB）
 		var merged []S7PackResultAddr
 
 		for _, point := range groupPoints {

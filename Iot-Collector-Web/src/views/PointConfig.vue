@@ -3,25 +3,35 @@
     <div class="page-header">
       <h3>{{ t('point.title') }}</h3>
       <div class="header-actions">
+        <el-input v-model="searchTag" :placeholder="t('common.searchPlaceholder')" clearable style="width: 200px" @keyup.enter="handleSearch" />
+        <el-button @click="handleSearch">{{ t('common.search') }}</el-button>
+        <el-button @click="handleReset">{{ t('common.reset') }}</el-button>
         <el-button :type="showTrend ? 'primary' : 'default'" @click="showTrend = !showTrend">{{ t('point.toggleTrend') }}</el-button>
         <el-button type="primary" @click="openAdd">{{ t('common.add') }}</el-button>
         <el-button @click="handleExport">{{ t('common.export') }}</el-button>
+        <el-button @click="importDialogVisible = true">{{ t('common.import') }}</el-button>
       </div>
     </div>
 
     <el-table :data="tableData" border :row-style="showTrend ? { height: '200px' } : {}" style="width: 100%">
       <el-table-column prop="Id" :label="t('point.id')" width="80" />
       <el-table-column prop="Drive_Id" :label="t('point.driveId')" width="100" />
-      <el-table-column prop="Name" :label="t('point.name')" width="150" />
+      <el-table-column prop="Tag" :label="t('point.tag')" width="150" />
       <el-table-column prop="Description" :label="t('point.description')" width="150" />
       <el-table-column v-if="!showTrend" prop="Config" :label="t('point.config')" />
+      <el-table-column v-if="!showTrend" prop="Conversion" :label="t('point.conversion')" width="150" />
       <el-table-column v-if="!showTrend" prop="RW_Cancel" :label="t('point.rwCancel')" width="110">
         <template #default="{ row }">{{ rwCancelMap[row.RW_Cancel] || row.RW_Cancel }}</template>
       </el-table-column>
       <el-table-column v-if="!showTrend" prop="Value_Type" :label="t('point.valueType')" width="110">
         <template #default="{ row }">{{ valueTypeMap[row.Value_Type] || row.Value_Type }}</template>
       </el-table-column>
-      <el-table-column v-if="!showTrend" prop="Creation_Time" :label="t('common.creationTime')" width="170" />
+      <el-table-column v-if="!showTrend" prop="Creation_Time" :label="t('common.creationTime')" width="120">
+        <template #default="{ row }">
+          <div>{{ formatDate(row.Creation_Time) }}</div>
+          <div>{{ formatTime(row.Creation_Time) }}</div>
+        </template>
+      </el-table-column>
       <el-table-column :label="t('point.status')" width="100">
         <template #default="{ row }">
           <span v-if="pointData[row.Id]?.msg" :class="['status-msg', pointData[row.Id].msg === 'ok' ? 'status-ok' : 'status-err']">
@@ -64,8 +74,8 @@
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
+        :page-sizes="[10, 20, 30, 50, 100, 150]"
+        layout="total, sizes, prev, pager, next, jumper"
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
       />
@@ -79,8 +89,8 @@
             <el-option v-for="d in driveList" :key="d.Id" :label="`[${d.Id}] ${d.Name || d.Type}`" :value="d.Id" />
           </el-select>
         </el-form-item>
-        <el-form-item :label="t('point.name')" prop="Name">
-          <el-input v-model="form.Name" />
+        <el-form-item :label="t('point.tag')" prop="Tag">
+          <el-input v-model="form.Tag" />
         </el-form-item>
         <el-form-item :label="t('point.description')">
           <el-input v-model="form.Description" />
@@ -96,6 +106,9 @@
           </template>
           <el-input v-model="form.Config" type="textarea" :rows="3" :placeholder="t('common.configPlaceholder')" />
           <div class="config-tip">{{ pointConfigTipText }}</div>
+        </el-form-item>
+        <el-form-item :label="t('point.conversion')" prop="Conversion">
+          <el-input v-model="form.Conversion" :placeholder="t('point.conversionPlaceholder')" />
         </el-form-item>
         <el-form-item :label="t('point.rwCancel')" prop="RW_Cancel">
           <el-select v-model="form.RW_Cancel" style="width: 100%">
@@ -118,7 +131,7 @@
     <el-dialog v-model="writeDialogVisible" :title="t('point.writeTitle')" width="420px" destroy-on-close>
       <el-form label-width="100px">
         <el-form-item :label="t('point.writePointName')">
-          <span>{{ writePoint.Name || `ID: ${writePoint.Id}` }} (ID: {{ writePoint.Id }})</span>
+          <span>{{ writePoint.Tag || `ID: ${writePoint.Id}` }} (ID: {{ writePoint.Id }})</span>
         </el-form-item>
         <el-form-item :label="t('point.writeType')">
           <span>{{ valueTypeMap[writePoint.Value_Type] || writePoint.Value_Type }}</span>
@@ -127,12 +140,31 @@
           <span class="current-value has-value">{{ pointData[writePoint.Id]?.value ?? '-' }}</span>
         </el-form-item>
         <el-form-item :label="t('point.writeValueLabel')">
-          <el-input v-model="writeValue" :placeholder="t('point.writeValuePlaceholder')" style="width: 200px" />
+          <el-switch v-if="writePoint.Value_Type === 1" v-model="writeValue" :active-text="t('point.writeBoolTrue')" :inactive-text="t('point.writeBoolFalse')" />
+          <el-input v-else v-model="writeValue" :placeholder="t('point.writeValuePlaceholder')" style="width: 200px" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="writeDialogVisible = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" :loading="writeLoading" @click="handleWrite">{{ t('point.write') }}</el-button>
+      </template>
+    </el-dialog>
+    <!-- 导入对话框 -->
+    <el-dialog v-model="importDialogVisible" :title="t('common.importTitle')" width="480px" @close="importFile = null">
+      <p style="color: #909399; font-size: 13px; margin-bottom: 16px;">{{ t('common.importTip') }}</p>
+      <el-upload
+        ref="uploadRef"
+        :auto-upload="false"
+        :limit="1"
+        accept=".xlsx"
+        :on-change="(file: any) => importFile = file.raw"
+        :on-remove="() => importFile = null"
+      >
+        <el-button type="primary">{{ t('common.importSelectFile') }}</el-button>
+      </el-upload>
+      <template #footer>
+        <el-button @click="importDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="importLoading" @click="handleImport">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -143,7 +175,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } 
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import * as echarts from 'echarts'
-import { configApi, exportUrl } from '@/api/config'
+import { configApi, exportUrl, importConfig, BASE_SERVER } from '@/api/config'
 
 const { t } = useI18n()
 
@@ -202,6 +234,10 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
+// 搜索相关
+const searchTag = ref('%%')
+const isSearching = ref(false)
+
 // WebSocket 实时值（合并：当前值、状态消息、时间延迟、时间戳）
 const pointData = ref<Record<number, { value: any; msg: string; time: string; timeDelay: { text: string; cls: string } }>>({})
 const ensurePointData = (id: number) => {
@@ -210,9 +246,25 @@ const ensurePointData = (id: number) => {
   }
   return pointData.value[id]
 }
+// 计算时间延迟显示文本和颜色
+const calcDelay = (delayMs: number): { text: string; cls: string } => {
+  const ms = delayMs % 1000
+  const sec = Math.floor(delayMs / 1000)
+  let text: string
+  let cls: string
+  if (delayMs < 1000) {
+    text = `${delayMs}ms`; cls = 'time-delay-green'
+  } else if (sec < 60) {
+    text = `${sec}s${ms}ms`; cls = delayMs < 3000 ? 'time-delay-yellow' : 'time-delay-red'
+  } else {
+    const min = Math.floor(sec / 60)
+    text = `${min}m${sec % 60}s`; cls = 'time-delay-red'
+  }
+  return { text, cls }
+}
 let ws: WebSocket | null = null
 
-const WS_URL = 'ws://192.168.220.40:8103/api/v1.0/point/ws'
+const WS_URL = `ws://${BASE_SERVER}/api/v1.0/point/ws`
 
 // 视图 & 曲线图
 const showTrend = ref(false) // 趋势列显示开关
@@ -388,14 +440,7 @@ const connectWebSocket = () => {
         ensurePointData(data.PointId).time = data.Time || ''
         // 时间延迟直接算
         const ts = data.Time ? new Date(data.Time).getTime() : Date.now()
-        const delayMs = Date.now() - ts
-        const delaySec = Math.floor(delayMs / 1000)
-        let text: string
-        let cls: string
-        if (delayMs < 1000) { text = `${delayMs}ms`; cls = 'time-delay-green' }
-        else if (delaySec < 60) { text = `${delaySec}s`; cls = delayMs < 3000 ? 'time-delay-yellow' : 'time-delay-red' }
-        else { const min = Math.floor(delaySec / 60); text = `${min}m${delaySec % 60}s`; cls = 'time-delay-red' }
-        ensurePointData(data.PointId).timeDelay = { text, cls }
+        ensurePointData(data.PointId).timeDelay = calcDelay(Date.now() - ts)
         // 更新曲线图数据（只更新 pointData，由 watch 统一追加到曲线）
         ensurePointData(data.PointId)
       }
@@ -432,31 +477,51 @@ const formRef = ref<FormInstance>()
 const form = reactive({
   Id: 0,
   Drive_Id: 1,
-  Name: '',
+  Tag: '',
   Description: '',
   Config: '',
+  Conversion: '',
   RW_Cancel: 0,
   Value_Type: 0
 })
 
 const rules = reactive<FormRules>({
   Drive_Id: [{ required: true, message: () => t('common.required', { field: t('point.driveId') }), trigger: 'blur' }],
-  Name: [{ required: true, message: () => t('common.required', { field: t('point.name') }), trigger: 'blur' }],
+  Tag: [{ required: true, message: () => t('common.required', { field: t('point.tag') }), trigger: 'blur' }],
   Config: [{ required: true, message: () => t('common.required', { field: t('common.config') }), trigger: 'blur' }],
   RW_Cancel: [{ required: true, message: () => t('common.required', { field: t('point.rwCancel') }), trigger: 'blur' }],
   Value_Type: [{ required: true, message: () => t('common.required', { field: t('point.valueType') }), trigger: 'blur' }]
 })
 
+const formatDate = (time: string) => {
+  if (!time) return '-'
+  return new Date(time).toLocaleDateString()
+}
+
+const formatTime = (time: string) => {
+  if (!time) return '-'
+  return new Date(time).toLocaleTimeString() + '+08:00'
+}
+
 const loadData = async () => {
   try {
+    if (isSearching.value) {
+      const res = await configApi.point.search({
+        tag: searchTag.value,
+        quantity: 30
+      }) as any
+      tableData.value = res.Data || []
+      total.value = tableData.value.length
+      return
+    }
     const countRes = await configApi.point.count({ page: 0, pageSize: 0 }) as any
     total.value = countRes.Data || 0
     if (total.value === 0) {
       tableData.value = []
       return
     }
-    // 加载全部点位
-    const res = await configApi.point.query({ page: 1, pageSize: total.value }) as any
+    // 分页加载点位
+    const res = await configApi.point.query({ page: page.value, pageSize: pageSize.value }) as any
     tableData.value = res.Data || []
     
     // 先通过API获取当前值
@@ -478,14 +543,7 @@ const loadData = async () => {
           // 时间延迟直接算
           const ts = item.Time ? new Date(item.Time).getTime() : Date.now()
           if (ts > 0) {
-            const delayMs = Date.now() - ts
-            const delaySec = Math.floor(delayMs / 1000)
-            let text: string
-            let cls: string
-            if (delayMs < 1000) { text = `${delayMs}ms`; cls = 'time-delay-green' }
-            else if (delaySec < 60) { text = `${delaySec}s`; cls = delayMs < 3000 ? 'time-delay-yellow' : 'time-delay-red' }
-            else { const min = Math.floor(delaySec / 60); text = `${min}m${delaySec % 60}s`; cls = 'time-delay-red' }
-            ensurePointData(pointId).timeDelay = { text, cls }
+            ensurePointData(pointId).timeDelay = calcDelay(Date.now() - ts)
           }
         }
         
@@ -493,14 +551,7 @@ const loadData = async () => {
         if (currentValueRes.Timestamp) {
           const serverTime = new Date(currentValueRes.Timestamp).getTime()
           if (serverTime > 0) {
-            const diffMs = Date.now() - serverTime
-            const sec = Math.floor(diffMs / 1000)
-            let text: string
-            let cls: string
-            if (diffMs < 1000) { text = `${diffMs}ms`; cls = 'time-delay-green' }
-            else if (sec < 60) { text = `${sec}s`; cls = diffMs < 3000 ? 'time-delay-yellow' : 'time-delay-red' }
-            else { const min = Math.floor(sec / 60); text = `${min}m${sec % 60}s`; cls = 'time-delay-red' }
-            
+            const { text, cls } = calcDelay(Date.now() - serverTime)
             // 为所有点位设置相同的API请求延迟
             for (const item of values) {
               ensurePointData(item.PointId).timeDelay = { text, cls }
@@ -527,20 +578,34 @@ const loadData = async () => {
 const handleSizeChange = (val: number) => {
   pageSize.value = val
   page.value = 1
+  isSearching.value = false
   loadData()
 }
 
 const handleCurrentChange = (val: number) => {
   page.value = val
+  isSearching.value = false
+  loadData()
+}
+
+const handleSearch = () => {
+  isSearching.value = true
+  loadData()
+}
+
+const handleReset = () => {
+  searchTag.value = '%%'
+  isSearching.value = false
   loadData()
 }
 
 const resetForm = () => {
   form.Id = 0
   form.Drive_Id = 1
-  form.Name = ''
+  form.Tag = ''
   form.Description = ''
   form.Config = ''
+  form.Conversion = ''
   form.RW_Cancel = 0
   form.Value_Type = 0
 }
@@ -557,9 +622,10 @@ const openEdit = (row: any) => {
   loadDriveList()
   form.Id = row.Id
   form.Drive_Id = row.Drive_Id
-  form.Name = row.Name
+  form.Tag = row.Tag
   form.Description = row.Description || ''
   form.Config = row.Config
+  form.Conversion = row.Conversion || ''
   form.RW_Cancel = row.RW_Cancel
   form.Value_Type = row.Value_Type
   dialogVisible.value = true
@@ -572,9 +638,10 @@ const handleSubmit = async () => {
   try {
     const data = {
       Drive_Id: form.Drive_Id,
-      Name: form.Name,
+      Tag: form.Tag,
       Description: form.Description,
       Config: form.Config,
+      Conversion: form.Conversion,
       RW_Cancel: form.RW_Cancel,
       Value_Type: form.Value_Type
     }
@@ -611,6 +678,31 @@ const handleExport = () => {
   window.open(`${exportUrl}?type=point`, '_blank')
 }
 
+// ======== 导入功能 ========
+const importDialogVisible = ref(false)
+const importFile = ref<File | null>(null)
+const importLoading = ref(false)
+
+const handleImport = async () => {
+  if (!importFile.value) {
+    ElMessage.warning(t('common.importSelectFile'))
+    return
+  }
+  importLoading.value = true
+  try {
+    const res = await importConfig(importFile.value) as any
+    const data = res.Data || {}
+    const point = data.point_config || { added: 0, updated: 0, deleted: 0 }
+    ElMessage.success(t('common.importSuccess', { added: point.added, updated: point.updated, deleted: point.deleted }))
+    importDialogVisible.value = false
+    loadData()
+  } catch (e: any) {
+    ElMessage.error(e.message || '导入失败')
+  } finally {
+    importLoading.value = false
+  }
+}
+
 // ======== 写入功能 ========
 const valueTypeNameMap: Record<number, string> = {
   1: 'bool', 2: 'int8', 3: 'uint8', 4: 'int16', 5: 'uint16',
@@ -620,19 +712,20 @@ const valueTypeNameMap: Record<number, string> = {
 
 const writeDialogVisible = ref(false)
 const writeLoading = ref(false)
-const writeValue = ref('')
-const writePoint = reactive({ Id: 0, Name: '', Value_Type: 0 })
+const writeValue = ref<string | boolean>('')
+const writePoint = reactive({ Id: 0, Tag: '', Value_Type: 0 })
 
 const openWrite = (row: any) => {
   writePoint.Id = row.Id
-  writePoint.Name = row.Name
+  writePoint.Tag = row.Tag
   writePoint.Value_Type = row.Value_Type
-  writeValue.value = ''
+  writeValue.value = row.Value_Type === 1 ? !pointData.value[row.Id]?.value : ''
   writeDialogVisible.value = true
 }
 
 const handleWrite = async () => {
-  if (writeValue.value === '') {
+  const isBool = writePoint.Value_Type === 1
+  if (!isBool && writeValue.value === '') {
     ElMessage.warning(t('point.writeValueRequired'))
     return
   }
@@ -645,7 +738,7 @@ const handleWrite = async () => {
       const num = Number(writeValue.value)
       if (!isNaN(num)) parsedValue = num
     } else if (typeName === 'bool') {
-      parsedValue = writeValue.value === 'true' || writeValue.value === '1'
+      parsedValue = !!writeValue.value
     }
     await configApi.point.writeValue([{
       PointId: writePoint.Id,

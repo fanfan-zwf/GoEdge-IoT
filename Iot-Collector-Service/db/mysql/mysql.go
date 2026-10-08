@@ -41,4 +41,7 @@ func init() {
 		log.Print("ERROR ", err)
 		panic(err)
 	}
+
+	// 校验+修复表结构（自增字段、缺失字段等）
+	CheckSqlStructure()
 }
