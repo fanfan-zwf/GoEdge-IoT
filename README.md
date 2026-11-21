@@ -6,6 +6,8 @@
 
 基于 Go 语言开发的**分布式、云端一体化工业物联网平台**，采用 **InfluxDB 高性能时序数据库**，实现 PLC 数据采集、视频监控、实时展示、历史数据查询、边缘计算与精细化权限管理，完美支持 4G / 跨网、多现场、大规模设备接入。
 
+> 🌐 **在线 Demo（前后端一体化部署）**：<http://collector.demo.zwf.fan/> —— 可直接打开体验采集、报警、历史、RBAC 等完整功能；数据为演示环境，请勿用于生产。
+
 # 核心功能
 
 1. **PLC 远程数据采集**
@@ -96,18 +98,12 @@
 
 # 项目文档
 
-## 📖 核心服务文档
+## 🖥️ 边缘采集（本仓库核心，文档已完善）
 
-### Iot-Collector-Service（边缘采集服务）
-[📘 Iot-Collector-Service 总览](./Iot-Collector-Service/README.md)
+- **后端** [📘 Iot-Collector-Service 总览](./Iot-Collector-Service/README.md)：服务入口页内含 **🧭 模块导航**，逐级链向 22 份分包详细 README（Modbus/Siemens 驱动、采集核心、HTTP/WebSocket API、RBAC、pkg 工具库等）。
+- **前端** [📗 Iot-Collector-Web 总览](./Iot-Collector-Web/README.md)：Vue3 管理台入口页内含 api / router / store / layout / views 等模块 README 与全部页面文档。
 
-**子模块文档**：
-- [IO 层 — 工业协议驱动与数据采集](./Iot-Collector-Service/IO/README.md)
-  - [Modbus TCP 驱动](./Iot-Collector-Service/IO/Modbus_Tcp/README.md)
-  - [Siemens S7 驱动](./Iot-Collector-Service/IO/Siemens_S7/README.md)
-- [db_point — 实时数据与报警管理](./Iot-Collector-Service/db/db_point/README.md)
-- [Web API 接口文档](./Iot-Collector-Service/web/README.md)
-- [远程配置同步](./Iot-Collector-Service/app/api_get_config/README.md)
+## 📖 其它服务文档
 
 ### Iot-Config-Service（配置管理服务）
 *文档待补充*
@@ -118,7 +114,7 @@
 ### Iot-User-Service（用户权限服务）
 *文档待补充*
 
-### Iot-Web（前端管理平台）
+### Iot-Web（另一前端管理平台）
 *文档待补充*
 
 # 适用场景

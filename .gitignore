@@ -21,5 +21,9 @@ logs/*
 app-*.log
 *.log.*
 
+# 5. 本地开发工具二进制（go install 到项目内的 lint 工具，勿提交）
+.tools/
+bin/
+
 # 注意：如果想保留某个特定 log 文件（例外规则），加 ! 前缀
 !important.log  # 除了 important.log，其他 .log 都忽略

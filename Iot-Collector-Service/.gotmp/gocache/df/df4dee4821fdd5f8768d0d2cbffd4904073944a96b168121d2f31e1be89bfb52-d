@@ -1,0 +1,6 @@
+./new.go
+./packet.go
+./siemens.go
+_cgo_gotypes.go
+snap7_cgo.cgo1.go
+_cgo_import.go

@@ -1,0 +1,4 @@
+./serial.go
+./serial_linux.go
+./serial_posix.go
+./termios_linux.go

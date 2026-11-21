@@ -1,0 +1,1064 @@
+/* =============================================================================
+ * 工业皮肤 · Industrial Skins
+ * -----------------------------------------------------------------------------
+ * A: Deep Console   深蓝黑 · 霓虹青 · 强制 dark
+ * B: Blueprint     象牙白 · 工程蓝 · 强制 light
+ * C: HMI Panel     深灰金属 · 安全橙 · 强制 dark
+ *
+ * 通过 <html data-theme="industrialConsole|industrialBlueprint|industrialPanel">
+ * 激活。本文件在 index.scss 中最后 @use，覆盖 dark.scss / theme.scss 同名变量。
+ * ========================================================================== */
+
+/* 共享令牌：任何皮肤都必须定义；组件层只消费 var(--ind-*) */
+:root {
+  --ind-transition: 0.25s;
+  --ind-radius: 4px;
+  --ind-radius-lg: 8px;
+  --ind-mono: ui-monospace, "JetBrains Mono", consolas, "Courier New", monospace;
+}
+
+/* ---------------------------------------------------------------------------
+ * Skin A · Deep Console
+ * ------------------------------------------------------------------------- */
+html[data-theme="industrialConsole"] {
+  /* 皮肤基础令牌 */
+  --ind-bg: #050b1e;
+  --ind-bg-2: #0b1a3a;
+  --ind-fg: #e0ecf5;
+  --ind-fg-muted: #a8c0d6;
+  --ind-fg-dim: #6a8cae;
+  --ind-accent: #4dd0e1;
+  --ind-accent-2: #2979ff;
+  --ind-accent-glow: rgb(77 208 225 / 35%);
+  --ind-success: #3ddc97;
+  --ind-warning: #ffb547;
+  --ind-danger: #ef5350;
+  --ind-border: rgb(77 208 225 / 22%);
+  --ind-border-strong: rgb(77 208 225 / 45%);
+  --ind-panel: #0d1a35;
+  --ind-panel-2: #0a1530;
+  --ind-grid: rgb(77 208 225 / 6%);
+  --ind-input-bg: rgb(6 15 30 / 70%);
+  --ind-table-header: #0d2144;
+  --ind-table-row: #0a1a34;
+  --ind-table-row-alt: #0c1c38;
+  --ind-table-hover: rgb(77 208 225 / 8%);
+  --ind-shadow: 0 10px 30px rgb(0 0 0 / 55%);
+  --ind-shadow-glow: 0 0 16px rgb(77 208 225 / 25%);
+
+  /* Element Plus 核心变量 */
+  --el-bg-color: #0d1a35;
+  --el-bg-color-page: #050b1e;
+  --el-bg-color-overlay: #0d2144;
+  --el-text-color-primary: #e0ecf5;
+  --el-text-color-regular: #a8c0d6;
+  --el-text-color-secondary: #7a93b0;
+  --el-text-color-placeholder: #5c7a99;
+  --el-text-color-disabled: #4a5b73;
+  --el-fill-color-blank: #061127;
+  --el-fill-color-light: #0d2144;
+  --el-fill-color-lighter: #0a1a34;
+  --el-fill-color: rgb(77 208 225 / 8%);
+  --el-fill-color-dark: rgb(77 208 225 / 12%);
+  --el-border-color: rgb(77 208 225 / 22%);
+  --el-border-color-light: rgb(77 208 225 / 15%);
+  --el-border-color-lighter: rgb(77 208 225 / 8%);
+  --el-border-color-extra-light: rgb(77 208 225 / 5%);
+  --el-border-color-dark: rgb(77 208 225 / 35%);
+  --el-border-color-hover: rgb(77 208 225 / 55%);
+  --el-disabled-bg-color: #061127;
+  --el-mask-color: rgb(5 11 30 / 70%);
+  --el-box-shadow-light: 0 4px 16px rgb(0 0 0 / 40%);
+
+  /* Pure Admin 布局变量（覆盖 theme.scss 同名项） */
+  --pure-border-color: rgb(77 208 225 / 15%);
+  --pure-switch-off-color: rgb(168 192 214 / 45%);
+  --pure-theme-sub-menu-active-text: #4dd0e1;
+  --pure-theme-menu-bg: #050b1e;
+  --pure-theme-menu-hover: rgb(77 208 225 / 10%);
+  --pure-theme-sub-menu-bg: #0a1530;
+  --pure-theme-menu-text: #a8c0d6;
+  --pure-theme-sidebar-logo: #0b1a3a;
+  --pure-theme-menu-title-hover: #4dd0e1;
+  --pure-theme-menu-active-before: #4dd0e1;
+
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------------------
+ * Skin B · Blueprint Light
+ * ------------------------------------------------------------------------- */
+html[data-theme="industrialBlueprint"] {
+  --ind-bg: #f7f8fb;
+  --ind-bg-2: #eef2f8;
+  --ind-fg: #182238;
+  --ind-fg-muted: #24344d;
+  --ind-fg-dim: #657693;
+  --ind-accent: #1e6fd9;
+  --ind-accent-2: #1557b0;
+  --ind-accent-glow: rgb(30 111 217 / 18%);
+  --ind-success: #22a06b;
+  --ind-warning: #d48806;
+  --ind-danger: #cf1322;
+  --ind-border: rgb(30 111 217 / 28%);
+  --ind-border-strong: rgb(30 111 217 / 55%);
+  --ind-panel: #fff;
+  --ind-panel-2: #f4f6fa;
+  --ind-grid: rgb(30 111 217 / 7%);
+  --ind-input-bg: #f4f6fa;
+  --ind-table-header: #eaf0f9;
+  --ind-table-row: #fff;
+  --ind-table-row-alt: #f7f9fc;
+  --ind-table-hover: rgb(30 111 217 / 6%);
+  --ind-shadow: 0 4px 16px rgb(30 111 217 / 10%);
+  --ind-shadow-glow: 0 0 8px rgb(30 111 217 / 15%);
+  --el-bg-color: #fff;
+  --el-bg-color-page: #f7f8fb;
+  --el-bg-color-overlay: #fff;
+  --el-text-color-primary: #182238;
+  --el-text-color-regular: #24344d;
+  --el-text-color-secondary: #657693;
+  --el-text-color-placeholder: #96a2b8;
+  --el-text-color-disabled: #b8c2d1;
+  --el-fill-color-blank: #fff;
+  --el-fill-color-light: #eaf0f9;
+  --el-fill-color-lighter: #f4f6fa;
+  --el-fill-color: rgb(30 111 217 / 6%);
+  --el-fill-color-dark: rgb(30 111 217 / 10%);
+  --el-border-color: rgb(30 111 217 / 28%);
+  --el-border-color-light: rgb(30 111 217 / 18%);
+  --el-border-color-lighter: rgb(30 111 217 / 10%);
+  --el-border-color-extra-light: rgb(30 111 217 / 5%);
+  --el-border-color-dark: rgb(30 111 217 / 45%);
+  --el-border-color-hover: rgb(30 111 217 / 70%);
+  --el-disabled-bg-color: #f4f6fa;
+  --el-mask-color: rgb(255 255 255 / 85%);
+  --el-box-shadow-light: 0 4px 16px rgb(30 111 217 / 15%);
+  --pure-border-color: rgb(30 111 217 / 22%);
+  --pure-switch-off-color: rgb(36 52 77 / 35%);
+  --pure-theme-sub-menu-active-text: #1e6fd9;
+  --pure-theme-menu-bg: #fff;
+  --pure-theme-menu-hover: rgb(30 111 217 / 8%);
+  --pure-theme-sub-menu-bg: #f4f6fa;
+  --pure-theme-menu-text: #24344d;
+  --pure-theme-sidebar-logo: #fff;
+  --pure-theme-menu-title-hover: #1e6fd9;
+  --pure-theme-menu-active-before: #1e6fd9;
+
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------------------------
+ * Skin C · HMI Panel
+ * ------------------------------------------------------------------------- */
+html[data-theme="industrialPanel"] {
+  --ind-bg: #14171d;
+  --ind-bg-2: #1a1d23;
+  --ind-fg: #e6e8ec;
+  --ind-fg-muted: #a8b0bd;
+  --ind-fg-dim: #6b7280;
+  --ind-accent: #ff8a3d;
+  --ind-accent-2: #ffa256;
+  --ind-accent-glow: rgb(255 138 61 / 35%);
+  --ind-success: #3ddc97;
+  --ind-warning: #ffb547;
+  --ind-danger: #ef5350;
+  --ind-cyan: #4dd0e1;
+  --ind-border: #3a4048;
+  --ind-border-strong: #555b64;
+  --ind-panel: #1e2128;
+  --ind-panel-2: #252a33;
+  --ind-grid: rgb(255 138 61 / 5%);
+  --ind-input-bg: #14171d;
+  --ind-table-header: #252a33;
+  --ind-table-row: #1a1d23;
+  --ind-table-row-alt: #1e2128;
+  --ind-table-hover: rgb(255 138 61 / 8%);
+  --ind-shadow: 0 10px 30px rgb(0 0 0 / 60%);
+  --ind-shadow-glow: 0 0 12px rgb(255 138 61 / 30%);
+  --el-bg-color: #1e2128;
+  --el-bg-color-page: #14171d;
+  --el-bg-color-overlay: #252a33;
+  --el-text-color-primary: #e6e8ec;
+  --el-text-color-regular: #a8b0bd;
+  --el-text-color-secondary: #7c8494;
+  --el-text-color-placeholder: #5c6270;
+  --el-text-color-disabled: #4a4f57;
+  --el-fill-color-blank: #14171d;
+  --el-fill-color-light: #252a33;
+  --el-fill-color-lighter: #1e2128;
+  --el-fill-color: rgb(255 138 61 / 8%);
+  --el-fill-color-dark: rgb(255 138 61 / 14%);
+  --el-border-color: #3a4048;
+  --el-border-color-light: #2c3037;
+  --el-border-color-lighter: #252a33;
+  --el-border-color-extra-light: #1e2128;
+  --el-border-color-dark: #4a4f57;
+  --el-border-color-hover: #ff8a3d;
+  --el-disabled-bg-color: #1e2128;
+  --el-mask-color: rgb(20 23 29 / 75%);
+  --el-box-shadow-light: 0 4px 16px rgb(0 0 0 / 50%);
+  --pure-border-color: rgb(255 138 61 / 22%);
+  --pure-switch-off-color: rgb(168 176 189 / 40%);
+  --pure-theme-sub-menu-active-text: #ff8a3d;
+  --pure-theme-menu-bg: #14171d;
+  --pure-theme-menu-hover: rgb(255 138 61 / 10%);
+  --pure-theme-sub-menu-bg: #1a1d23;
+  --pure-theme-menu-text: #a8b0bd;
+  --pure-theme-sidebar-logo: #1e2128;
+  --pure-theme-menu-title-hover: #ff8a3d;
+  --pure-theme-menu-active-before: #ff8a3d;
+
+  color-scheme: dark;
+}
+
+/* ===========================================================================
+ * 通用布局覆盖：body / 内容区背景 / 卡片阴影
+ * ========================================================================= */
+html[data-theme^="industrial"] body {
+  color: var(--ind-fg);
+  background-color: var(--ind-bg) !important;
+  transition:
+    background-color var(--ind-transition),
+    color var(--ind-transition);
+}
+
+html[data-theme^="industrial"] .app-main,
+html[data-theme^="industrial"] .app-main-nofixed-header,
+html[data-theme^="industrial"] .main-container {
+  background-color: var(--ind-bg) !important;
+}
+
+/* 侧栏 / 顶栏 / 标签栏 */
+html[data-theme^="industrial"] .sidebar-container,
+html[data-theme^="industrial"] .navbar,
+html[data-theme^="industrial"] .tags-view {
+  color: var(--ind-fg);
+  background-color: var(--ind-panel) !important;
+}
+
+html[data-theme^="industrial"] .sidebar-container {
+  border-right: 1px solid var(--ind-border);
+}
+
+html[data-theme^="industrial"] .navbar {
+  border-bottom: 1px solid var(--ind-border);
+  box-shadow: none;
+}
+
+html[data-theme^="industrial"] .tags-view {
+  border-bottom: 1px solid var(--ind-border);
+}
+
+/* Console 皮肤下顶栏加霓虹下划线 */
+html[data-theme="industrialConsole"] .navbar {
+  border-bottom: 1px solid rgb(77 208 225 / 30%);
+  box-shadow: 0 1px 0 rgb(77 208 225 / 15%);
+}
+
+/* Panel 皮肤下顶栏加橙色下划线 */
+html[data-theme="industrialPanel"] .navbar {
+  border-bottom: 2px solid rgb(255 138 61 / 35%);
+  box-shadow: 0 1px 0 rgb(255 138 61 / 15%);
+}
+
+/* Blueprint 皮肤下顶栏加蓝图刻线 */
+html[data-theme="industrialBlueprint"] .navbar {
+  border-bottom: 1.5px solid rgb(30 111 217 / 40%);
+}
+
+/* 顶栏右侧图标 / 用户名：原 scoped 硬编码 #000000d9，深色皮肤下不可读 */
+html[data-theme^="industrial"] .navbar .vertical-header-right,
+html[data-theme^="industrial"] .navbar .el-dropdown-link,
+html[data-theme^="industrial"] .navbar .el-dropdown-link p,
+html[data-theme^="industrial"] .navbar .flex h5,
+html[data-theme^="industrial"] .navbar .flex .el-icon,
+html[data-theme^="industrial"] .navbar [class*="-container"] .el-icon {
+  color: var(--ind-fg) !important;
+}
+
+html[data-theme^="industrial"] .navbar .el-dropdown-link:hover,
+html[data-theme^="industrial"] .navbar .flex .el-icon:hover {
+  color: var(--ind-accent) !important;
+}
+
+/* 面包屑 / 顶栏搜索框文字 */
+html[data-theme^="industrial"] .navbar .el-breadcrumb__inner,
+html[data-theme^="industrial"] .navbar .el-breadcrumb__inner a {
+  color: var(--ind-fg-muted);
+}
+
+html[data-theme^="industrial"] .navbar .el-breadcrumb__item:last-child .el-breadcrumb__inner {
+  color: var(--ind-fg);
+}
+
+html[data-theme^="industrial"] .navbar .el-input__inner,
+html[data-theme^="industrial"] .navbar .el-select .el-input__inner {
+  color: var(--ind-fg);
+}
+
+/* ===========================================================================
+ * Element Plus 组件皮肤细节（卡片 / 表格 / 表单 / 弹窗 / Tag）
+ * ========================================================================= */
+
+/* 卡片 */
+html[data-theme^="industrial"] .el-card {
+  color: var(--ind-fg);
+  background: var(--ind-panel);
+  border-color: var(--ind-border);
+  box-shadow: var(--ind-shadow);
+}
+
+html[data-theme^="industrial"] .el-card__header {
+  color: var(--ind-fg);
+  border-bottom: 1px solid var(--ind-border);
+}
+
+/* Blueprint 卡片带工程角标（外层 .el-card 四角） */
+html[data-theme="industrialBlueprint"] .el-card {
+  position: relative;
+  border: 1.2px solid var(--ind-accent);
+  border-radius: 3px;
+  box-shadow: 0 4px 16px rgb(30 111 217 / 12%);
+}
+
+/* Console 卡片带发光边 */
+html[data-theme="industrialConsole"] .el-card {
+  border: 1px solid rgb(77 208 225 / 28%);
+  box-shadow:
+    0 10px 30px rgb(0 0 0 / 40%),
+    inset 0 0 30px rgb(77 208 225 / 3%);
+  backdrop-filter: blur(6px);
+}
+
+/* Panel 卡片带立体边框 + 内嵌阴影 */
+html[data-theme="industrialPanel"] .el-card {
+  background: linear-gradient(180deg, #2a2e37 0%, #1e2128 100%);
+  border: 2px solid #3a4048;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 6%),
+    inset 0 0 30px rgb(0 0 0 / 35%),
+    0 12px 30px rgb(0 0 0 / 50%),
+    0 0 0 4px #17191f;
+}
+
+/* 表格 */
+html[data-theme^="industrial"] .el-table {
+  --el-table-border-color: var(--ind-border);
+  --el-table-header-bg-color: var(--ind-table-header);
+  --el-table-header-text-color: var(--ind-fg);
+  --el-table-row-hover-bg-color: color-mix(in srgb, var(--ind-table-hover), var(--ind-table-row));
+  --el-table-tr-bg-color: var(--ind-table-row);
+  --el-table-bg-color: var(--ind-table-row);
+  --el-table-current-row-bg-color: color-mix(in srgb, var(--ind-accent-glow), var(--ind-table-row));
+  --el-table-expanded-cell-bg-color: var(--ind-table-row-alt);
+
+  color: var(--ind-fg);
+  background-color: var(--ind-table-row);
+}
+
+html[data-theme^="industrial"] .el-table th.el-table__cell {
+  font-weight: 600;
+  color: var(--ind-fg);
+  letter-spacing: 0.5px;
+  background-color: var(--ind-table-header) !important;
+}
+
+html[data-theme^="industrial"] .el-table tr,
+html[data-theme^="industrial"] .el-table__body {
+  background-color: var(--ind-table-row);
+}
+
+html[data-theme^="industrial"] .el-table__footer-wrapper,
+html[data-theme^="industrial"] .el-table__header-wrapper {
+  background-color: var(--ind-table-header);
+}
+
+html[data-theme^="industrial"] .el-table--border .el-table__cell,
+html[data-theme^="industrial"] .el-table__body-wrapper .el-table__cell {
+  border-color: var(--ind-border);
+}
+
+html[data-theme^="industrial"] .el-table__empty-block,
+html[data-theme^="industrial"] .el-table__empty-text {
+  color: var(--ind-fg-dim);
+  background-color: var(--ind-table-row);
+}
+
+html[data-theme^="industrial"] .el-table .cell {
+  color: var(--ind-fg);
+}
+
+/* 输入框 */
+html[data-theme^="industrial"] .el-input__wrapper {
+  background-color: var(--ind-input-bg);
+  border-radius: var(--ind-radius);
+  box-shadow: 0 0 0 1px var(--ind-border) inset;
+}
+
+html[data-theme^="industrial"] .el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--ind-border-strong) inset;
+}
+
+html[data-theme^="industrial"] .el-input__wrapper.is-focus {
+  box-shadow:
+    0 0 0 1.5px var(--ind-accent) inset,
+    0 0 10px var(--ind-accent-glow) !important;
+}
+
+html[data-theme^="industrial"] .el-input__inner,
+html[data-theme^="industrial"] .el-textarea__inner {
+  color: var(--ind-fg);
+  background-color: transparent;
+}
+
+html[data-theme^="industrial"] .el-textarea__inner {
+  background-color: var(--ind-input-bg);
+  box-shadow: 0 0 0 1px var(--ind-border) inset;
+}
+
+html[data-theme^="industrial"] .el-textarea__inner:focus {
+  box-shadow:
+    0 0 0 1.5px var(--ind-accent) inset,
+    0 0 10px var(--ind-accent-glow);
+}
+
+/* Panel 皮肤的输入框带内嵌阴影（仿真实 HMI 面板输入区） */
+html[data-theme="industrialPanel"] .el-input__wrapper {
+  box-shadow:
+    inset 0 2px 4px rgb(0 0 0 / 50%),
+    0 0 0 1px #3a4048;
+}
+
+html[data-theme="industrialPanel"] .el-input__wrapper.is-focus {
+  box-shadow:
+    inset 0 2px 4px rgb(0 0 0 / 50%),
+    0 0 0 1.5px #ff8a3d,
+    0 0 10px rgb(255 138 61 / 35%) !important;
+}
+
+/* Select / DatePicker / InputNumber 弹出面板 */
+html[data-theme^="industrial"] .el-select-dropdown,
+html[data-theme^="industrial"] .el-picker-panel,
+html[data-theme^="industrial"] .el-popper.is-light {
+  color: var(--ind-fg);
+  background: var(--ind-panel);
+  border-color: var(--ind-border);
+}
+
+html[data-theme^="industrial"] .el-select-dropdown__item {
+  color: var(--ind-fg-muted);
+}
+
+html[data-theme^="industrial"] .el-select-dropdown__item.hover,
+html[data-theme^="industrial"] .el-select-dropdown__item:hover {
+  color: var(--ind-fg);
+  background: var(--ind-table-hover);
+}
+
+html[data-theme^="industrial"] .el-select-dropdown__item.is-selected {
+  font-weight: 600;
+  color: var(--ind-accent);
+}
+
+html[data-theme^="industrial"] .el-popper.is-light .el-popper__arrow::before {
+  background: var(--ind-panel) !important;
+  border-color: var(--ind-border) !important;
+}
+
+/* 按钮：primary 跟随皮肤主色；三套皮肤各自 hover */
+/* 仅针对实心按钮：白字+蓝底是实心的正常形态 */
+html[data-theme^="industrial"] .el-button--primary:not(.is-link, .is-text) {
+  --el-button-bg-color: var(--ind-accent);
+  --el-button-border-color: var(--ind-accent);
+  --el-button-hover-bg-color: var(--ind-accent-2);
+  --el-button-hover-border-color: var(--ind-accent-2);
+  --el-button-text-color: var(--el-color-white);
+}
+
+/* link / text 型 primary 按钮：背景本就透明，文字必须用主色，
+   否则 Blueprint 这种浅底皮肤上白字会直接看不见；深色皮肤下主色同样高对比 */
+html[data-theme^="industrial"] .el-button--primary.is-link,
+html[data-theme^="industrial"] .el-button--primary.is-text {
+  --el-button-bg-color: transparent;
+  --el-button-border-color: transparent;
+  --el-button-text-color: var(--ind-accent);
+  --el-button-hover-bg-color: var(--ind-accent-glow);
+  --el-button-hover-border-color: transparent;
+  --el-button-hover-text-color: var(--ind-accent-2);
+}
+
+/* Console primary 按钮：横向霓虹渐变 + 光晕 */
+html[data-theme="industrialConsole"] .el-button--primary:not(.is-link, .is-text) {
+  letter-spacing: 1.5px;
+  background: linear-gradient(90deg, #4dd0e1, #2979ff);
+  border: none;
+  box-shadow: 0 4px 14px rgb(41 121 255 / 35%);
+}
+
+html[data-theme="industrialConsole"] .el-button--primary:not(.is-link, .is-text):hover {
+  box-shadow:
+    0 6px 20px rgb(77 208 225 / 45%),
+    0 0 18px rgb(77 208 225 / 25%);
+  transform: translateY(-1px);
+}
+
+/* Panel primary 按钮：立体工业按钮 + 内嵌高光 */
+html[data-theme="industrialPanel"] .el-button--primary:not(.is-link, .is-text) {
+  font-weight: 700;
+  color: #fff5eb;
+  letter-spacing: 2px;
+  background: linear-gradient(180deg, #ffa256, #ff8a3d 45%, #e5772a);
+  border: 1px solid #7d3b0a;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 35%),
+    inset 0 -3px 0 rgb(0 0 0 / 20%),
+    0 3px 0 #7d3b0a;
+}
+
+html[data-theme="industrialPanel"] .el-button--primary:not(.is-link, .is-text):active {
+  box-shadow:
+    inset 0 2px 6px rgb(0 0 0 / 40%),
+    0 0 0 #7d3b0a;
+  transform: translateY(2px);
+}
+
+/* Blueprint primary 按钮：深蓝实心小圆角 */
+html[data-theme="industrialBlueprint"] .el-button--primary:not(.is-link, .is-text) {
+  background: #1e6fd9;
+  border-radius: 3px;
+  box-shadow: 0 2px 0 rgb(30 111 217 / 20%);
+}
+
+html[data-theme="industrialBlueprint"] .el-button--primary:not(.is-link, .is-text):hover {
+  background: #1557b0;
+}
+
+/* Dialog 弹窗 */
+html[data-theme^="industrial"] .el-dialog {
+  color: var(--ind-fg);
+  background: var(--ind-panel);
+  border: 1px solid var(--ind-border);
+  box-shadow: var(--ind-shadow);
+}
+
+html[data-theme^="industrial"] .el-dialog__title {
+  font-weight: 600;
+  color: var(--ind-fg);
+  letter-spacing: 0.5px;
+}
+
+html[data-theme^="industrial"] .el-dialog__body {
+  color: var(--ind-fg-muted);
+}
+
+html[data-theme^="industrial"] .el-dialog__header {
+  padding-bottom: 14px;
+  margin-right: 0;
+  border-bottom: 1px solid var(--ind-border);
+}
+
+html[data-theme^="industrial"] .el-dialog__footer {
+  padding-top: 14px;
+  border-top: 1px solid var(--ind-border);
+}
+
+/* Drawer / Message */
+html[data-theme^="industrial"] .el-drawer {
+  color: var(--ind-fg);
+  background: var(--ind-panel);
+}
+
+html[data-theme^="industrial"] .el-message {
+  min-width: 240px;
+  color: var(--ind-fg) !important;
+  background: var(--ind-panel) !important;
+  border-color: var(--ind-border) !important;
+}
+
+html[data-theme^="industrial"] .el-message__content {
+  color: var(--ind-fg) !important;
+}
+
+html[data-theme^="industrial"] .el-message--success {
+  border-left: 3px solid var(--ind-success) !important;
+}
+
+html[data-theme^="industrial"] .el-message--warning {
+  border-left: 3px solid var(--ind-warning) !important;
+}
+
+html[data-theme^="industrial"] .el-message--error {
+  border-left: 3px solid var(--ind-danger) !important;
+}
+
+html[data-theme^="industrial"] .el-message--info {
+  border-left: 3px solid var(--ind-accent) !important;
+}
+
+/* Tag */
+html[data-theme^="industrial"] .el-tag {
+  font-family: var(--ind-mono);
+  color: var(--ind-accent);
+  letter-spacing: 1px;
+  background: var(--ind-accent-glow);
+  border-color: var(--ind-border-strong);
+}
+
+html[data-theme^="industrial"] .el-tag--success {
+  color: var(--ind-success);
+  background: rgb(61 220 151 / 15%);
+  border-color: rgb(61 220 151 / 45%);
+}
+
+html[data-theme^="industrial"] .el-tag--warning {
+  color: var(--ind-warning);
+  background: rgb(255 181 71 / 15%);
+  border-color: rgb(255 181 71 / 45%);
+}
+
+html[data-theme^="industrial"] .el-tag--danger {
+  color: var(--ind-danger);
+  background: rgb(239 83 80 / 15%);
+  border-color: rgb(239 83 80 / 45%);
+}
+
+html[data-theme^="industrial"] .el-tag--info {
+  color: var(--ind-fg-muted);
+  background: var(--ind-fill, rgb(168 192 214 / 12%));
+  border-color: var(--ind-border);
+}
+
+/* Pagination */
+html[data-theme^="industrial"] .el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-text-color: var(--ind-fg-muted);
+  --el-pagination-button-color: var(--ind-fg-muted);
+  --el-pagination-button-bg-color: var(--ind-panel);
+  --el-pagination-hover-color: var(--ind-accent);
+  --el-pagination-button-disabled-color: var(--ind-fg-dim);
+  --el-pagination-button-disabled-bg-color: transparent;
+}
+
+html[data-theme^="industrial"] .el-pagination .el-pager li.is-active {
+  color: var(--ind-accent);
+  background: var(--ind-accent-glow);
+}
+
+html[data-theme^="industrial"] .el-pagination .el-input__wrapper {
+  background: var(--ind-input-bg);
+}
+
+/* Form label / Radio / Checkbox */
+html[data-theme^="industrial"] .el-form-item__label {
+  color: var(--ind-fg-muted);
+}
+
+html[data-theme^="industrial"] .el-radio__label,
+html[data-theme^="industrial"] .el-checkbox__label {
+  color: var(--ind-fg);
+}
+
+html[data-theme^="industrial"] .el-radio__inner,
+html[data-theme^="industrial"] .el-checkbox__inner {
+  background: var(--ind-input-bg);
+  border-color: var(--ind-border);
+}
+
+html[data-theme^="industrial"] .el-radio__input.is-checked .el-radio__inner,
+html[data-theme^="industrial"] .el-checkbox__input.is-checked .el-checkbox__inner {
+  background: var(--ind-accent);
+  border-color: var(--ind-accent);
+}
+
+html[data-theme^="industrial"] .el-checkbox__input.is-checked + .el-checkbox__label,
+html[data-theme^="industrial"] .el-radio__input.is-checked + .el-radio__label {
+  color: var(--ind-accent);
+}
+
+/* Switch off 状态 */
+html[data-theme^="industrial"] .el-switch:not(.is-checked) .el-switch__core {
+  background: var(--ind-panel-2) !important;
+  border-color: var(--ind-border) !important;
+}
+
+/* Tabs */
+html[data-theme^="industrial"] .el-tabs__item {
+  color: var(--ind-fg-muted);
+}
+
+html[data-theme^="industrial"] .el-tabs__item.is-active {
+  color: var(--ind-accent);
+}
+
+html[data-theme^="industrial"] .el-tabs__nav-wrap::after {
+  background-color: var(--ind-border);
+}
+
+html[data-theme^="industrial"] .el-tabs__active-bar {
+  background-color: var(--ind-accent);
+}
+
+/* Dropdown 下拉 */
+html[data-theme^="industrial"] .el-dropdown-menu {
+  background: var(--ind-panel);
+  border-color: var(--ind-border);
+}
+
+html[data-theme^="industrial"] .el-dropdown-menu__item {
+  color: var(--ind-fg-muted);
+}
+
+html[data-theme^="industrial"] .el-dropdown-menu__item:not(.is-disabled):hover {
+  color: var(--ind-accent);
+  background: var(--ind-table-hover);
+}
+
+/* Tooltip */
+html[data-theme^="industrial"] .el-tooltip__popper.is-dark {
+  color: var(--ind-fg);
+  background: var(--ind-panel-2);
+}
+
+/* Breadcrumb */
+html[data-theme^="industrial"] .el-breadcrumb__inner,
+html[data-theme^="industrial"] .el-breadcrumb__inner a {
+  color: var(--ind-fg-muted);
+}
+
+html[data-theme^="industrial"] .el-breadcrumb__item:last-child .el-breadcrumb__inner {
+  color: var(--ind-fg);
+}
+
+html[data-theme^="industrial"] .el-breadcrumb__separator {
+  color: var(--ind-fg-dim);
+}
+
+/* Scrollbar */
+html[data-theme^="industrial"] ::-webkit-scrollbar-thumb {
+  background: var(--ind-border-strong);
+  border-radius: 4px;
+}
+
+html[data-theme^="industrial"] ::-webkit-scrollbar-track {
+  background: var(--ind-bg);
+}
+
+/* Descriptions / Steps / Tree */
+html[data-theme^="industrial"] .el-descriptions {
+  --el-descriptions-item-bordered-label-background: var(--ind-panel-2);
+
+  color: var(--ind-fg);
+  background: transparent;
+}
+
+html[data-theme^="industrial"] .el-descriptions__body {
+  color: var(--ind-fg);
+  background: transparent;
+}
+
+html[data-theme^="industrial"] .el-descriptions__table {
+  background: transparent;
+}
+
+html[data-theme^="industrial"] .el-descriptions__cell {
+  color: var(--ind-fg);
+}
+
+html[data-theme^="industrial"] .el-descriptions__label {
+  color: var(--ind-fg-muted) !important;
+}
+
+html[data-theme^="industrial"] .el-descriptions__content {
+  color: var(--ind-fg) !important;
+}
+
+html[data-theme^="industrial"] .el-descriptions-item__label.is-bordered-label {
+  font-weight: 500;
+  color: var(--ind-fg-muted) !important;
+  background: var(--ind-panel-2);
+}
+
+html[data-theme^="industrial"] .el-descriptions .is-bordered .el-descriptions-item__cell {
+  border-color: var(--ind-border);
+}
+
+/* Progress —— 内部文字（text-inside）保持白色，外部/百分比跟随皮肤 */
+html[data-theme^="industrial"] .el-progress__text {
+  color: var(--ind-fg);
+}
+
+html[data-theme^="industrial"] .el-progress--inside .el-progress__text {
+  color: var(--el-color-white) !important;
+  text-shadow: 0 0 2px rgb(0 0 0 / 50%);
+}
+
+html[data-theme^="industrial"] .el-progress-bar__outer {
+  background-color: var(--ind-panel-2);
+}
+
+/* Card body 继承色：避免 scoped 组件内未重设的默认黑色 */
+html[data-theme^="industrial"] .el-card {
+  --el-card-bg-color: var(--ind-panel);
+}
+
+html[data-theme^="industrial"] .el-card__body {
+  color: var(--ind-fg);
+}
+
+html[data-theme^="industrial"] .el-tree {
+  color: var(--ind-fg);
+  background: transparent;
+}
+
+html[data-theme^="industrial"] .el-tree-node__content:hover {
+  background: var(--ind-table-hover);
+}
+
+html[data-theme^="industrial"] .el-tree-node.is-current > .el-tree-node__content {
+  background: var(--ind-accent-glow);
+}
+
+/* ===========================================================================
+ * 皮肤专属布局细节（骨架期：Console 网格底 + Blueprint CAD 底 + Panel 金属底）
+ * ========================================================================= */
+
+/* Console：内容区加极淡等距网格 */
+html[data-theme="industrialConsole"] .app-main {
+  background-image:
+    linear-gradient(rgb(77 208 225 / 4%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(77 208 225 / 4%) 1px, transparent 1px);
+  background-position: 0 0;
+  background-size: 40px 40px;
+}
+
+/* Blueprint：内容区加 CAD 双层网格 */
+html[data-theme="industrialBlueprint"] .app-main {
+  background-color: #f7f8fb;
+  background-image:
+    repeating-linear-gradient(0deg, rgb(30 111 217 / 5%) 0 1px, transparent 1px 40px),
+    repeating-linear-gradient(90deg, rgb(30 111 217 / 5%) 0 1px, transparent 1px 40px),
+    repeating-linear-gradient(0deg, rgb(30 111 217 / 10%) 0 1px, transparent 1px 200px),
+    repeating-linear-gradient(90deg, rgb(30 111 217 / 10%) 0 1px, transparent 1px 200px);
+}
+
+/* Panel：内容区金属拉丝 + 微弱橙色高光 */
+html[data-theme="industrialPanel"] .app-main {
+  background-color: #1a1d23;
+  background-image:
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 1.5%) 0 2px, transparent 2px 4px),
+    radial-gradient(600px 400px at 90% 20%, rgb(255 138 61 / 5%), transparent 60%);
+}
+
+/* ===========================================================================
+ * 皮肤徽标类（供布局组件使用，如 .ind-skin-tag）
+ * ========================================================================= */
+.ind-skin-tag {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 8px;
+  font-family: var(--ind-mono);
+  font-size: 10px;
+  color: var(--ind-accent);
+  letter-spacing: 2px;
+  background: var(--ind-accent-glow);
+  border: 1px solid var(--ind-border);
+  border-radius: 3px;
+}
+
+html[data-theme="industrialConsole"] .ind-skin-tag::before {
+  content: "// ";
+  opacity: 0.7;
+}
+
+html[data-theme="industrialBlueprint"] .ind-skin-tag::before {
+  content: "DWG·";
+}
+
+html[data-theme="industrialPanel"] .ind-skin-tag::before {
+  color: var(--ind-success);
+  content: "◉ ";
+}
+
+/* ===========================================================================
+ * 呼吸灯 / 信号流动条（可复用 utility 类，供 Phase 2/3 布局与页面使用）
+ * ========================================================================= */
+.ind-led {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--ind-accent);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--ind-accent);
+  animation: ind-pulse 2s ease-in-out infinite;
+}
+
+.ind-led.is-success {
+  background: var(--ind-success);
+  box-shadow: 0 0 8px var(--ind-success);
+}
+
+.ind-led.is-warning {
+  background: var(--ind-warning);
+  box-shadow: 0 0 8px var(--ind-warning);
+  animation-duration: 2.4s;
+}
+
+.ind-led.is-danger {
+  background: var(--ind-danger);
+  box-shadow: 0 0 6px rgb(239 83 80 / 60%);
+  opacity: 0.6;
+}
+
+@keyframes ind-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+.ind-signal-bar {
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  background: linear-gradient(90deg, transparent, var(--ind-accent), transparent);
+  opacity: 0.6;
+}
+
+.ind-signal-bar::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, transparent, var(--ind-fg), transparent);
+  opacity: 0.4;
+  animation: ind-flow 4s linear infinite;
+}
+
+@keyframes ind-flow {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Blueprint 皮肤下的信号带改成 marching-ants 虚线 */
+html[data-theme="industrialBlueprint"] .ind-signal-bar {
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--ind-accent) 0 8px, transparent 8px 14px);
+  opacity: 0.55;
+}
+
+html[data-theme="industrialBlueprint"] .ind-signal-bar::after {
+  background: linear-gradient(90deg, transparent, var(--ind-accent), transparent);
+  animation: ind-march 2s linear infinite;
+}
+
+@keyframes ind-march {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(14px);
+  }
+}
+
+/* ===========================================================================
+ * 标签栏 lay-tag（chrome / card / smart）在工业皮肤下的适配
+ * ---------------------------------------------------------------------------
+ * 原 scoped 样式里硬编码了 #dee1e6 / #1f1f1f / #666 / #fff 等颜色，
+ * 在 Console / Panel 深色皮肤下会造成未选中标签文字 “浅底 + 浅字” 不可读。
+ * 本段仅在 html[data-theme^="industrial"] 作用域内覆盖。
+ * ========================================================================= */
+
+/* 1. 容器：保证深色底 + 可读文字 */
+html[data-theme^="industrial"] .tags-view {
+  background: var(--ind-panel-2) !important;
+  border-bottom: 1px solid var(--ind-border);
+  box-shadow: none !important;
+}
+
+/* 2. 未选中标签 - 默认状态（非 hover、非 active） */
+html[data-theme^="industrial"] .tags-view .tag-title {
+  color: var(--ind-fg-muted) !important;
+}
+
+html[data-theme^="industrial"] .tags-view .chrome-tab .chrome-tab__bg {
+  color: transparent !important;
+}
+
+/* 3. Hover 态：文字变亮 + SVG 背景预混实心色（不用半透 glow）
+   — TagChrome SVG 由左右两半 width=51% 镜像拼接，中间 2% 会重叠绘制；
+     若半透填充，重叠区会双画→出现一根“高亮背景上的小竖线”。
+   — 改用 color-mix 预混 accent+panel 为不透明色，双画也不会变深，拼缝自然消失。 */
+html[data-theme^="industrial"] .tags-view .chrome-tab:hover .chrome-tab__bg {
+  color: color-mix(in srgb, var(--ind-accent) 18%, var(--ind-panel)) !important;
+}
+
+html[data-theme^="industrial"] .tags-view .chrome-tab:hover .tag-title {
+  color: var(--ind-fg) !important;
+}
+
+/* 工业皮肤的 hover 填充是半透的 accent-glow，会透出邻标签的分隔线（chrome-tab-divider），
+   形成“中间一根小竖线”。这里显式把当前及右侧邻标签的分隔线都强制隐藏。
+   同时隐藏左侧标签的分隔线，避免前一个标签未 hover 时其分隔线透过半透填充露出。 */
+html[data-theme^="industrial"] .tags-view .chrome-tab:hover .chrome-tab-divider,
+html[data-theme^="industrial"] .tags-view .chrome-item:hover + .chrome-item .chrome-tab-divider,
+html[data-theme^="industrial"] .tags-view .chrome-item:has(+ .chrome-item:hover) .chrome-tab-divider {
+  opacity: 0 !important;
+}
+
+/* 4. 选中标签：文字高亮为 accent + 发光，SVG 底为 panel-2 拉开层级 */
+html[data-theme^="industrial"] .tags-view .scroll-item.is-active .tag-title {
+  color: var(--ind-accent) !important;
+  text-shadow: 0 0 6px var(--ind-accent-glow);
+}
+
+html[data-theme^="industrial"] .tags-view .scroll-item.is-active .chrome-tab__bg {
+  color: var(--ind-panel) !important;
+}
+
+/* 5. card / smart 风格下文字也一并覆盖 */
+html[data-theme^="industrial"] .tags-view .card-out,
+html[data-theme^="industrial"] .tags-view .card-out .tag-title {
+  color: var(--ind-fg-muted) !important;
+}
+
+html[data-theme^="industrial"] .tags-view .card-in,
+html[data-theme^="industrial"] .tags-view .card-in .tag-title {
+  color: var(--ind-accent) !important;
+}
+
+/* 6. 关闭按钮颜色修正 */
+html[data-theme^="industrial"] .tags-view .chrome-close-btn {
+  color: var(--ind-fg-muted) !important;
+}
+
+html[data-theme^="industrial"] .tags-view .chrome-close-btn:hover {
+  color: var(--ind-bg) !important;
+  background-color: var(--ind-accent) !important;
+}
+
+html[data-theme^="industrial"] .tags-view .el-icon-close {
+  color: var(--ind-fg-muted) !important;
+}
+
+html[data-theme^="industrial"] .tags-view .el-icon-close:hover {
+  color: var(--ind-bg) !important;
+  background-color: var(--ind-accent) !important;
+}
+
+/* 7. 分隔线颜色修正 */
+html[data-theme^="industrial"] .tags-view .chrome-tab-divider {
+  background-color: var(--ind-border) !important;
+}

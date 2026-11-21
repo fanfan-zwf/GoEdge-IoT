@@ -1,0 +1,263 @@
+.el-form-item__label {
+  font-weight: 700;
+}
+
+/* EP 2.3+ 弹窗 body 不再自带上下内边距，表单首行紧贴标题显得太靠上；
+   统一给「弹窗内表单」留出顶部呼吸空间（只作用于 form，不改动弹窗本身定位/尺寸） */
+.el-dialog__body .el-form {
+  padding-top: 12px;
+}
+
+.el-breadcrumb__inner,
+.el-breadcrumb__inner a {
+  font-weight: 400 !important;
+}
+
+.el-dropdown-menu {
+  padding: 0 !important;
+}
+
+.is-dark {
+  z-index: 9999 !important;
+}
+
+/* 重置 el-button 中 icon 的 margin */
+.reset-margin [class*="el-icon"] + span {
+  margin-left: 2px !important;
+}
+
+/* 自定义 popover 的类名 */
+.pure-popper {
+  padding: 0 !important;
+}
+
+/* nprogress 适配 element-plus 的主题色 */
+#nprogress {
+  & .bar {
+    background-color: var(--el-color-primary) !important;
+  }
+
+  & .peg {
+    box-shadow:
+      0 0 10px var(--el-color-primary),
+      0 0 5px var(--el-color-primary) !important;
+  }
+
+  & .spinner-icon {
+    border-top-color: var(--el-color-primary);
+    border-left-color: var(--el-color-primary);
+  }
+}
+
+.pure-dialog {
+  .el-dialog__header.show-close {
+    padding-right: 16px;
+  }
+
+  .el-dialog__headerbtn {
+    top: 16px;
+    right: 12px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .pure-dialog-svg {
+    color: var(--el-color-info);
+  }
+
+  .el-dialog__footer {
+    padding-top: 0;
+  }
+}
+
+/* 全局覆盖element-plus的el-tour、el-dialog、el-drawer、el-message-box、el-notification组件右上角关闭图标和el-upload上传文件列表右侧关闭图标的样式，表现更鲜明 */
+.el-dialog__headerbtn,
+.el-message-box__headerbtn {
+  &:hover {
+    .el-dialog__close {
+      color: var(--el-color-info) !important;
+    }
+  }
+}
+
+.el-icon {
+  &.el-tour__close,
+  &.el-dialog__close,
+  &.el-drawer__close,
+  &.el-message-box__close,
+  &.el-notification__closeBtn,
+  .el-upload-list__item.is-ready &.el-icon--close {
+    width: 24px;
+    height: 24px;
+    outline: none;
+    border-radius: 4px;
+    transition:
+      background-color 0.2s,
+      color 0.2s;
+
+    &:hover {
+      color: rgb(0 0 0 / 88%) !important;
+      text-decoration: none;
+      background-color: rgb(0 0 0 / 6%);
+
+      .pure-dialog-svg {
+        color: rgb(0 0 0 / 88%) !important;
+      }
+    }
+  }
+}
+
+/* 克隆并自定义 ElMessage 样式，不会影响 ElMessage 原本样式，在 src/utils/message.ts 中调用自定义样式 ElMessage 方法即可，整体暗色风格在 src/style/dark.scss 文件进行了适配 */
+.pure-message {
+  background: #fff !important;
+  border-width: 0 !important;
+  box-shadow:
+    0 3px 6px -4px #0000001f,
+    0 6px 16px #00000014,
+    0 9px 28px 8px #0000000d !important;
+
+  & .el-message__content {
+    color: #000000d9 !important;
+    pointer-events: all !important;
+    background-image: initial !important;
+  }
+
+  & .el-message__closeBtn {
+    outline: none;
+    border-radius: 4px;
+    transition:
+      background-color 0.2s,
+      color 0.2s;
+
+    &:hover {
+      background-color: rgb(0 0 0 / 6%);
+    }
+  }
+}
+
+/* 自定义菜单搜索样式 */
+.pure-search-dialog {
+  @media screen and (width > 760px) and (width <= 940px) {
+    .el-input__inner {
+      font-size: 12px;
+    }
+  }
+
+  @media screen and (width <= 470px) {
+    .el-input__inner {
+      font-size: 12px;
+    }
+  }
+
+  .el-dialog__header {
+    display: none;
+  }
+
+  .el-input__inner {
+    font-size: 1.2em;
+  }
+
+  .el-dialog__footer {
+    width: calc(100% + 32px);
+    padding: 10px 20px;
+    margin: auto -16px -16px;
+    box-shadow:
+      0 -1px 0 0 #e0e3e8,
+      0 -3px 6px 0 rgb(69 98 155 / 12%);
+  }
+}
+
+/* 固定列（sticky）彻底不透明：
+   Element Plus 的 sticky 固定列单元格背景是 background: inherit 跟随 tr，
+   一旦 tr / 行底色 / 悬浮高亮色在半透明主题下不是实色，横向滚动的中间列
+   就会从固定列下面透出来。这里强制：
+   1. 固定列 td/th 的 background-color 铺实底（行底色、表头色、斑马底色、选中色），
+      这些变量均应为不透明色，若主题为半透明色需在其主题里预合成；
+   2. 悬浮高亮、选中+悬浮叠加色改用 background-image 的纯色渐变叠加在实底之上，
+      即使高亮色本身是半透明 rgba，底下仍有不透明底色托底，绝不透底。 */
+.el-table td.el-table-fixed-column--left,
+.el-table td.el-table-fixed-column--right {
+  background-color: var(--el-table-tr-bg-color) !important;
+  background-image: none !important;
+}
+
+.el-table th.el-table-fixed-column--left,
+.el-table th.el-table-fixed-column--right {
+  background-color: var(--el-table-header-bg-color) !important;
+  background-image: none !important;
+}
+
+/* 悬浮高亮：以渐变叠加在不透明实底上，不替换底色 */
+.el-table .el-table__body tr:hover > td.el-table-fixed-column--left,
+.el-table .el-table__body tr:hover > td.el-table-fixed-column--right,
+.el-table .el-table__body tr.hover-row > td.el-table-fixed-column--left,
+.el-table .el-table__body tr.hover-row > td.el-table-fixed-column--right {
+  background-image: linear-gradient(
+    var(--el-table-row-hover-bg-color),
+    var(--el-table-row-hover-bg-color)
+  ) !important;
+}
+
+/* 选中行：底色换成选中色（应不透明）；选中+悬浮时悬浮色压在选中色上渐变叠加 */
+.el-table .el-table__body tr.current-row > td.el-table-fixed-column--left,
+.el-table .el-table__body tr.current-row > td.el-table-fixed-column--right {
+  background-color: var(--el-table-current-row-bg-color) !important;
+  background-image: none !important;
+}
+
+.el-table .el-table__body tr.current-row:hover > td.el-table-fixed-column--left,
+.el-table .el-table__body tr.current-row:hover > td.el-table-fixed-column--right,
+.el-table .el-table__body tr.current-row.hover-row > td.el-table-fixed-column--left,
+.el-table .el-table__body tr.current-row.hover-row > td.el-table-fixed-column--right {
+  background-image: linear-gradient(
+    var(--el-table-row-hover-bg-color),
+    var(--el-table-row-hover-bg-color)
+  ) !important;
+}
+
+/* 斑马纹行：固定列跟随斑马底色，同样铺不透明实底 */
+.el-table--striped .el-table__body tr.el-table__row--striped > td.el-table-fixed-column--left,
+.el-table--striped .el-table__body tr.el-table__row--striped > td.el-table-fixed-column--right {
+  background-color: var(--el-fill-color-lighter) !important;
+}
+
+/* 斑马纹行悬浮/选中：底色先换成斑马色，再用渐变叠加高亮，避免实底规则压掉叠加色 */
+.el-table--striped .el-table__body tr.el-table__row--striped:hover > td.el-table-fixed-column--left,
+.el-table--striped .el-table__body tr.el-table__row--striped:hover > td.el-table-fixed-column--right,
+.el-table--striped .el-table__body tr.el-table__row--striped.hover-row > td.el-table-fixed-column--left,
+.el-table--striped .el-table__body tr.el-table__row--striped.hover-row > td.el-table-fixed-column--right,
+.el-table--striped .el-table__body tr.el-table__row--striped.current-row > td.el-table-fixed-column--left,
+.el-table--striped .el-table__body tr.el-table__row--striped.current-row > td.el-table-fixed-column--right {
+  background-color: var(--el-fill-color-lighter) !important;
+  background-image: linear-gradient(
+    var(--el-table-row-hover-bg-color),
+    var(--el-table-row-hover-bg-color)
+  ) !important;
+}
+
+/* 仿 el-scrollbar 滚动条样式，支持大多数浏览器，如Chrome、Edge、Firefox、Safari等。整体暗色风格在 src/style/dark.scss 文件进行了适配 */
+.pure-scrollbar {
+  scrollbar-color: rgb(221 222 224) transparent; /* 滑块颜色、轨道颜色 */
+
+  /* Firefox */
+  scrollbar-width: thin; /* 可选值为 'auto', 'thin', 'none' */
+  ::-webkit-scrollbar {
+    width: 6px; /* 滚动条宽度 */
+  }
+
+  /* 滚动条轨道 */
+  ::-webkit-scrollbar-track {
+    background: transparent; /* 轨道颜色 */
+  }
+
+  /* 滚动条滑块 */
+  ::-webkit-scrollbar-thumb {
+    background-color: rgb(221 222 224);
+    border-radius: 4px;
+  }
+
+  /* 滚动条滑块：hover状态 */
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(199 201 203); /* 滑块hover颜色 */
+  }
+}

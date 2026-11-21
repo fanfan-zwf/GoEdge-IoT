@@ -1,0 +1,14 @@
+./authorizations.go
+./buckets.go
+./data_to_point.go
+./delete.go
+./doc.go
+./labels.go
+./organizations.go
+./paging.go
+./query.go
+./reflection.go
+./tasks.go
+./users.go
+./write.go
+./writeAPIBlocking.go

@@ -1,0 +1,4 @@
+./checks.client.go
+./checks.types.go
+./client.gen.go
+./types.gen.go

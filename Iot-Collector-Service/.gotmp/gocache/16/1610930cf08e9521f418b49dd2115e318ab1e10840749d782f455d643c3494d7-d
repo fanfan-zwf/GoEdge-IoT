@@ -1,0 +1,11 @@
+{
+	"collector/internal/repo/mysql": {
+		"printf": [
+			{
+				"posn": "/home/ubuntu/桌面/GoEdge-IoT/Iot-Collector-Service/internal/repo/mysql/rbac_admin.go:174:24",
+				"end": "/home/ubuntu/桌面/GoEdge-IoT/Iot-Collector-Service/internal/repo/mysql/rbac_admin.go:174:86",
+				"message": "fmt.Sprintf call needs 1 arg but has 2 args"
+			}
+		]
+	}
+}

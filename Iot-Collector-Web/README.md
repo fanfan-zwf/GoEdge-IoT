@@ -1,333 +1,170 @@
 # Iot-Collector-Web
 
-Iot-Collector-Service 的前端配置管理界面，用于管理采集器的驱动、点位、报警和历史记录配置。
+工业物联网边缘采集服务的**前端管理台**：基于 `vue-pure-admin`（Vue 3 + Vite + Element Plus + TypeScript）精简改造，对接后端 [`Iot-Collector-Service`](../Iot-Collector-Service/README.md) 的 HTTP/WebSocket 接口，提供驱动、点位、报警、历史、权限（RBAC）、账号 / APIKey、系统信息与系统配置等管理页面。
 
-## 技术栈
+> 🌐 **在线 Demo**：<http://collector.demo.zwf.fan/> —— **前后端一体化部署**的完整系统演示实例，可直接打开体验驱动/点位/报警/历史/RBAC 等全部功能；数据为演示环境，请勿用于生产。
 
-| 技术 | 版本 | 用途 |
+> 本文件是**前端总览入口**。每个模块都有独立 README，请从下方 [🧭 模块导航](#-模块导航) 点进去。
+
+## 📋 目录
+
+- [技术栈](#-技术栈)
+- [🧭 模块导航](#-模块导航)
+- [项目结构](#-项目结构)
+- [快速开始](#-快速开始)
+- [运行时服务器地址配置](#-运行时服务器地址配置)
+- [与后端的约定](#-与后端的约定)
+- [许可证](#-许可证)
+
+## 🔧 技术栈
+
+| 类别 | 技术 | 说明 |
 |------|------|------|
-| Vue | 3.5 | 前端框架 |
-| TypeScript | 5.6 | 类型安全 |
-| Vite | 6.0 | 构建工具 |
-| Element Plus | 2.9 | UI 组件库 |
-| vue-router | 4.5 | 路由（Hash 模式） |
-| vue-i18n | 10.0 | 国际化 |
-| ECharts | 6.1 | 趋势曲线图 |
-| Axios | 1.7 | HTTP 请求 |
+| 框架 | Vue 3（组合式 API + `<script setup>`） | 主框架 |
+| 构建 | Vite | 开发/打包；`vite.config.ts` |
+| 语言 | TypeScript（严格模式） | `tsconfig.json`，类型检查 `vue-tsc` |
+| UI | Element Plus + vxe-table | 组件库与高性能表格 |
+| 状态 | Pinia | `src/store` |
+| 路由 | vue-router（hash 模式） | `src/router`，`VITE_ROUTER_HISTORY="hash"` |
+| 国际化 | vue-i18n | `src/plugins/i18n.ts`，多语言见 `public/locales` |
+| HTTP | axios（全局单例） | 封装在 `src/api/config.ts` |
+| 图表 | echarts | `src/plugins/echarts.ts` |
+| 包管理 | **pnpm**（`only-allow pnpm` 钩子） | `package.json` name=`iot-collector-web`，version=`7.0.0` |
 
-## 构建与运行
+## 🧭 模块导航
+
+点击"详细文档"进入各模块 README。
+
+### 应用入口与配置
+
+| 模块 | 职责 | 详细文档 |
+|------|------|----------|
+| `src/main.ts` / `src/App.vue` | 应用引导：`getPlatformConfig` 拉取平台配置、挂载 router/store/i18n | [src 总览](src/README.md) |
+| `src/config` | 平台配置 `getConfig()` 与默认项 | [README](src/config/README.md) |
+
+### 数据与网络
+
+| 模块 | 职责 | 详细文档 |
+|------|------|----------|
+| `src/api` | 全局 `http` 实例 + 拦截器 + 各业务 API 分组 + 服务器地址解析 | [README](src/api/README.md) |
+| `src/store` | Pinia：app / user / permission / multiTags / settings / epTheme | [README](src/store/README.md) |
+
+### 路由与布局
+
+| 模块 | 职责 | 详细文档 |
+|------|------|----------|
+| `src/router` | 路由实例、静态/动态路由、`modules`（home/point/remaining/system） | [README](src/router/README.md) |
+| `src/layout` | 主布局：navbar / sidebar / tag / hooks | [README](src/layout/README.md) |
+
+### 视图页面
+
+| 模块 | 职责 | 详细文档 |
+|------|------|----------|
+| `src/views` | 所有业务页面索引 | [README](src/views/README.md) |
+| ├ `views/login` | 登录（AK/密码 + 服务器地址） | [README](src/views/login/README.md) |
+| ├ `views/home` | 首页概览 | [README](src/views/home/README.md) |
+| ├ `views/drive` | 驱动配置管理 | [README](src/views/drive/README.md) |
+| ├ `views/ioDrive` | Modbus / Siemens 驱动表单（index+form+point_form） | [README](src/views/ioDrive/README.md) |
+| ├ `views/point` | 点位配置管理 | [README](src/views/point/README.md) |
+| ├ `views/alarm` | 报警规则配置 | [README](src/views/alarm/README.md) |
+| ├ `views/alarm-data` | 报警数据查询 | [README](src/views/alarm-data/README.md) |
+| ├ `views/history` | 历史采集配置 | [README](src/views/history/README.md) |
+| ├ `views/history-data` | 历史数据查询（InfluxDB） | [README](src/views/history-data/README.md) |
+| ├ `views/rbac` | RBAC：角色 / 权限 / 授权 | [README](src/views/rbac/README.md) |
+| ├ `views/user` | 登录账号管理 | [README](src/views/user/README.md) |
+| ├ `views/apikey` | APIKey（AK/SK）管理 | [README](src/views/apikey/README.md) |
+| ├ `views/system-info` | 系统信息监控 | [README](src/views/system-info/README.md) |
+| ├ `views/system-config` | 在线编辑 config.yaml | [README](src/views/system-config/README.md) |
+| └ `views/error` / `empty` / `account` | 错误页 / 空白页 / 账号页 | [README](src/views/error/README.md) |
+
+### 公共能力
+
+| 模块 | 职责 | 详细文档 |
+|------|------|----------|
+| `src/components` | 通用组件（ReXxx 系列，含自研 `RePointSelector` 等） | [README](src/components/README.md) |
+| `src/utils` | 工具：`auth`(令牌) / `serverAddr` / `configFormat` / `http`(空) 等 | [README](src/utils/README.md) |
+| `src/directives` | 指令：`auth` / `perms` / `copy` / `ripple` / `longpress` 等 | [README](src/directives/README.md) |
+| `src/plugins` | 插件装配：elementPlus / echarts / i18n / vxeTable | [README](src/plugins/README.md) |
+| `src/style` | 全局样式与主题 | [README](src/style/README.md) |
+| `src/assets` | 静态资源 | [README](src/assets/README.md) |
+
+### 后端联动（跨项目）
+
+| 关注点 | 后端文档 |
+|------|----------|
+| 接口 / 鉴权 / 响应信封 `{Code,Msg,Data}` | [handler README](../Iot-Collector-Service/internal/handler/README.md) |
+| RBAC 主题匹配规则（前端 topic_key 需对齐） | [pkg/rbac README](../Iot-Collector-Service/pkg/rbac/README.md) |
+| 字段格式正则的前端镜像 `configFormat.ts` ↔ 后端 | [conv README](../Iot-Collector-Service/pkg/conv/README.md) |
+
+## 📁 项目结构
+
+```
+Iot-Collector-Web/
+├── src/
+│   ├── api/          # 全局 http + 拦截器 + 业务 API（config.ts 为核心）
+│   ├── assets/       # 静态资源
+│   ├── components/   # 通用组件 ReXxx（27 个）
+│   ├── config/       # 平台配置 getConfig
+│   ├── directives/   # 自定义指令（auth/perms/copy/...）
+│   ├── layout/       # 主布局（navbar/sidebar/tag/hooks）
+│   ├── plugins/      # elementPlus/echarts/i18n/vxeTable 装配
+│   ├── router/       # 路由 + modules（home/point/remaining/system）
+│   ├── store/        # Pinia（app/user/permission/multiTags/settings/epTheme）
+│   ├── style/        # 全局样式
+│   ├── utils/        # auth/serverAddr/configFormat/... （http 目录为空）
+│   ├── views/        # 业务页面（17 个子目录）
+│   ├── App.vue       # 根组件
+│   └── main.ts       # 入口
+├── public/
+│   └── platform-config.json  # 运行时可改配置（BaseServer 等）
+├── types/            # 全局 .d.ts
+├── build/            # Vite 构建脚本
+├── .env / .env.development / .env.production
+├── vite.config.ts / tsconfig.json / package.json
+└── Dockerfile
+```
+
+## 🚀 快速开始
 
 ```bash
-npm install        # 安装依赖
-npm run dev        # 开发模式（http://0.0.0.0:8113）
-npm run build      # 生产构建（vue-tsc + vite build）
-npm run preview    # 预览生产构建
+# 安装依赖（必须用 pnpm，only-allow 钩子会拦截 npm install）
+pnpm install
+
+# 开发（VITE_PORT=8113，后端默认 8103）
+npm run dev          # 或 pnpm dev
+
+# 类型检查
+npm run typecheck    # vue-tsc --noEmit --skipLibCheck
+
+# 生产构建（先 rimraf dist → vite build → generate-version-file 产出 dist/version）
+npm run build
+
+# 预览构建产物
+npm run preview
 ```
 
-## 项目结构
+> `only-allow pnpm` 钩子只拦 `npm install`，不拦 `npm run <script>`，故 `npm run dev/build/typecheck` 均可直接执行；装依赖须用 `pnpm install`。
+> 构建内存不足时脚本已内置 `NODE_OPTIONS=--max-old-space-size=8192`。
+> `vite build` 打印 `[INEFFECTIVE_DYNAMIC_IMPORT]`（user.ts 被动态+静态同时引入）是可忽略的 rollup 提示。
 
-```
-src/
-├── api/
-│   └── config.ts          # HTTP 客户端 + 全部 API 封装
-├── assets/
-│   └── main.css           # 全局样式
-├── i18n/
-│   ├── index.ts           # i18n 入口（默认 zh）
-│   ├── zh.ts              # 中文
-│   ├── en.ts              # English
-│   ├── fr.ts              # Français
-│   ├── ru.ts              # Русский
-│   ├── es.ts              # Español
-│   └── ar.ts              # العربية
-├── router/
-│   └── index.ts           # 路由配置（4 个页面）
-├── views/
-│   ├── DriveConfig.vue    # 驱动配置页
-│   ├── PointConfig.vue    # 点位配置页
-│   ├── AlarmConfig.vue    # 报警配置页
-│   └── HistoryConfig.vue  # 历史配置页
-├── App.vue                # 布局（侧边栏 + 顶部栏 + 主内容）
-└── main.ts                # 入口（挂载 ElementPlus / Router / i18n）
-```
+## 🔌 运行时服务器地址配置
 
-## 页面功能说明
+前端连接后端的地址**构建后可改**，优先级（`src/api/config.ts` 的 `getBaseServer`）：
 
-### 1. 驱动配置（/drive）— DriveConfig.vue
+1. 登录页手输并持久化到 localStorage 的当前地址
+2. `public/platform-config.json` 的 `BaseServer`（`"IP:端口"`，**默认应留空**，勿写死内网 IP）
+3. 构建期注入的 `VITE_BASE_SERVER`（dev 在 `.env.development`，prod 留空）
+4. `window.location.host` 同源兜底
 
-管理 IO 通信驱动，每个驱动代表一个与物理设备的连接通道。
+`resolveBaseURL()`：host 与页面同源时返回相对 `/api/v1.0`（继承协议/端口，避免混合内容），异机时拼 `http://{host}/api/v1.0`。修改 `platform-config.json` 无需重新构建，刷新浏览器即生效。详见 [api 详细文档](src/api/README.md)。
 
-**表格列：**
+## 🤝 与后端的约定
 
-| 列 | 字段 | 说明 |
-|----|------|------|
-| ID | `Id` | 驱动自增 id |
-| 驱动类型 | `Type` | `Modbus_Tcp` 或 `Siemens_S7` |
-| 驱动名称 | `Name` | 用户自定义名称 |
-| 配置 | `Config` | 分号分隔的连接参数字符串 |
-| 点位数 | `Points_Length` | 该驱动下的点位数量 |
-| 创建时间 | `Creation_Time` | - |
+- **响应信封**：后端统一返回 `{Code,Msg,Data,Timestamp}`，`Code` 2xx 成功；全局响应拦截器已按 code 弹消息并 `reject` 非 2xx，业务层直接取 `.Data`。
+- **鉴权**：Bearer `access_token` 自动注入，401 单飞刷新 + 重放一次，刷新失败登出（`src/api/config.ts`）。
+- **字段格式校验**：`src/utils/configFormat.ts` 是后端 `Point/Drive_Config` 校验正则的前端镜像，改后端正则必须同步这里，否则"前端能提交、后端回 417"。
+- **RBAC topic_key**：权限规则的主题式匹配串需与后端 [pkg/rbac](../Iot-Collector-Service/pkg/rbac/README.md) 的分段/通配语义一致。
 
-**操作：**
+## 📄 许可证
 
-| 操作 | 说明 |
-|------|------|
-| 新增 | 选择驱动类型 → 填写名称和配置参数 → 创建 |
-| 编辑 | 修改名称和配置参数（驱动类型不可改） |
-| 重启 | 向采集器发送重启指令，重新初始化该驱动连接 |
-| 删除 | 确认后删除驱动及其关联数据 |
-| 导出 | 导出全部驱动配置为 Excel 文件 |
-
-**配置格式提示（随驱动类型动态切换）：**
-
-| 驱动类型 | 配置格式 | 示例 |
-|----------|----------|------|
-| Modbus TCP | `IP;重试间隔;连接超时;响应超时;轮询间隔;组包最大长度` | `192.168.1.1;3s;3s;180s;1s;256` |
-| Siemens S7 | `IP;机架号;槽位号;重试间隔;轮询间隔;连接超时;响应超时;组包大小;连接类型` | `192.168.1.1;0;2;3s;0;10s;10s;480;2` |
-
-> 配置输入框旁有 `?` 链接，跳转到对应驱动的 GitHub README 文档。
-
----
-
-### 2. 点位配置（/point）— PointConfig.vue
-
-管理每个驱动下的数据采集点位，支持实时值监控、趋势曲线和写入操作。
-
-**表格列：**
-
-| 列 | 字段 | 说明 |
-|----|------|------|
-| ID | `Id` | 点位自增 id |
-| 驱动 ID | `Drive_Id` | 所属驱动 |
-| 点位名称 | `Name` | 用户自定义名称 |
-| 描述 | `Description` | 可选说明 |
-| 配置 | `Config` | 分号分隔的点位采集参数（趋势模式时隐藏） |
-| 读写方式 | `RW_Cancel` | N/R/W/R/W（趋势模式时隐藏） |
-| 值类型 | `Value_Type` | bool/int16/float32 等（趋势模式时隐藏） |
-| 创建时间 | `Creation_Time` | - |
-| **状态** | 实时 | WebSocket 推送，`ok` 绿色 / 错误红色 |
-| **当前值** | 实时 | WebSocket 推送的最新采集值 |
-| **时间延迟** | 实时 | 采集时间到当前的延迟（绿/黄/红三色） |
-| **趋势** | 实时 | ECharts Sparkline 小曲线（需手动开启） |
-
-**操作：**
-
-| 操作 | 说明 |
-|------|------|
-| 显示趋势 | 切换趋势曲线列的显示/隐藏 |
-| 新增 | 选择驱动 → 填写名称、配置、读写方式、值类型 → 创建 |
-| 编辑 | 修改点位属性 |
-| 写入 | 仅 `RW_Cancel` 为 W(3) 或 R/W(4) 时可用，弹出写入对话框 |
-| 删除 | 确认后删除点位 |
-| 导出 | 导出全部点位配置为 Excel 文件 |
-
-**读写方式（RW_Cancel）：**
-
-| 值 | 显示 | 说明 |
-|----|------|------|
-| 1 | N | 不采集 |
-| 2 | R | 只读 |
-| 3 | W | 只写 |
-| 4 | R/W | 读写 |
-
-**值类型（Value_Type）：**
-
-| 值 | 类型 | 值 | 类型 |
-|----|------|----|------|
-| 1 | bool | 9 | uint64 |
-| 2 | int8 | 10 | int |
-| 3 | uint8 | 11 | uint |
-| 4 | int16 | 12 | float32 |
-| 5 | uint16 | 13 | float64 |
-| 6 | int32 | 14 | float |
-| 7 | uint32 | 15 | string |
-| 8 | int64 | | |
-
-**实时数据获取（双通道）：**
-
-```
-页面加载
-    │
-    ├── 1. HTTP API 获取初始值
-    │   └── POST /point/read/value → 读取内存中的当前值
-    │
-    └── 2. WebSocket 持续推送实时值
-        └── ws://HOST:PORT/api/v1.0/point/ws?points=[id1,id2,...]
-            ├── 推送内容：PointId / Value / Msg / Time
-            ├── 时间延迟计算：Date.now() - new Date(Time).getTime()
-            │   ├── < 1s → 绿色（ms 级）
-            │   ├── < 3s → 黄色（s 级）
-            │   ├── < 60s → 红色（s 级）
-            │   └── ≥ 60s → 红色（m 分 s 秒）
-            └── 趋势曲线：每次数据追加到 ECharts Sparkline
-```
-
-**点位配置格式提示（随所属驱动类型动态切换）：**
-
-| 驱动类型 | 配置格式 | 示例 |
-|----------|----------|------|
-| Modbus TCP | `从机地址;功能码;寄存器地址;字节序;数据类型` | `1;3;100;ABCD;float32` |
-| Siemens S7 | `存储区;DB块号;字节偏移;数据类型;子地址` | `132;1;0;12;0` |
-
----
-
-### 3. 报警配置（/alarm）— AlarmConfig.vue
-
-为点位配置报警规则，当采集值满足条件时触发报警。
-
-**表格列：**
-
-| 列 | 字段 | 说明 |
-|----|------|------|
-| ID | `Id` | 报警配置自增 id |
-| 点位 ID | `Point_Id` | 关联的点位 |
-| 报警名称 | `Name` | 用户自定义名称 |
-| 报警规则 | `Config` | 报警条件表达式 |
-| 报警组 | `Group` | 报警分组编号（≥1） |
-| 创建时间 | `Creation_Time` | - |
-
-**操作：**
-
-| 操作 | 说明 |
-|------|------|
-| 新增 | 选择点位（可搜索下拉）→ 填写名称、规则、组号 → 创建 |
-| 编辑 | 修改报警规则属性 |
-| 删除 | 确认后删除 |
-| 导出 | 导出全部报警配置为 Excel 文件 |
-
-**报警规则（Config）支持的值：**
-
-| 规则 | 含义 | 触发条件 |
-|------|------|----------|
-| `==0` | 值等于 false/0 | 值为 false → 报警开始；值为 true → 报警恢复 |
-| `==1` | 值等于 true/非0 | 值为 true → 报警开始；值为 false → 报警恢复 |
-| `0<>1` | 值变化触发 | 任何值变化都触发报警 |
-
-> 一个点位可以配置多条报警规则，每条规则独立判断。
-
----
-
-### 4. 历史配置（/history）— HistoryConfig.vue
-
-为点位启用历史数据记录，配置生效后该点位的每次采集值都会被记录到历史存储。
-
-**表格列：**
-
-| 列 | 字段 | 说明 |
-|----|------|------|
-| ID | `Id` | 历史配置自增 id |
-| 点位 ID | `Point_Id` | 关联的点位 |
-| 配置 | `Config` | 历史采集配置（非空即启用） |
-| 创建时间 | `Creation_Time` | - |
-
-**操作：**
-
-| 操作 | 说明 |
-|------|------|
-| 新增 | 选择点位（可搜索下拉）→ 填写配置 → 创建 |
-| 编辑 | 修改历史配置 |
-| 删除 | 确认后删除 |
-| 导出 | 导出全部历史配置为 Excel 文件 |
-
-> 配置值不能为空或 `"null"`，否则该点位不会被记录历史数据。
-
----
-
-## API 接口
-
-后端基础地址：`http://192.168.220.40:8103/api/v1.0`
-
-### 响应格式
-
-所有接口返回统一格式：
-
-```json
-{
-  "Code": 200,
-  "Msg": "ok",
-  "Data": [...],
-  "Timestamp": "2026-09-23T10:00:00Z"
-}
-```
-
-前端根据 `Code` 范围显示不同消息类型：
-- `2xx` → 成功（绿色）
-- `3xx` → 信息（蓝色）
-- `4xx` → 警告（黄色）
-- `5xx` → 错误（红色）
-
-### 接口列表
-
-| 模块 | 方法 | 路径 | 参数 |
-|------|------|------|------|
-| **驱动** | POST | `/config/drive/query` | `{ page, pageSize }` |
-| | POST | `/config/drive/count` | `{ page, pageSize }` |
-| | POST | `/config/drive/add` | `[{ Type, Name, Config }]` |
-| | POST | `/config/drive/update` | `[{ Id, Name, Config }]` |
-| | POST | `/config/drive/del` | `{ ids: [] }` |
-| | POST | `/config/drive/restart` | `{ id }` |
-| **点位** | POST | `/config/point/query` | `{ driveId?, page, pageSize }` |
-| | POST | `/config/point/count` | `{ driveId?, page, pageSize }` |
-| | POST | `/config/point/add` | `[{ Drive_Id, Name, Description, Config, RW_Cancel, Value_Type }]` |
-| | POST | `/config/point/update` | `[{ Id, ... }]` |
-| | POST | `/config/point/del` | `{ ids: [] }` |
-| | POST | `/point/read/value` | `[pointId1, pointId2, ...]` |
-| | POST | `/point/write/value` | `[{ PointId, Value, Type }]` |
-| **报警** | POST | `/config/alarm/query` | `{ pointId?, page, pageSize }` |
-| | POST | `/config/alarm/count` | `{ pointId?, page, pageSize }` |
-| | POST | `/config/alarm/add` | `[{ Point_Id, Name, Config, Group }]` |
-| | POST | `/config/alarm/update` | `[{ Id, ... }]` |
-| | POST | `/config/alarm/del` | `{ ids: [] }` |
-| **历史** | POST | `/config/history/query` | `{ pointId?, page, pageSize }` |
-| | POST | `/config/history/count` | `{ pointId?, page, pageSize }` |
-| | POST | `/config/history/add` | `[{ Point_Id, Config }]` |
-| | POST | `/config/history/update` | `[{ Id, ... }]` |
-| | POST | `/config/history/del` | `{ ids: [] }` |
-| **导出** | GET | `/config/export?type=drive\|point\|alarm\|history` | - |
-| **WebSocket** | WS | `/point/ws?points=[id1,id2,...]` | 实时推送点位值 |
-
-## 布局与交互
-
-### 整体布局
-
-```
-┌──────────────────────────────────────────────┐
-│  ⚙ 采集配置           语言切换  Iot-Collector │  ← 顶部 Header
-├────────┬─────────────────────────────────────┤
-│        │  首页 / 当前页面                      │  ← 面包屑
-│  驱动  │─────────────────────────────────────│
-│  点位  │                                     │
-│  报警  │  页面标题          [新增] [导出]      │
-│  历史  │  ┌─────────────────────────────┐    │
-│        │  │ 表格数据                      │    │
-│  [≡]   │  └─────────────────────────────┘    │
-│        │  共 X 条  < 1 2 3 ... >             │  ← 分页
-└────────┴─────────────────────────────────────┘
-```
-
-### 响应式适配
-
-| 屏幕宽度 | 行为 |
-|----------|------|
-| ≥ 768px | 侧边栏常驻，支持折叠/展开 |
-| < 768px | 侧边栏隐藏，点击汉堡菜单弹出（带遮罩层） |
-
-### 国际化支持
-
-6 种语言实时切换（中文 / English / Français / Русский / Español / العربية），同时切换 Element Plus 组件库语言包。
-
-## 四页面配置关系
-
-```
-驱动配置（DriveConfig）
-    │ 一个驱动包含多个点位
-    ▼
-点位配置（PointConfig）
-    │ 一个点位可关联多条报警 + 一条历史
-    ├──▶ 报警配置（AlarmConfig）  ——  按 Point_Id 关联
-    └──▶ 历史配置（HistoryConfig） ——  按 Point_Id 关联
-```
-
-## 依赖
-
-- `Iot-Collector-Service` — 后端 API 服务（端口 8103）
+本项目基于 vue-pure-admin（[MIT](./LICENSE)）改造。上游版权：© 2020-present, pure-admin。

@@ -1,0 +1,17 @@
+./api.go
+./buffer.go
+./client.go
+./client_ascii.go
+./client_option.go
+./client_rtu.go
+./client_tcp.go
+./crc.go
+./function.go
+./log.go
+./lrc.go
+./modbus.go
+./register.go
+./serial.go
+./server_tcp.go
+./server_tcp_session.go
+./server_tcp_special.go

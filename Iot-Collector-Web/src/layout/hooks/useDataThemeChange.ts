@@ -1,0 +1,182 @@
+import { ref } from "vue";
+import { getConfig } from "@/config";
+import { useLayout } from "./useLayout";
+import { removeToken } from "@/utils/auth";
+import { routerArrays } from "@/layout/types";
+import { router, resetRouter } from "@/router";
+import type { themeColorsType } from "../types";
+import { useAppStoreHook } from "@/store/modules/app";
+import { useEpThemeStoreHook } from "@/store/modules/epTheme";
+import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
+import { darken, lighten, useGlobal, storageLocal } from "@pureadmin/utils";
+
+export function useDataThemeChange() {
+  const { layoutTheme, layout } = useLayout();
+  const themeColors = ref<Array<themeColorsType>>([
+    /* 工业皮肤 · Deep Console（深蓝黑 + 霓虹青） */
+    {
+      color: "#4dd0e1",
+      themeColor: "industrialConsole",
+      labelKey: "skin.console",
+      forceDark: true,
+      group: "industrial"
+    },
+    /* 工业皮肤 · Blueprint Light（象牙白 + 工程蓝） */
+    {
+      color: "#1e6fd9",
+      themeColor: "industrialBlueprint",
+      labelKey: "skin.blueprint",
+      forceDark: false,
+      group: "industrial"
+    },
+    /* 工业皮肤 · HMI Panel（深灰金属 + 安全橙） */
+    {
+      color: "#ff8a3d",
+      themeColor: "industrialPanel",
+      labelKey: "skin.panel",
+      forceDark: true,
+      group: "industrial"
+    },
+    /* 亮白色 */
+    { color: "#ffffff", themeColor: "light", group: "classic" },
+    /* 道奇蓝 */
+    { color: "#1b2a47", themeColor: "default", group: "classic" },
+    /* 深紫罗兰色 */
+    { color: "#722ed1", themeColor: "saucePurple", group: "classic" },
+    /* 深粉色 */
+    { color: "#eb2f96", themeColor: "pink", group: "classic" },
+    /* 猩红色 */
+    { color: "#f5222d", themeColor: "dusk", group: "classic" },
+    /* 橙红色 */
+    { color: "#fa541c", themeColor: "volcano", group: "classic" },
+    /* 绿宝石 */
+    { color: "#13c2c2", themeColor: "mingQing", group: "classic" },
+    /* 酸橙绿 */
+    { color: "#52c41a", themeColor: "auroraGreen", group: "classic" }
+  ]);
+
+  const { $storage } = useGlobal<GlobalPropertiesApi>();
+  const dataTheme = ref<boolean>($storage?.layout?.darkMode);
+  const themeMode = ref<string>($storage?.layout?.themeMode);
+  const body = document.documentElement as HTMLElement;
+
+  function toggleClass(flag: boolean, clsName: string, target?: HTMLElement) {
+    const targetEl = target || document.body;
+    let { className } = targetEl;
+    className = className.replace(clsName, "").trim();
+    targetEl.className = flag ? `${className} ${clsName}` : className;
+  }
+
+  /** 设置导航主题色 */
+  function setLayoutThemeColor(theme = getConfig().Theme ?? "light", isClick = true) {
+    layoutTheme.value.theme = theme;
+    document.documentElement.setAttribute("data-theme", theme);
+    // 如果非isClick，保留之前的themeColor
+    const storageThemeColor = $storage.layout.themeColor;
+    $storage.layout = {
+      layout: layout.value,
+      theme,
+      darkMode: dataTheme.value,
+      sidebarStatus: $storage.layout?.sidebarStatus,
+      epThemeColor: $storage.layout?.epThemeColor,
+      themeColor: isClick ? theme : storageThemeColor,
+      themeMode: themeMode.value
+    };
+
+    if (theme === "default" || theme === "light") {
+      setEpThemeColor(getConfig().EpThemeColor);
+    } else {
+      const colors = themeColors.value.find(v => v.themeColor === theme);
+      if (colors) setEpThemeColor(colors.color);
+    }
+
+    // 工业皮肤：自动同步 dataTheme 到 forceDark 值，确保背景层一致
+    if (isClick) {
+      const industrial = themeColors.value.find(
+        v => v.themeColor === theme && v.group === "industrial"
+      );
+      if (industrial && typeof industrial.forceDark === "boolean") {
+        dataTheme.value = industrial.forceDark;
+        themeMode.value = industrial.forceDark ? "dark" : "light";
+        // 直接重新写入 storage 中的 darkMode / themeMode，避免循环调用 dataThemeChange
+        $storage.layout = {
+          ...$storage.layout,
+          darkMode: dataTheme.value,
+          themeMode: themeMode.value
+        };
+        // 同步 html.dark 类（dataThemeChange 内部行为）
+        if (dataTheme.value) {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      }
+    }
+  }
+
+  function setPropertyPrimary(mode: string, i: number, color: string) {
+    document.documentElement.style.setProperty(
+      `--el-color-primary-${mode}-${i}`,
+      dataTheme.value ? darken(color, i / 10) : lighten(color, i / 10)
+    );
+  }
+
+  /** 设置 `element-plus` 主题色 */
+  const setEpThemeColor = (color: string) => {
+    useEpThemeStoreHook().setEpThemeColor(color);
+    document.documentElement.style.setProperty("--el-color-primary", color);
+    for (let i = 1; i <= 2; i++) {
+      setPropertyPrimary("dark", i, color);
+    }
+    for (let i = 1; i <= 9; i++) {
+      setPropertyPrimary("light", i, color);
+    }
+  };
+
+  /** 浅色、深色主题模式切换 */
+  function dataThemeChange(mode?: string) {
+    themeMode.value = mode;
+    if (useEpThemeStoreHook().epTheme === "light" && dataTheme.value) {
+      setLayoutThemeColor("default", false);
+    } else {
+      setLayoutThemeColor(useEpThemeStoreHook().epTheme, false);
+    }
+
+    if (dataTheme.value) {
+      document.documentElement.classList.add("dark");
+    } else {
+      if ($storage.layout.themeColor === "light") {
+        setLayoutThemeColor("light", false);
+      }
+      document.documentElement.classList.remove("dark");
+    }
+  }
+
+  /** 清空缓存并返回登录页 */
+  async function onReset() {
+    removeToken();
+    storageLocal().clear();
+    const { Grey, Weak, MultiTagsCache, EpThemeColor, Layout } = getConfig();
+    useAppStoreHook().setLayout(Layout);
+    setEpThemeColor(EpThemeColor);
+    useMultiTagsStoreHook().multiTagsCacheChange(MultiTagsCache);
+    toggleClass(Grey, "html-grey", document.querySelector("html"));
+    toggleClass(Weak, "html-weakness", document.querySelector("html"));
+    useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
+    await router.push("/login");
+    resetRouter();
+  }
+
+  return {
+    body,
+    dataTheme,
+    themeMode,
+    layoutTheme,
+    themeColors,
+    onReset,
+    toggleClass,
+    dataThemeChange,
+    setEpThemeColor,
+    setLayoutThemeColor
+  };
+}

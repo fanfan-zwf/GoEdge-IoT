@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="gEdge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#4dd0e1" />
+      <stop offset="60%"  stop-color="#2ba3c8" />
+      <stop offset="100%" stop-color="#1e4f8f" />
+    </linearGradient>
+    <linearGradient id="gChip" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#8ef4ff" />
+      <stop offset="100%" stop-color="#2979ff" />
+    </linearGradient>
+  </defs>
+
+  <!-- ===== Hexagonal chassis (pointy-top, geometric center = 32,32) ===== -->
+  <path d="M32 3 L57.5 17.5 L57.5 46.5 L32 61 L6.5 46.5 L6.5 17.5 Z"
+        fill="none" stroke="url(#gEdge)" stroke-width="3.2"
+        stroke-linejoin="round" stroke-linecap="round" />
+
+  <!-- ===== Central IC chip (body center = 32,30) ===== -->
+  <rect x="22" y="20" width="20" height="20" rx="2.5"
+        fill="none" stroke="url(#gChip)" stroke-width="2.4" />
+  <rect x="27" y="25" width="10" height="10" rx="1.2"
+        fill="none" stroke="url(#gChip)" stroke-width="1.8" />
+
+  <!-- Pins: top ×3, bottom ×3, left ×2, right ×2 -->
+  <g stroke="url(#gChip)" stroke-width="1.8" stroke-linecap="round">
+    <line x1="26" y1="20" x2="26" y2="16" />
+    <line x1="32" y1="20" x2="32" y2="16" />
+    <line x1="38" y1="20" x2="38" y2="16" />
+    <line x1="26" y1="40" x2="26" y2="44" />
+    <line x1="32" y1="40" x2="32" y2="44" />
+    <line x1="38" y1="40" x2="38" y2="44" />
+    <line x1="22" y1="24" x2="18" y2="24" />
+    <line x1="22" y1="36" x2="18" y2="36" />
+    <line x1="42" y1="24" x2="46" y2="24" />
+    <line x1="42" y1="36" x2="46" y2="36" />
+  </g>
+
+  <!-- ===== Bidirectional arrows (symmetric about x=32, at chip mid-height) ===== -->
+  <g fill="none" stroke="url(#gEdge)" stroke-width="2.2"
+     stroke-linecap="round" stroke-linejoin="round">
+    <line x1="11" y1="30" x2="19" y2="30" />
+    <polyline points="15,26 11,30 15,34" />
+    <line x1="45" y1="30" x2="53" y2="30" />
+    <polyline points="49,26 53,30 49,34" />
+  </g>
+
+  <!-- ===== Bottom PCB traces (pads tucked inside the lower slants) ===== -->
+  <g fill="none" stroke="url(#gEdge)" stroke-width="2.2"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M26 44 L26 47 L22 51" />
+    <path d="M32 44 L32 51" />
+    <path d="M38 44 L38 47 L42 51" />
+  </g>
+  <g fill="none" stroke="url(#gEdge)" stroke-width="2.2">
+    <circle cx="22" cy="51" r="2.3" />
+    <circle cx="42" cy="51" r="2.3" />
+  </g>
+  <circle cx="32" cy="51" r="2.5" fill="url(#gEdge)" />
+</svg>

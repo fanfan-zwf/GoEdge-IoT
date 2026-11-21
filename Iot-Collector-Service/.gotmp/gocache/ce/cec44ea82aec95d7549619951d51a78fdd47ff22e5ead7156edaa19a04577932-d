@@ -1,0 +1,14 @@
+./apikey.go
+./auth.go
+./config.go
+./docs.go
+./export.go
+./log.go
+./point.go
+./rbac.go
+./rbac_admin.go
+./router.go
+./server.go
+./system.go
+./tagtree.go
+./user.go

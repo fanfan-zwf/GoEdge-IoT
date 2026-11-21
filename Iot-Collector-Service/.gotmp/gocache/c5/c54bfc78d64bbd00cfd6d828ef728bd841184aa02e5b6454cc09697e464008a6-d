@@ -1,0 +1,4 @@
+./client.go
+./compatibility.go
+./options.go
+./version.go
